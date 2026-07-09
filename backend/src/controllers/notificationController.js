@@ -8,28 +8,34 @@ export const sendRealtimeNotification = async (
   recipient,
   notification
 ) => {
-  const receiverSocketId = getReceiverSocketId(
-    recipient.toString()
-  );
+  try {
+    // Save notification first
+    const savedNotification = await Notification.create(notification);
 
-  if (receiverSocketId) {
-    getIO()
-      .to(receiverSocketId)
-      .emit("newNotification", notification);
-
-    console.log(
-      `Notification sent to socket ${receiverSocketId}`
+    const receiverSocketId = getReceiverSocketId(
+      recipient.toString()
     );
+
+    if (receiverSocketId) {
+      getIO()
+        .to(receiverSocketId)
+        .emit("newNotification", savedNotification);
+
+      console.log(
+        `✅ Notification sent to socket ${receiverSocketId}`
+      );
+    }
+
+    return savedNotification;
+  } catch (error) {
+    console.error("Notification Error:", error);
   }
 };
 
 /**
  * GET MY NOTIFICATIONS
  */
-export const getMyNotifications = async (
-  req,
-  res
-) => {
+export const getMyNotifications = async (req, res) => {
   try {
     const notifications = await Notification.find({
       recipient: req.user._id,
@@ -51,17 +57,16 @@ export const getMyNotifications = async (
 };
 
 /**
- * MARK AS READ
+ * MARK SINGLE NOTIFICATION AS READ
  */
 export const markNotificationRead = async (
   req,
   res
 ) => {
   try {
-    const notification =
-      await Notification.findById(
-        req.params.notificationId
-      );
+    const notification = await Notification.findById(
+      req.params.notificationId
+    );
 
     if (!notification) {
       return res.status(404).json({
@@ -80,7 +85,7 @@ export const markNotificationRead = async (
       });
     }
 
-    notification.isRead = true;
+    notification.read = true;
 
     await notification.save();
 
@@ -97,45 +102,45 @@ export const markNotificationRead = async (
 };
 
 /**
- * MARK ALL READ
+ * MARK ALL NOTIFICATIONS AS READ
  */
-export const markAllNotificationsRead =
-  async (req, res) => {
-    try {
-      await Notification.updateMany(
-        {
-          recipient: req.user._id,
-          isRead: false,
-        },
-        {
-          isRead: true,
-        }
-      );
+export const markAllNotificationsRead = async (
+  req,
+  res
+) => {
+  try {
+    await Notification.updateMany(
+      {
+        recipient: req.user._id,
+        read: false,
+      },
+      {
+        read: true,
+      }
+    );
 
-      return res.status(200).json({
-        success: true,
-        message:
-          "All notifications marked as read",
-      });
-    } catch (error) {
-      return res.status(500).json({
-        success: false,
-        message: error.message,
-      });
-    }
-  };
+    return res.status(200).json({
+      success: true,
+      message: "All notifications marked as read",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
 
 /**
- * UNREAD COUNT
+ * GET UNREAD COUNT
  */
 export const getUnreadNotificationCount =
   async (req, res) => {
     try {
-      const count =
-        await Notification.countDocuments({
-          recipient: req.user._id,
-          isRead: false,
-        });
+      const count = await Notification.countDocuments({
+        recipient: req.user._id,
+        read: false,
+      });
 
       return res.status(200).json({
         success: true,

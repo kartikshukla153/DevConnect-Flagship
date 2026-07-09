@@ -33,7 +33,7 @@ const notificationSchema = new mongoose.Schema(
       required: true,
     },
 
-    isRead: {
+    Read: {
       type: Boolean,
       default: false,
     },

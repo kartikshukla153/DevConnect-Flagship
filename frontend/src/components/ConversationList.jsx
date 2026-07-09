@@ -14,9 +14,12 @@ function ConversationList({
 
   const token = localStorage.getItem("token");
 
+  // ✅ YOUR USER OBJECT STORES "id" NOT "_id"
   const currentUser = JSON.parse(
     localStorage.getItem("user")
   );
+
+  const currentUserId = currentUser.id;
 
   const fetchConversations = async () => {
     try {
@@ -43,22 +46,23 @@ function ConversationList({
     <div className="h-full bg-[#0f172a] border-r border-gray-700 overflow-y-auto">
 
       <div className="p-4 border-b border-gray-700">
-
         <h2 className="text-xl font-bold text-cyan-400">
           Messages
         </h2>
-
       </div>
 
       {conversations.map((conversation) => {
 
-        const otherUser =
-          conversation.participants.find(
-            (u) => u._id !== currentUser._id
-          );
+        // ✅ Always pick the OTHER participant
+        const otherUser = conversation.participants.find(
+          (user) => user._id !== currentUserId
+        );
 
-        const isOnline =
-          onlineUsers.includes(otherUser._id);
+        if (!otherUser) return null;
+
+        const isOnline = onlineUsers.includes(
+          otherUser._id
+        );
 
         return (
           <div
@@ -67,19 +71,16 @@ function ConversationList({
               setSelectedConversation(conversation)
             }
             className={`p-4 cursor-pointer border-b border-gray-800 hover:bg-gray-800 ${
-              selectedConversation?._id ===
-              conversation._id
+              selectedConversation?._id === conversation._id
                 ? "bg-cyan-700"
                 : ""
             }`}
           >
-
             <div className="flex items-center gap-3">
 
               <OnlineIndicator online={isOnline} />
 
               <div>
-
                 <h3 className="font-semibold">
                   {otherUser.name}
                 </h3>
@@ -87,13 +88,12 @@ function ConversationList({
                 <p className="text-xs text-gray-400">
                   {otherUser.email}
                 </p>
-
               </div>
 
             </div>
-
           </div>
         );
+
       })}
     </div>
   );

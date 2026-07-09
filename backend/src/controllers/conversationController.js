@@ -1,4 +1,5 @@
 import Conversation from "../models/Conversation.js";
+import User from "../models/User.js";
 
 /**
  * CREATE OR GET CONVERSATION
@@ -19,7 +20,10 @@ export const createOrGetConversation = async (req, res) => {
       participants: {
         $all: [currentUser, otherUser],
       },
-    }).populate("participants", "name email");
+    }).populate(
+      "participants",
+      "name email profilePicture isOnline lastSeen"
+    );
 
     if (conversation) {
       return res.status(200).json({
@@ -32,14 +36,15 @@ export const createOrGetConversation = async (req, res) => {
       participants: [currentUser, otherUser],
     });
 
-    conversation = await Conversation.findById(conversation._id).populate(
+    conversation = await Conversation.findById(
+      conversation._id
+    ).populate(
       "participants",
-      "name email"
+      "name email profilePicture isOnline lastSeen"
     );
 
     return res.status(201).json({
       success: true,
-      message: "Conversation created successfully",
       conversation,
     });
   } catch (error) {
@@ -47,7 +52,7 @@ export const createOrGetConversation = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: "Server Error",
+      message: error.message,
     });
   }
 };
@@ -60,20 +65,21 @@ export const getMyConversations = async (req, res) => {
     const conversations = await Conversation.find({
       participants: req.user._id,
     })
-      .populate("participants", "name email")
-      .sort({ lastMessageAt: -1 });
+      .populate(
+        "participants",
+        "name email profilePicture isOnline lastSeen"
+      )
+      .populate("lastMessage")
+      .sort({ updatedAt: -1 });
 
     return res.status(200).json({
       success: true,
-      count: conversations.length,
       conversations,
     });
   } catch (error) {
-    console.log(error);
-
     return res.status(500).json({
       success: false,
-      message: "Server Error",
+      message: error.message,
     });
   }
 };
@@ -85,7 +91,10 @@ export const getConversation = async (req, res) => {
   try {
     const conversation = await Conversation.findById(
       req.params.conversationId
-    ).populate("participants", "name email");
+    ).populate(
+      "participants",
+      "name email profilePicture isOnline lastSeen"
+    );
 
     if (!conversation) {
       return res.status(404).json({
@@ -94,28 +103,55 @@ export const getConversation = async (req, res) => {
       });
     }
 
-    const isParticipant = conversation.participants.some(
-      (participant) =>
-        participant._id.toString() === req.user._id.toString()
-    );
-
-    if (!isParticipant) {
-      return res.status(403).json({
-        success: false,
-        message: "Unauthorized",
-      });
-    }
-
     return res.status(200).json({
       success: true,
       conversation,
     });
   } catch (error) {
-    console.log(error);
-
     return res.status(500).json({
       success: false,
-      message: "Server Error",
+      message: error.message,
+    });
+  }
+};
+
+/**
+ * SUGGESTED DEVELOPERS
+ */
+export const getSuggestedDevelopers = async (req, res) => {
+  try {
+    const myId = req.user._id;
+
+    const conversations = await Conversation.find({
+      participants: myId,
+    });
+
+    const connectedIds = [];
+
+    conversations.forEach((conv) => {
+      conv.participants.forEach((id) => {
+        if (id.toString() !== myId.toString()) {
+          connectedIds.push(id);
+        }
+      });
+    });
+
+    const developers = await User.find({
+      _id: {
+        $nin: [...connectedIds, myId],
+      },
+    }).select(
+      "name email username profilePicture isOnline lastSeen"
+    );
+
+    return res.status(200).json({
+      success: true,
+      developers,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
     });
   }
 };

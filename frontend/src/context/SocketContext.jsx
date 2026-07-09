@@ -8,7 +8,10 @@ export const SocketProvider = ({ children }) => {
   const { user } = useAuth();
 
   const [socket, setSocket] = useState(null);
+
   const [onlineUsers, setOnlineUsers] = useState([]);
+
+  const [notifications, setNotifications] = useState([]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -17,13 +20,34 @@ export const SocketProvider = ({ children }) => {
 
     setSocket(socketInstance);
 
+    // ===========================
+    // ONLINE USERS
+    // ===========================
+
     socketInstance.on("onlineUsers", (users) => {
       console.log("🔥 ONLINE USERS:", users);
       setOnlineUsers(users);
     });
 
+    // ===========================
+    // REALTIME NOTIFICATIONS
+    // ===========================
+
+    socketInstance.on("newNotification", (notification) => {
+      console.log("🔔 NEW NOTIFICATION");
+
+      console.log(notification);
+
+      setNotifications((prev) => [
+        notification,
+        ...prev,
+      ]);
+    });
+
     return () => {
       socketInstance.off("onlineUsers");
+      socketInstance.off("newNotification");
+
       disconnectSocket();
     };
   }, [user]);
@@ -32,7 +56,12 @@ export const SocketProvider = ({ children }) => {
     <SocketContext.Provider
       value={{
         socket,
+
         onlineUsers,
+
+        notifications,
+
+        setNotifications,
       }}
     >
       {children}

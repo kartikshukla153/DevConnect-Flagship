@@ -45,3 +45,25 @@ export const disconnectSocket = () => {
     socket = null;
   }
 };
+
+/* =========================================
+   CHAT HELPERS
+========================================= */
+
+export const emitTyping = (senderId, receiverId) => {
+  if (!socket) return;
+
+  socket.emit("typing", {
+    senderId,
+    receiverId,
+  });
+};
+
+export const emitStopTyping = (senderId, receiverId) => {
+  if (!socket) return;
+
+  socket.emit("stopTyping", {
+    senderId,
+    receiverId,
+  });
+};

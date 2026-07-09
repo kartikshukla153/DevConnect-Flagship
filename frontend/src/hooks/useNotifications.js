@@ -7,18 +7,32 @@ const API = "http://localhost:5000/api/notifications";
 export default function useNotifications() {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const token = localStorage.getItem("token");
 
   const fetchNotifications = async () => {
     try {
-      const res = await axios.get(API, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const [notificationRes, unreadRes] = await Promise.all([
+        axios.get(API, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }),
+        axios.get(`${API}/unread-count`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }),
+      ]);
 
-      setNotifications(res.data.notifications || []);
+      setNotifications(
+        notificationRes.data.notifications || []
+      );
+
+      setUnreadCount(
+        unreadRes.data.unreadCount || 0
+      );
     } catch (err) {
       console.log(err.response?.data || err.message);
     } finally {
@@ -38,6 +52,8 @@ export default function useNotifications() {
         notification,
         ...prev,
       ]);
+
+      setUnreadCount((prev) => prev + 1);
     });
 
     return () => {
@@ -47,6 +63,7 @@ export default function useNotifications() {
 
   return {
     notifications,
+    unreadCount,
     loading,
     refreshNotifications: fetchNotifications,
   };

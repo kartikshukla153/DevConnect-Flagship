@@ -1,10 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import axios from "axios";
 
-import { getSocket } from "../socket/socket";
-import OnlineIndicator from "./OnlineIndicator";
+import {
+  getSocket,
+  emitTyping,
+  emitStopTyping,
+} from "../socket/socket";
+
 import useOnlineUsers from "../hooks/useOnlineUsers";
-import formatLastSeen from "../utils/formatLastSeen";
+
+import ChatHeader from "./chat/ChatHeader";
+import MessageList from "./chat/MessageList";
+import MessageInput from "./chat/MessageInput";
+import TypingIndicator from "./chat/TypingIndicator";
 
 function ChatWindow({ conversation }) {
   const conversationId = conversation._id;
@@ -12,12 +20,23 @@ function ChatWindow({ conversation }) {
   const currentUser = JSON.parse(
     localStorage.getItem("user")
   );
+console.log("CURRENT USER");
+console.log(currentUser);
 
-  const receiver =
-    conversation.participants.find(
-      (u) => u._id !== currentUser._id
-    );
+console.log("PARTICIPANTS");
+console.table(
+  conversation.participants.map((p) => ({
+    id: p._id,
+    name: p.name,
+    email: p.email,
+  }))
+);
 
+  const currentUserId = currentUser.id;
+
+const receiver = conversation.participants.find(
+  (u) => u._id !== currentUserId
+);
   const onlineUsers = useOnlineUsers();
 
   const isOnline =
@@ -25,6 +44,7 @@ function ChatWindow({ conversation }) {
 
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
+  const [typing, setTyping] = useState(false);
 
   const bottomRef = useRef(null);
 
@@ -62,26 +82,72 @@ function ChatWindow({ conversation }) {
 
     if (!socket) return;
 
-    socket.on("receive_message", (message) => {
-      if (message.conversation === conversationId) {
-        setMessages((prev) => [...prev, message]);
+    socket.on("newMessage", (message) => {
+      if (
+        message.conversation === conversationId ||
+        message.conversation?._id === conversationId
+      ) {
+        setMessages((prev) => {
+          const exists = prev.find(
+            (m) => m._id === message._id
+          );
+
+          if (exists) return prev;
+
+          return [...prev, message];
+        });
+      }
+    });
+
+    socket.on("typing", ({ senderId }) => {
+      if (senderId === receiver._id) {
+        setTyping(true);
+      }
+    });
+
+    socket.on("stopTyping", ({ senderId }) => {
+      if (senderId === receiver._id) {
+        setTyping(false);
       }
     });
 
     return () => {
-      socket.off("receive_message");
+      socket.off("newMessage");
+      socket.off("typing");
+      socket.off("stopTyping");
     };
   }, [conversationId]);
 
   const sendMessage = async () => {
     if (!text.trim()) return;
 
+    const optimisticMessage = {
+      _id: Date.now().toString(),
+      text,
+      sender: currentUserId,
+      conversation: conversationId,
+      createdAt: new Date().toISOString(),
+    };
+
+    setMessages((prev) => [
+      ...prev,
+      optimisticMessage,
+    ]);
+
+    const messageText = text;
+
+    setText("");
+
+    emitStopTyping(
+      currentUserId,
+      receiver._id
+    );
+
     try {
       await axios.post(
-        "http://localhost:5000/api/messages",
+        `http://localhost:5000/api/messages/${conversationId}`,
         {
-          conversationId,
-          text,
+          text: messageText,
         },
         {
           headers: {
@@ -89,76 +155,49 @@ function ChatWindow({ conversation }) {
           },
         }
       );
-
-      setText("");
-
-      fetchMessages();
     } catch (err) {
       console.log(err);
+
+      fetchMessages();
     }
   };
 
   return (
     <div className="flex flex-col h-full bg-[#111827] rounded-xl border border-gray-700">
 
-      <div className="border-b border-gray-700 p-4 flex items-center gap-3">
+      <ChatHeader
+        receiver={receiver}
+        isOnline={isOnline}
+      />
 
-        <OnlineIndicator online={isOnline} />
+      <MessageList
+        messages={messages}
+        currentUser={currentUser}
+        bottomRef={bottomRef}
+      />
 
-        <div>
+      <TypingIndicator
+        typing={typing}
+        receiverName={receiver.name}
+      />
 
-          <h2 className="font-bold text-lg">
-            {receiver.name}
-          </h2>
-
-          <p className="text-sm text-gray-400">
-            {isOnline
-              ? "Online"
-              : formatLastSeen(receiver.lastSeen)}
-          </p>
-
-        </div>
-
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
-
-        {messages.map((msg) => (
-
-          <div
-            key={msg._id}
-            className={`px-4 py-2 rounded-lg max-w-[70%] ${
-              msg.sender === currentUser._id
-                ? "bg-cyan-500 ml-auto"
-                : "bg-gray-700"
-            }`}
-          >
-            {msg.text}
-          </div>
-
-        ))}
-
-        <div ref={bottomRef} />
-
-      </div>
-
-      <div className="flex border-t border-gray-700">
-
-        <input
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Type message..."
-          className="flex-1 bg-transparent p-4 outline-none"
-        />
-
-        <button
-          onClick={sendMessage}
-          className="px-6 bg-cyan-500 text-black font-semibold"
-        >
-          Send
-        </button>
-
-      </div>
+      <MessageInput
+        text={text}
+        setText={setText}
+        sendMessage={sendMessage}
+        onTyping={() =>
+          emitTyping(
+            currentUserId,
+            receiver._id
+          )
+        }
+        onStopTyping={() =>
+          emitStopTyping(
+            currentUserId,
+            receiver._id
+          )
+        }
+      />
 
     </div>
   );
