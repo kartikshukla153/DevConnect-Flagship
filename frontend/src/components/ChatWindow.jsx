@@ -1,12 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import axios from "axios";
 
-import {
-  getSocket,
-  emitTyping,
-  emitStopTyping,
-} from "../socket/socket";
-
+import { getSocket } from "../socket/socket";
 import useOnlineUsers from "../hooks/useOnlineUsers";
 
 import ChatHeader from "./chat/ChatHeader";
@@ -20,31 +15,19 @@ function ChatWindow({ conversation }) {
   const currentUser = JSON.parse(
     localStorage.getItem("user")
   );
-console.log("CURRENT USER");
-console.log(currentUser);
 
-console.log("PARTICIPANTS");
-console.table(
-  conversation.participants.map((p) => ({
-    id: p._id,
-    name: p.name,
-    email: p.email,
-  }))
-);
+  const receiver = conversation.participants.find(
+    (u) => u._id !== currentUser.id
+  );
 
-  const currentUserId = currentUser.id;
-
-const receiver = conversation.participants.find(
-  (u) => u._id !== currentUserId
-);
   const onlineUsers = useOnlineUsers();
 
-  const isOnline =
-    onlineUsers.includes(receiver._id);
+  const isOnline = onlineUsers.includes(receiver._id);
+ const [messages, setMessages] = useState([]);
+const [text, setText] = useState("");
+const [typing, setTyping] = useState(false);
 
-  const [messages, setMessages] = useState([]);
-  const [text, setText] = useState("");
-  const [typing, setTyping] = useState(false);
+const [replyingTo, setReplyingTo] = useState(null);
 
   const bottomRef = useRef(null);
 
@@ -87,78 +70,88 @@ const receiver = conversation.participants.find(
         message.conversation === conversationId ||
         message.conversation?._id === conversationId
       ) {
-        setMessages((prev) => {
-          const exists = prev.find(
-            (m) => m._id === message._id
-          );
-
-          if (exists) return prev;
-
-          return [...prev, message];
-        });
+        setMessages((prev) => [...prev, message]);
       }
     });
 
-    socket.on("typing", ({ senderId }) => {
-      if (senderId === receiver._id) {
+    socket.on("typing", ({ conversationId: id }) => {
+      if (id === conversationId) {
         setTyping(true);
       }
     });
 
-    socket.on("stopTyping", ({ senderId }) => {
-      if (senderId === receiver._id) {
+    socket.on("stopTyping", ({ conversationId: id }) => {
+      if (id === conversationId) {
         setTyping(false);
       }
     });
+
+    socket.on(
+      "messageReactionUpdated",
+      (updatedMessage) => {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg._id === updatedMessage._id
+              ? updatedMessage
+              : msg
+          )
+        );
+      }
+    );
 
     return () => {
       socket.off("newMessage");
       socket.off("typing");
       socket.off("stopTyping");
+      socket.off("messageReactionUpdated");
     };
   }, [conversationId]);
+const handleTyping = () => {
+  const socket = getSocket();
 
+  if (!socket) return;
+
+  socket.emit("typing", {
+    senderId: currentUser.id,
+    receiverId: receiver._id,
+    conversationId,
+  });
+};
+
+const handleStopTyping = () => {
+  const socket = getSocket();
+
+  if (!socket) return;
+
+  socket.emit("stopTyping", {
+    senderId: currentUser.id,
+    receiverId: receiver._id,
+    conversationId,
+  });
+};
   const sendMessage = async () => {
     if (!text.trim()) return;
 
-    const optimisticMessage = {
-      _id: Date.now().toString(),
-      text,
-      sender: currentUserId,
-      conversation: conversationId,
-      createdAt: new Date().toISOString(),
-    };
-
-    setMessages((prev) => [
-      ...prev,
-      optimisticMessage,
-    ]);
-
-    const messageText = text;
-
-    setText("");
-
-    emitStopTyping(
-      currentUserId,
-      receiver._id
-    );
-
     try {
       await axios.post(
-        `http://localhost:5000/api/messages/${conversationId}`,
-        {
-          text: messageText,
-        },
+  `http://localhost:5000/api/messages/${conversationId}`,
+  {
+    text,
+    replyTo: replyingTo?._id || null,
+  },
         {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         }
       );
+
+      setText("");
+setReplyingTo(null);
+
+fetchMessages();
     } catch (err) {
       console.log(err);
-
-      fetchMessages();
     }
   };
 
@@ -171,10 +164,11 @@ const receiver = conversation.participants.find(
       />
 
       <MessageList
-        messages={messages}
-        currentUser={currentUser}
-        bottomRef={bottomRef}
-      />
+  messages={messages}
+  currentUser={currentUser}
+  bottomRef={bottomRef}
+  setReplyingTo={setReplyingTo}
+/>
 
       <TypingIndicator
         typing={typing}
@@ -182,22 +176,14 @@ const receiver = conversation.participants.find(
       />
 
       <MessageInput
-        text={text}
-        setText={setText}
-        sendMessage={sendMessage}
-        onTyping={() =>
-          emitTyping(
-            currentUserId,
-            receiver._id
-          )
-        }
-        onStopTyping={() =>
-          emitStopTyping(
-            currentUserId,
-            receiver._id
-          )
-        }
-      />
+  text={text}
+  setText={setText}
+  sendMessage={sendMessage}
+  onTyping={handleTyping}
+  onStopTyping={handleStopTyping}
+  replyingTo={replyingTo}
+  setReplyingTo={setReplyingTo}
+/>
 
     </div>
   );

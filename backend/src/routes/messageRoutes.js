@@ -7,44 +7,53 @@ import {
   getMessages,
   markConversationAsRead,
   getUnreadCount,
+  editMessage,
+  deleteMessage,
+  reactToMessage,
 } from "../controllers/messageController.js";
 
 const router = express.Router();
 
-/**
- * SEND MESSAGE
- */
 router.post(
   "/:conversationId",
   authMiddleware,
   sendMessage
 );
 
-/**
- * GET MESSAGES
- */
 router.get(
   "/:conversationId",
   authMiddleware,
   getMessages
 );
 
-/**
- * MARK AS READ
- */
 router.put(
   "/read/:conversationId",
   authMiddleware,
   markConversationAsRead
 );
 
-/**
- * GET TOTAL UNREAD COUNT
- */
 router.get(
   "/unread/count",
   authMiddleware,
   getUnreadCount
+);
+
+router.put(
+  "/edit/:messageId",
+  authMiddleware,
+  editMessage
+);
+
+router.delete(
+  "/:messageId",
+  authMiddleware,
+  deleteMessage
+);
+
+router.put(
+  "/reaction/:messageId",
+  authMiddleware,
+  reactToMessage
 );
 
 export default router;

@@ -6,6 +6,8 @@ function MessageInput({
   sendMessage,
   onTyping,
   onStopTyping,
+  replyingTo,
+  setReplyingTo,
 }) {
   const typingTimeout = useRef(null);
 
@@ -22,23 +24,69 @@ function MessageInput({
   };
 
   return (
-    <div className="flex border-t border-gray-700">
+    <>
+      {replyingTo && (
+        <div className="px-4 py-3 border-t border-gray-700 bg-[#0F172A]">
 
-      <input
-        value={text}
-        onChange={handleChange}
-        placeholder="Type message..."
-        className="flex-1 bg-transparent p-4 outline-none"
-      />
+          <div className="flex items-start justify-between">
 
-      <button
-        onClick={sendMessage}
-        className="px-6 bg-cyan-500 text-black font-semibold"
-      >
-        Send
-      </button>
+            <div>
 
-    </div>
+              <p className="text-xs text-cyan-400 font-semibold">
+                Replying to {replyingTo.sender?.name}
+              </p>
+
+              <p className="text-sm text-gray-300 truncate max-w-[500px]">
+                {replyingTo.text}
+              </p>
+
+            </div>
+
+            <button
+              onClick={() => setReplyingTo(null)}
+              className="text-gray-400 hover:text-red-400 transition"
+            >
+              ✕
+            </button>
+
+          </div>
+
+        </div>
+      )}
+
+      <div className="flex border-t border-gray-700">
+
+        <input
+          value={text}
+          onChange={handleChange}
+          placeholder="Type a message..."
+          className="
+            flex-1
+            bg-transparent
+            px-5
+            py-4
+            outline-none
+            text-white
+            placeholder:text-gray-500
+          "
+        />
+
+        <button
+          onClick={sendMessage}
+          className="
+            px-8
+            bg-cyan-500
+            hover:bg-cyan-400
+            transition
+            text-black
+            font-semibold
+          "
+        >
+          Send
+        </button>
+
+      </div>
+    </>
   );
 }
 
