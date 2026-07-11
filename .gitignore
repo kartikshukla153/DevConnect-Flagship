@@ -25,3 +25,9 @@ coverage/
 
 # Misc
 *.local
+
+# Uploads
+backend/uploads/
+
+# Optional
+*.env
