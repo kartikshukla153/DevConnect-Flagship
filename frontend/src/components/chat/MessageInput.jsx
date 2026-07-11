@@ -8,8 +8,11 @@ function MessageInput({
   onStopTyping,
   replyingTo,
   setReplyingTo,
+  selectedFile,
+  setSelectedFile,
 }) {
   const typingTimeout = useRef(null);
+  const fileInputRef = useRef(null);
 
   const handleChange = (e) => {
     setText(e.target.value);
@@ -23,15 +26,19 @@ function MessageInput({
     }, 1000);
   };
 
+  const handleFileChange = (e) => {
+    if (!e.target.files.length) return;
+
+    setSelectedFile(e.target.files[0]);
+  };
+
   return (
     <>
+      {/* Reply Preview */}
       {replyingTo && (
         <div className="px-4 py-3 border-t border-gray-700 bg-[#0F172A]">
-
           <div className="flex items-start justify-between">
-
             <div>
-
               <p className="text-xs text-cyan-400 font-semibold">
                 Replying to {replyingTo.sender?.name}
               </p>
@@ -39,7 +46,6 @@ function MessageInput({
               <p className="text-sm text-gray-300 truncate max-w-[500px]">
                 {replyingTo.text}
               </p>
-
             </div>
 
             <button
@@ -48,13 +54,47 @@ function MessageInput({
             >
               ✕
             </button>
-
           </div>
-
         </div>
       )}
 
-      <div className="flex border-t border-gray-700">
+      {/* Selected File */}
+      {selectedFile && (
+        <div className="px-4 py-2 bg-[#111827] border-t border-gray-700 flex justify-between items-center">
+          <div className="truncate text-sm text-cyan-300">
+            📎 {selectedFile.name}
+          </div>
+
+          <button
+            onClick={() => {
+              setSelectedFile(null);
+
+              if (fileInputRef.current) {
+                fileInputRef.current.value = "";
+              }
+            }}
+            className="text-red-400 hover:text-red-300"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      <div className="flex items-center border-t border-gray-700">
+
+        <button
+          onClick={() => fileInputRef.current.click()}
+          className="px-4 text-xl hover:text-cyan-400 transition"
+        >
+          📎
+        </button>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          hidden
+          onChange={handleFileChange}
+        />
 
         <input
           value={text}

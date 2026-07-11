@@ -28,6 +28,7 @@ function ChatWindow({ conversation }) {
   const [text, setText] = useState("");
   const [typing, setTyping] = useState(false);
   const [replyingTo, setReplyingTo] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
 
   const bottomRef = useRef(null);
 
@@ -232,30 +233,49 @@ function ChatWindow({ conversation }) {
   // =====================================
 
   const sendMessage = async () => {
-    if (!text.trim()) return;
+  if (!text.trim() && !selectedFile) return;
 
-    try {
-      await axios.post(
-        `http://localhost:5000/api/messages/${conversationId}`,
-        {
-          text,
-          replyTo: replyingTo?._id || null,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+  try {
+    const formData = new FormData();
 
-      setText("");
-      setReplyingTo(null);
+    formData.append("text", text);
 
-      fetchMessages();
-    } catch (err) {
-      console.log(err);
+    if (replyingTo) {
+      formData.append("replyTo", replyingTo._id);
     }
-  };
+
+    if (selectedFile) {
+      formData.append(
+        "attachment",
+        selectedFile
+      );
+    }
+    console.log("Selected File:", selectedFile);
+
+for (let pair of formData.entries()) {
+  console.log(pair[0], pair[1]);
+}
+
+    await axios.post(
+      `http://localhost:5000/api/messages/${conversationId}`,
+      formData,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    setText("");
+    setReplyingTo(null);
+    setSelectedFile(null);
+
+    fetchMessages();
+
+  } catch (err) {
+    console.log(err);
+  }
+};
 
   return (
     <div className="flex flex-col h-full bg-[#111827] rounded-xl border border-gray-700">
@@ -277,14 +297,16 @@ function ChatWindow({ conversation }) {
       />
 
       <MessageInput
-        text={text}
-        setText={setText}
-        sendMessage={sendMessage}
-        onTyping={handleTyping}
-        onStopTyping={handleStopTyping}
-        replyingTo={replyingTo}
-        setReplyingTo={setReplyingTo}
-      />
+  text={text}
+  setText={setText}
+  sendMessage={sendMessage}
+  onTyping={handleTyping}
+  onStopTyping={handleStopTyping}
+  replyingTo={replyingTo}
+  setReplyingTo={setReplyingTo}
+  selectedFile={selectedFile}
+  setSelectedFile={setSelectedFile}
+/>
     </div>
   );
 }

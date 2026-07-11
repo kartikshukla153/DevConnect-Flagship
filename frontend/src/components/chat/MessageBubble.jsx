@@ -13,6 +13,8 @@ function MessageBubble({
     message.readBy &&
     message.readBy.length > 1;
 
+  const attachment = message.attachment;
+
   return (
     <div
       className={`group relative flex ${
@@ -20,7 +22,7 @@ function MessageBubble({
       }`}
     >
       <div
-        className={`relative max-w-[72%] rounded-2xl px-4 py-3 shadow-lg transition-all ${
+        className={`relative max-w-[72%] rounded-2xl px-4 py-3 shadow-lg ${
           isMine
             ? "bg-cyan-500 text-black"
             : "bg-[#1F2937] text-white"
@@ -39,10 +41,88 @@ function MessageBubble({
           </div>
         )}
 
-        {/* Message */}
-        <p className="whitespace-pre-wrap">
-          {message.text}
-        </p>
+        {/* TEXT */}
+        {message.text && (
+          <p className="whitespace-pre-wrap mb-2">
+            {message.text}
+          </p>
+        )}
+
+        {/* ATTACHMENTS */}
+
+        {attachment?.url && (
+          <div className="mt-2">
+
+            {/* IMAGE */}
+            {attachment.mimeType?.startsWith("image/") && (
+              <img
+                src={attachment.url}
+                alt="attachment"
+                className="rounded-xl max-h-72"
+              />
+            )}
+
+            {/* PDF */}
+            {attachment.mimeType ===
+              "application/pdf" && (
+              <a
+                href={attachment.url}
+                target="_blank"
+                rel="noreferrer"
+                className="block rounded-lg bg-black/10 p-3 hover:bg-black/20"
+              >
+                📄 {attachment.originalName}
+              </a>
+            )}
+
+            {/* VIDEO */}
+            {attachment.mimeType?.startsWith(
+              "video/"
+            ) && (
+              <video
+                controls
+                className="rounded-xl max-h-72"
+              >
+                <source
+                  src={attachment.url}
+                  type={attachment.mimeType}
+                />
+              </video>
+            )}
+
+            {/* AUDIO */}
+            {attachment.mimeType?.startsWith(
+              "audio/"
+            ) && (
+              <audio controls>
+                <source
+                  src={attachment.url}
+                  type={attachment.mimeType}
+                />
+              </audio>
+            )}
+
+            {/* OTHER FILES */}
+            {!attachment.mimeType?.startsWith("image/") &&
+              !attachment.mimeType?.startsWith(
+                "video/"
+              ) &&
+              !attachment.mimeType?.startsWith(
+                "audio/"
+              ) &&
+              attachment.mimeType !==
+                "application/pdf" && (
+                <a
+                  href={attachment.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block rounded-lg bg-black/10 p-3 hover:bg-black/20"
+                >
+                  📎 {attachment.originalName}
+                </a>
+              )}
+          </div>
+        )}
 
         {/* Reactions */}
         {message.reactions?.length > 0 && (
