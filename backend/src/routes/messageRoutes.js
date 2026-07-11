@@ -1,5 +1,5 @@
 import express from "express";
-
+import upload from "../middleware/uploadMiddleware.js";
 import authMiddleware from "../middleware/authMiddleware.js";
 
 import {
@@ -13,10 +13,10 @@ import {
 } from "../controllers/messageController.js";
 
 const router = express.Router();
-
 router.post(
   "/:conversationId",
   authMiddleware,
+  upload.single("attachment"),
   sendMessage
 );
 

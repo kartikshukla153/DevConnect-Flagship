@@ -1,6 +1,6 @@
 import Message from "../models/Message.js";
 import Conversation from "../models/Conversation.js";
-
+import uploadToCloudinary from "../utils/uploadToCloudinary.js";
 import {
   getIO,
   getReceiverSocketId,
@@ -60,19 +60,21 @@ const emitToParticipants = (
  * SEND MESSAGE
  * ==========================================
  */
-
 export const sendMessage = async (req, res) => {
   try {
     const senderId = req.user._id;
+    console.log("\n========== SEND MESSAGE ==========");
+console.log("Headers:", req.headers["content-type"]);
+console.log("Body:", req.body);
+console.log("File:", req.file);
+console.log("==================================");
     const { conversationId } = req.params;
     const { text, replyTo } = req.body;
-
-    if (!text || !text.trim()) {
-      return res.status(400).json({
-        success: false,
-        message: "Message text is required",
-      });
-    }
+    console.log("\n========== NEW MESSAGE ==========");
+console.log("Body:", req.body);
+console.log("File:", req.file);
+console.log("Headers:", req.headers["content-type"]);
+console.log("=================================\n");
 
     const conversation = await Conversation.findById(conversationId);
 
@@ -91,28 +93,68 @@ export const sendMessage = async (req, res) => {
     if (!isParticipant) {
       return res.status(403).json({
         success: false,
-        message: "You are not a participant of this conversation",
+        message: "Unauthorized",
+      });
+    }
+
+    let attachment = {
+      url: "",
+      publicId: "",
+      originalName: "",
+      mimeType: "",
+      size: 0,
+    };
+
+    if (req.file) {
+      const uploaded = await uploadToCloudinary(req.file);
+console.log("===== CLOUDINARY RESPONSE =====");
+console.log(uploaded);
+console.log("===============================");
+      attachment = {
+        url: uploaded.secure_url,
+        publicId: uploaded.public_id,
+        originalName: req.file.originalname,
+        mimeType: req.file.mimetype,
+        size: req.file.size,
+      };
+    }
+
+    if (
+      (!text || !text.trim()) &&
+      !attachment.url
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Message must contain text or attachment",
       });
     }
 
     const message = await Message.create({
       conversation: conversation._id,
       sender: senderId,
-      text: text.trim(),
+      text: text?.trim() || "",
+      attachment,
       replyTo: replyTo || null,
       readBy: [senderId],
     });
 
     conversation.lastMessage = message._id;
-    conversation.lastMessageText = text.trim();
+
+    conversation.lastMessageText =
+      attachment.url
+        ? "📎 Attachment"
+        : message.text;
+
     conversation.lastMessageSender = senderId;
     conversation.lastMessageAt = new Date();
 
     await conversation.save();
 
-    const populatedMessage = await populateMessage(
-      Message.findById(message._id)
-    );
+    const populatedMessage =
+      await populateMessage(
+        Message.findById(message._id)
+      );
 
     emitToParticipants(
       conversation,
@@ -123,19 +165,21 @@ export const sendMessage = async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message: "Message sent successfully",
       data: populatedMessage,
     });
+
   } catch (error) {
-    console.error("Send Message Error:", error);
+
+    console.error(error);
 
     return res.status(500).json({
       success: false,
       message: error.message,
     });
+
   }
 };
-   
+
 
 /**
  * ==========================================
