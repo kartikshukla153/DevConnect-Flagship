@@ -5,39 +5,29 @@ function MessageBubble({
   message,
   isMine,
   onReply,
-  onEdit,
-  onDelete,
-  onReact,
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
+  const seen =
+    isMine &&
+    message.readBy &&
+    message.readBy.length > 1;
+
   return (
     <div
-      className={`group relative flex mb-2 ${
+      className={`group relative flex ${
         isMine ? "justify-end" : "justify-start"
       }`}
     >
       <div
-        className={`
-          relative
-          max-w-[72%]
-          rounded-2xl
-          px-4
-          py-3
-          shadow-lg
-          transition-all
-          ${
-            message.deleted
-              ? "bg-gray-700 text-gray-300 italic"
-              : isMine
-              ? "bg-cyan-500 text-black"
-              : "bg-[#1F2937] text-white"
-          }
-        `}
+        className={`relative max-w-[72%] rounded-2xl px-4 py-3 shadow-lg transition-all ${
+          isMine
+            ? "bg-cyan-500 text-black"
+            : "bg-[#1F2937] text-white"
+        }`}
       >
-        {/* Reply Preview */}
-
-        {message.replyTo && !message.deleted && (
+        {/* Reply */}
+        {message.replyTo && (
           <div className="mb-2 border-l-2 border-cyan-400 pl-3 opacity-80">
             <p className="text-xs font-semibold">
               {message.replyTo.sender?.name}
@@ -50,98 +40,69 @@ function MessageBubble({
         )}
 
         {/* Message */}
-
-        <p className="whitespace-pre-wrap break-words">
+        <p className="whitespace-pre-wrap">
           {message.text}
         </p>
 
         {/* Reactions */}
-
-        {!message.deleted &&
-          message.reactions?.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-2">
-              {message.reactions.map((reaction) => (
-                <span
-                  key={reaction.user}
-                  className="
-                    px-2
-                    py-0.5
-                    rounded-full
-                    text-xs
-                    bg-black/20
-                    backdrop-blur
-                  "
-                >
-                  {reaction.emoji}
-                </span>
-              ))}
-            </div>
-          )}
+        {message.reactions?.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {message.reactions.map((reaction) => (
+              <span
+                key={reaction.user}
+                className="rounded-full bg-black/20 px-2 py-1 text-sm"
+              >
+                {reaction.emoji}
+              </span>
+            ))}
+          </div>
+        )}
 
         {/* Footer */}
+        <div className="mt-2 flex items-center justify-between text-[10px] opacity-70">
+          <div>
+            {message.edited && (
+              <span className="italic">
+                edited
+              </span>
+            )}
+          </div>
 
-        <div className="flex items-center justify-end gap-2 mt-2">
-
-          {message.edited && !message.deleted && (
-            <span className="text-[10px] opacity-70 italic">
-              edited
+          {isMine && (
+            <span
+              className={
+                seen
+                  ? "text-blue-900 font-semibold"
+                  : ""
+              }
+            >
+              {seen ? "Seen ✓✓" : "✓"}
             </span>
           )}
-
-          <span className="text-[10px] opacity-60">
-            {new Date(
-              message.createdAt
-            ).toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </span>
-
         </div>
 
-        {/* Three Dots */}
+        {/* Menu */}
+        <button
+          onClick={() =>
+            setMenuOpen(!menuOpen)
+          }
+          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition"
+        >
+          ⋮
+        </button>
 
-        {!message.deleted && (
-          <>
-            <button
-              onClick={() =>
-                setMenuOpen((prev) => !prev)
-              }
-              className="
-                absolute
-                top-2
-                right-2
-                opacity-0
-                group-hover:opacity-100
-                transition
-                text-sm
-              "
-            >
-              ⋮
-            </button>
-
-            {menuOpen && (
-              <MessageActionMenu
-                isMine={isMine}
-                onReply={() => {
-                  onReply(message);
-                  setMenuOpen(false);
-                }}
-                onEdit={() => {
-                  onEdit(message);
-                  setMenuOpen(false);
-                }}
-                onDelete={() => {
-                  onDelete(message);
-                  setMenuOpen(false);
-                }}
-                onReact={() => {
-                  onReact(message);
-                  setMenuOpen(false);
-                }}
-              />
-            )}
-          </>
+        {menuOpen && (
+          <MessageActionMenu
+            message={message}
+            isMine={isMine}
+            onReply={() => {
+              onReply(message);
+              setMenuOpen(false);
+            }}
+            onClose={() =>
+              setMenuOpen(false)
+            }
+          />
         )}
       </div>
     </div>

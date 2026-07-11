@@ -431,6 +431,7 @@ export const reactToMessage = async (req, res) => {
 /**
  * MARK CONVERSATION AS READ
  */
+
 export const markConversationAsRead = async (req, res) => {
   try {
     const { conversationId } = req.params;
@@ -438,6 +439,9 @@ export const markConversationAsRead = async (req, res) => {
     await Message.updateMany(
       {
         conversation: conversationId,
+        sender: {
+          $ne: req.user._id,
+        },
         readBy: {
           $ne: req.user._id,
         },
@@ -449,12 +453,28 @@ export const markConversationAsRead = async (req, res) => {
       }
     );
 
+    const conversation = await Conversation.findById(
+      conversationId
+    );
+
+    emitToParticipants(
+      conversation,
+      req.user._id,
+      "messagesSeen",
+      {
+        conversationId,
+        userId: req.user._id,
+      }
+    );
+
     return res.status(200).json({
       success: true,
       message: "Conversation marked as read",
     });
 
   } catch (error) {
+
+    console.error(error);
 
     return res.status(500).json({
       success: false,
@@ -463,7 +483,6 @@ export const markConversationAsRead = async (req, res) => {
 
   }
 };
-
 /**
  * GET UNREAD COUNT
  */

@@ -14,9 +14,8 @@ function ActionButton({
         gap-3
         px-4
         py-3
-        transition-all
-        duration-150
         text-sm
+        transition-all
         ${
           danger
             ? "text-red-400 hover:bg-red-500 hover:text-white"
@@ -24,7 +23,9 @@ function ActionButton({
         }
       `}
     >
-      <span className="text-lg">{icon}</span>
+      <span className="text-lg">
+        {icon}
+      </span>
 
       <span>{text}</span>
     </button>
@@ -42,55 +43,48 @@ function MessageActionMenu({
     <div
       className="
         absolute
-        top-10
         right-0
-        z-[9999]
+        top-10
+        z-[999]
         w-56
-        overflow-hidden
         rounded-2xl
         border
-        border-gray-700/70
-        bg-[#111827]/95
-        backdrop-blur-xl
-        shadow-[0_10px_35px_rgba(0,0,0,0.45)]
-        animate-in
-        fade-in
-        zoom-in-95
+        border-gray-700
+        bg-[#111827]
+        shadow-2xl
+        overflow-hidden
       "
     >
-      <div className="py-2">
+      <ActionButton
+        icon="↩"
+        text="Reply"
+        onClick={onReply}
+      />
 
-        <ActionButton
-          icon="↩"
-          text="Reply"
-          onClick={onReply}
-        />
+      <ActionButton
+        icon="😀"
+        text="React"
+        onClick={onReact}
+      />
 
-        <ActionButton
-          icon="😀"
-          text="React"
-          onClick={onReact}
-        />
+      {isMine && (
+        <>
+          <div className="mx-3 border-t border-gray-700" />
 
-        {isMine && (
-          <>
-            <div className="mx-3 my-1 border-t border-gray-700" />
+          <ActionButton
+            icon="✏"
+            text="Edit"
+            onClick={onEdit}
+          />
 
-            <ActionButton
-              icon="✏"
-              text="Edit"
-              onClick={onEdit}
-            />
-
-            <ActionButton
-              icon="🗑"
-              text="Delete"
-              danger
-              onClick={onDelete}
-            />
-          </>
-        )}
-      </div>
+          <ActionButton
+            icon="🗑"
+            text="Delete"
+            danger
+            onClick={onDelete}
+          />
+        </>
+      )}
     </div>
   );
 }

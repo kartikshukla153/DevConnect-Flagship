@@ -76,15 +76,45 @@ export const initializeSocket = (server) => {
     // TYPING EVENTS
     // ======================================
 
-    socket.on("typing", ({ senderId, receiverId }) => {
-      const receiverSocketId = userSocketMap[receiverId];
+    // ======================================
+// TYPING EVENTS
+// ======================================
 
-      if (receiverSocketId) {
-        io.to(receiverSocketId).emit("typing", {
-          senderId,
-        });
-      }
+socket.on("typing", ({ senderId, receiverId, conversationId }) => {
+  const receiverSocketId = userSocketMap[receiverId];
+
+  if (receiverSocketId) {
+    io.to(receiverSocketId).emit("typing", {
+      senderId,
+      conversationId,
     });
+  }
+});
+
+socket.on("stopTyping", ({ senderId, receiverId, conversationId }) => {
+  const receiverSocketId = userSocketMap[receiverId];
+
+  if (receiverSocketId) {
+    io.to(receiverSocketId).emit("stopTyping", {
+      senderId,
+      conversationId,
+    });
+  }
+});
+
+// ======================================
+// MESSAGE READ
+// ======================================
+
+socket.on("messageRead", ({ receiverId, conversationId }) => {
+  const receiverSocketId = userSocketMap[receiverId];
+
+  if (receiverSocketId) {
+    io.to(receiverSocketId).emit("messageRead", {
+      conversationId,
+    });
+  }
+});
 
     socket.on("stopTyping", ({ senderId, receiverId }) => {
       const receiverSocketId = userSocketMap[receiverId];

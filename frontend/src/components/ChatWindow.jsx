@@ -23,15 +23,19 @@ function ChatWindow({ conversation }) {
   const onlineUsers = useOnlineUsers();
 
   const isOnline = onlineUsers.includes(receiver._id);
- const [messages, setMessages] = useState([]);
-const [text, setText] = useState("");
-const [typing, setTyping] = useState(false);
 
-const [replyingTo, setReplyingTo] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [text, setText] = useState("");
+  const [typing, setTyping] = useState(false);
+  const [replyingTo, setReplyingTo] = useState(null);
 
   const bottomRef = useRef(null);
 
   const token = localStorage.getItem("token");
+
+  // =====================================
+  // FETCH MESSAGES
+  // =====================================
 
   const fetchMessages = async () => {
     try {
@@ -45,6 +49,15 @@ const [replyingTo, setReplyingTo] = useState(null);
       );
 
       setMessages(res.data.messages);
+
+      const socket = getSocket();
+
+      if (socket) {
+        socket.emit("messageRead", {
+          receiverId: receiver._id,
+          conversationId,
+        });
+      }
     } catch (err) {
       console.log(err);
     }
@@ -60,85 +73,174 @@ const [replyingTo, setReplyingTo] = useState(null);
     });
   }, [messages]);
 
+  // =====================================
+  // SOCKET EVENTS
+  // =====================================
+
   useEffect(() => {
     const socket = getSocket();
 
     if (!socket) return;
 
-    socket.on("newMessage", (message) => {
+    const handleNewMessage = (message) => {
       if (
         message.conversation === conversationId ||
         message.conversation?._id === conversationId
       ) {
         setMessages((prev) => [...prev, message]);
       }
-    });
+    };
 
-    socket.on("typing", ({ conversationId: id }) => {
+    const handleTyping = ({ conversationId: id }) => {
       if (id === conversationId) {
         setTyping(true);
       }
-    });
+    };
 
-    socket.on("stopTyping", ({ conversationId: id }) => {
+    const handleStopTyping = ({ conversationId: id }) => {
       if (id === conversationId) {
         setTyping(false);
       }
-    });
+    };
+
+    const replaceMessage = (updatedMessage) => {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg._id === updatedMessage._id
+            ? updatedMessage
+            : msg
+        )
+      );
+    };
+
+    const handleMessageRead = ({
+      conversationId: id,
+    }) => {
+      if (id !== conversationId) return;
+
+      setMessages((prev) =>
+        prev.map((msg) => {
+          if (
+            msg.sender._id === currentUser.id &&
+            !msg.readBy.includes(receiver._id)
+          ) {
+            return {
+              ...msg,
+              readBy: [...msg.readBy, receiver._id],
+            };
+          }
+
+          return msg;
+        })
+      );
+    };
+
+    socket.on("newMessage", handleNewMessage);
+
+    socket.on("typing", handleTyping);
+
+    socket.on("stopTyping", handleStopTyping);
+
+    socket.on(
+      "messageUpdated",
+      replaceMessage
+    );
+
+    socket.on(
+      "messageDeleted",
+      replaceMessage
+    );
 
     socket.on(
       "messageReactionUpdated",
-      (updatedMessage) => {
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg._id === updatedMessage._id
-              ? updatedMessage
-              : msg
-          )
-        );
-      }
+      replaceMessage
+    );
+
+    socket.on(
+      "messageRead",
+      handleMessageRead
     );
 
     return () => {
-      socket.off("newMessage");
-      socket.off("typing");
-      socket.off("stopTyping");
-      socket.off("messageReactionUpdated");
+      socket.off(
+        "newMessage",
+        handleNewMessage
+      );
+
+      socket.off(
+        "typing",
+        handleTyping
+      );
+
+      socket.off(
+        "stopTyping",
+        handleStopTyping
+      );
+
+      socket.off(
+        "messageUpdated",
+        replaceMessage
+      );
+
+      socket.off(
+        "messageDeleted",
+        replaceMessage
+      );
+
+      socket.off(
+        "messageReactionUpdated",
+        replaceMessage
+      );
+
+      socket.off(
+        "messageRead",
+        handleMessageRead
+      );
     };
   }, [conversationId]);
-const handleTyping = () => {
-  const socket = getSocket();
 
-  if (!socket) return;
+  // =====================================
+  // TYPING
+  // =====================================
 
-  socket.emit("typing", {
-    senderId: currentUser.id,
-    receiverId: receiver._id,
-    conversationId,
-  });
-};
+  const handleTyping = () => {
+    const socket = getSocket();
 
-const handleStopTyping = () => {
-  const socket = getSocket();
+    if (!socket) return;
 
-  if (!socket) return;
+    socket.emit("typing", {
+      senderId: currentUser.id,
+      receiverId: receiver._id,
+      conversationId,
+    });
+  };
 
-  socket.emit("stopTyping", {
-    senderId: currentUser.id,
-    receiverId: receiver._id,
-    conversationId,
-  });
-};
+  const handleStopTyping = () => {
+    const socket = getSocket();
+
+    if (!socket) return;
+
+    socket.emit("stopTyping", {
+      senderId: currentUser.id,
+      receiverId: receiver._id,
+      conversationId,
+    });
+  };
+
+  // =====================================
+  // SEND MESSAGE
+  // =====================================
+
   const sendMessage = async () => {
     if (!text.trim()) return;
 
     try {
       await axios.post(
-  `http://localhost:5000/api/messages/${conversationId}`,
-  {
-    text,
-    replyTo: replyingTo?._id || null,
-  },
+        `http://localhost:5000/api/messages/${conversationId}`,
+        {
+          text,
+          replyTo: replyingTo?._id || null,
+        },
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -147,9 +249,9 @@ const handleStopTyping = () => {
       );
 
       setText("");
-setReplyingTo(null);
+      setReplyingTo(null);
 
-fetchMessages();
+      fetchMessages();
     } catch (err) {
       console.log(err);
     }
@@ -157,18 +259,17 @@ fetchMessages();
 
   return (
     <div className="flex flex-col h-full bg-[#111827] rounded-xl border border-gray-700">
-
       <ChatHeader
         receiver={receiver}
         isOnline={isOnline}
       />
 
       <MessageList
-  messages={messages}
-  currentUser={currentUser}
-  bottomRef={bottomRef}
-  setReplyingTo={setReplyingTo}
-/>
+        messages={messages}
+        currentUser={currentUser}
+        bottomRef={bottomRef}
+        setReplyingTo={setReplyingTo}
+      />
 
       <TypingIndicator
         typing={typing}
@@ -176,15 +277,14 @@ fetchMessages();
       />
 
       <MessageInput
-  text={text}
-  setText={setText}
-  sendMessage={sendMessage}
-  onTyping={handleTyping}
-  onStopTyping={handleStopTyping}
-  replyingTo={replyingTo}
-  setReplyingTo={setReplyingTo}
-/>
-
+        text={text}
+        setText={setText}
+        sendMessage={sendMessage}
+        onTyping={handleTyping}
+        onStopTyping={handleStopTyping}
+        replyingTo={replyingTo}
+        setReplyingTo={setReplyingTo}
+      />
     </div>
   );
 }
