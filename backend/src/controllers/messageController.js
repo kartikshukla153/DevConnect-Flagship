@@ -41,12 +41,6 @@ const emitToParticipants = (
   const io = getIO();
 
   conversation.participants.forEach((participant) => {
-    if (
-      participant.toString() ===
-      senderId.toString()
-    )
-      return;
-
     const socketId = getReceiverSocketId(
       participant.toString()
     );
@@ -141,10 +135,19 @@ console.log("===============================");
 
     conversation.lastMessage = message._id;
 
-    conversation.lastMessageText =
-      attachment.url
-        ? "📎 Attachment"
-        : message.text;
+    if (attachment.url) {
+  if (attachment.mimeType.startsWith("audio/")) {
+    conversation.lastMessageText = "🎤 Voice Message";
+  } else if (attachment.mimeType.startsWith("image/")) {
+    conversation.lastMessageText = "🖼️ Image";
+  } else if (attachment.mimeType.startsWith("video/")) {
+    conversation.lastMessageText = "🎥 Video";
+  } else {
+    conversation.lastMessageText = "📎 Attachment";
+  }
+} else {
+  conversation.lastMessageText = message.text;
+}
 
     conversation.lastMessageSender = senderId;
     conversation.lastMessageAt = new Date();
@@ -564,6 +567,63 @@ export const getUnreadCount = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: error.message,
+    });
+
+  }
+};
+export const searchMessages = async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const { q } = req.query;
+
+    const conversation = await Conversation.findById(
+      conversationId
+    );
+
+    if (!conversation) {
+      return res.status(404).json({
+        success: false,
+        message: "Conversation not found",
+      });
+    }
+
+    const isParticipant =
+      conversation.participants.some(
+        (id) =>
+          id.toString() ===
+          req.user._id.toString()
+      );
+
+    if (!isParticipant) {
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    const messages = await Message.find({
+      conversation: conversationId,
+      deleted: false,
+      text: {
+        $regex: q,
+        $options: "i",
+      },
+    })
+      .populate("sender", "name profilePicture")
+      .sort({ createdAt: -1 });
+
+    return res.json({
+      success: true,
+      messages,
+    });
+
+  } catch (err) {
+
+    console.error(err);
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
     });
 
   }

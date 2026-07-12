@@ -50,6 +50,23 @@ const attachmentSchema = new mongoose.Schema(
   }
 );
 
+const voiceSchema = new mongoose.Schema(
+  {
+    url: {
+      type: String,
+      default: "",
+    },
+
+    duration: {
+      type: Number,
+      default: 0,
+    },
+  },
+  {
+    _id: false,
+  }
+);
+
 const messageSchema = new mongoose.Schema(
   {
     conversation: {
@@ -72,6 +89,11 @@ const messageSchema = new mongoose.Schema(
 
     attachment: {
       type: attachmentSchema,
+      default: () => ({}),
+    },
+
+    voice: {
+      type: voiceSchema,
       default: () => ({}),
     },
 

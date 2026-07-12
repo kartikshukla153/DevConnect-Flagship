@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import VoiceRecorder from "./VoiceRecorder";
 
 function MessageInput({
   text,
@@ -110,7 +111,9 @@ function MessageInput({
             placeholder:text-gray-500
           "
         />
-
+<VoiceRecorder
+  setSelectedFile={setSelectedFile}
+/>
         <button
           onClick={sendMessage}
           className="

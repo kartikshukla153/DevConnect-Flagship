@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import axios from "axios";
-
+import DropOverlay from "./chat/DropOverlay";
 import { getSocket } from "../socket/socket";
 import useOnlineUsers from "../hooks/useOnlineUsers";
+import ChatSearch from "./chat/ChatSearch";
 
 import ChatHeader from "./chat/ChatHeader";
 import MessageList from "./chat/MessageList";
@@ -21,6 +22,7 @@ function ChatWindow({ conversation }) {
   );
 
   const onlineUsers = useOnlineUsers();
+  const [dragging, setDragging] = useState(false);
 
   const isOnline = onlineUsers.includes(receiver._id);
 
@@ -29,7 +31,9 @@ function ChatWindow({ conversation }) {
   const [typing, setTyping] = useState(false);
   const [replyingTo, setReplyingTo] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
-
+  const [search, setSearch] = useState("");
+const [uploadProgress, setUploadProgress] = useState(0);
+const [uploading, setUploading] = useState(false);
   const bottomRef = useRef(null);
 
   const token = localStorage.getItem("token");
@@ -60,8 +64,11 @@ function ChatWindow({ conversation }) {
         });
       }
     } catch (err) {
-      console.log(err);
-    }
+  console.log(err);
+
+  setUploading(false);
+  setUploadProgress(0);
+}
   };
 
   useEffect(() => {
@@ -236,6 +243,8 @@ function ChatWindow({ conversation }) {
   if (!text.trim() && !selectedFile) return;
 
   try {
+    setUploading(true);
+setUploadProgress(0);
     const formData = new FormData();
 
     formData.append("text", text);
@@ -256,21 +265,35 @@ for (let pair of formData.entries()) {
   console.log(pair[0], pair[1]);
 }
 
-    await axios.post(
-      `http://localhost:5000/api/messages/${conversationId}`,
-      formData,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
+    const res = await axios.post(
+  `http://localhost:5000/api/messages/${conversationId}`,
+  formData,
+  {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+
+    onUploadProgress: (progressEvent) => {
+    const percent = Math.round(
+  (progressEvent.loaded * 100) /
+    (progressEvent.total || 1)
+);
+
+      setUploadProgress(percent);
+    },
+  }
+);
 
     setText("");
     setReplyingTo(null);
     setSelectedFile(null);
+    setUploading(false);
+setUploadProgress(0);
 
-    fetchMessages();
+    setMessages((prev) => [
+  ...prev,
+  res.data.data,
+]);
 
   } catch (err) {
     console.log(err);
@@ -278,24 +301,72 @@ for (let pair of formData.entries()) {
 };
 
   return (
-    <div className="flex flex-col h-full bg-[#111827] rounded-xl border border-gray-700">
+  <div
+  className="relative flex flex-col h-full bg-[#111827] rounded-xl border border-gray-700"
+  onDragOver={(e) => {
+    e.preventDefault();
+    setDragging(true);
+  }}
+  onDragLeave={() => setDragging(false)}
+  onDrop={(e) => {
+    e.preventDefault();
+
+    setDragging(false);
+
+    if (e.dataTransfer.files.length > 0) {
+      setSelectedFile(e.dataTransfer.files[0]);
+    }
+  }}
+> {dragging && <DropOverlay />}
       <ChatHeader
         receiver={receiver}
         isOnline={isOnline}
       />
+      <ChatSearch
+  search={search}
+  setSearch={setSearch}
+/>
 
-      <MessageList
-        messages={messages}
-        currentUser={currentUser}
-        bottomRef={bottomRef}
-        setReplyingTo={setReplyingTo}
-      />
+     <MessageList
+  messages={messages.filter((msg) => {
+    if (!search.trim()) return true;
 
+    const query = search.toLowerCase();
+
+    return (
+      msg.text?.toLowerCase().includes(query) ||
+      msg.attachment?.originalName
+        ?.toLowerCase()
+        .includes(query)
+    );
+  })}
+  currentUser={currentUser}
+  bottomRef={bottomRef}
+  setReplyingTo={setReplyingTo}
+  search={search}
+/>
       <TypingIndicator
         typing={typing}
         receiverName={receiver.name}
       />
 
+{uploading && (
+  <div className="mx-4 mb-2 rounded-lg bg-[#1F2937] p-3">
+    <div className="mb-1 flex justify-between text-sm text-white">
+      <span>Uploading...</span>
+      <span>{uploadProgress}%</span>
+    </div>
+
+    <div className="h-2 overflow-hidden rounded-full bg-gray-700">
+      <div
+        className="h-full bg-cyan-400 transition-all"
+        style={{
+          width: `${uploadProgress}%`,
+        }}
+      />
+    </div>
+  </div>
+)}
       <MessageInput
   text={text}
   setText={setText}

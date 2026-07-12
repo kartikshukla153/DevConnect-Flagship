@@ -5,6 +5,8 @@ function MessageList({
   currentUser,
   bottomRef,
   setReplyingTo,
+  search,
+  onImageClick,
 }) {
   return (
     <div className="flex-1 overflow-y-auto p-4 space-y-3">
@@ -14,7 +16,8 @@ function MessageList({
             ? message.sender
             : message.sender?._id;
 
-        const isMine = senderId === currentUser.id;
+        const isMine =
+          senderId === currentUser.id;
 
         return (
           <MessageBubble
@@ -22,6 +25,8 @@ function MessageList({
             message={message}
             isMine={isMine}
             onReply={setReplyingTo}
+            search={search}
+            onImageClick={onImageClick}
           />
         );
       })}

@@ -10,6 +10,7 @@ import {
   editMessage,
   deleteMessage,
   reactToMessage,
+  searchMessages,
 } from "../controllers/messageController.js";
 
 const router = express.Router();
@@ -18,6 +19,11 @@ router.post(
   authMiddleware,
   upload.single("attachment"),
   sendMessage
+);
+router.get(
+  "/search/:conversationId",
+  authMiddleware,
+  searchMessages
 );
 
 router.get(
