@@ -10,7 +10,7 @@ const taskSchema = new mongoose.Schema(
 
     description: {
       type: String,
-      required: true,
+      default: "",
     },
 
     project: {
@@ -48,18 +48,55 @@ const taskSchema = new mongoose.Schema(
       default: "todo",
     },
 
-    deadline: {
+    difficulty: {
+      type: String,
+      enum: ["Easy", "Medium", "Hard"],
+      default: "Medium",
+    },
+
+    estimatedHours: {
+      type: Number,
+      default: 2,
+    },
+
+    storyPoints: {
+      type: Number,
+      default: 1,
+    },
+
+    acceptanceCriteria: [
+      {
+        type: String,
+      },
+    ],
+
+    labels: [
+      {
+        type: String,
+      },
+    ],
+
+    dependencies: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Task",
+      },
+    ],
+
+    aiGenerated: {
+      type: Boolean,
+      default: false,
+    },
+
+    completedAt: {
       type: Date,
     },
+
+    deadline: Date,
   },
   {
     timestamps: true,
   }
 );
 
-const Task = mongoose.model(
-  "Task",
-  taskSchema
-);
-
-export default Task;
+export default mongoose.model("Task", taskSchema);

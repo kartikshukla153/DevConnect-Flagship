@@ -19,11 +19,31 @@ const projectSchema = new mongoose.Schema(
       required: true,
     },
 
+    overview: {
+      type: String,
+      default: "",
+    },
+
     techStack: [
       {
         type: String,
       },
     ],
+
+    estimatedWeeks: {
+      type: Number,
+      default: 0,
+    },
+
+    difficulty: {
+      type: String,
+      default: "",
+    },
+
+    aiGenerated: {
+      type: Boolean,
+      default: false,
+    },
 
     rolesNeeded: [
       {
@@ -37,13 +57,9 @@ const projectSchema = new mongoose.Schema(
       default: "open",
     },
 
-    githubRepo: {
-      type: String,
-    },
+    githubRepo: String,
 
-    liveLink: {
-      type: String,
-    },
+    liveLink: String,
 
     members: [
       {
@@ -91,9 +107,4 @@ const projectSchema = new mongoose.Schema(
   }
 );
 
-const Project = mongoose.model(
-  "Project",
-  projectSchema
-);
-
-export default Project;
+export default mongoose.model("Project", projectSchema);

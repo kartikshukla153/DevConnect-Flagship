@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from "react-router-dom";
+
 import Messages from "./pages/Messages";
 import Notifications from "./pages/Notifications";
 import Login from "./pages/Login";
@@ -9,9 +10,9 @@ import CreateProfile from "./pages/CreateProfile";
 import AddExperience from "./pages/AddExperience";
 import Developers from "./pages/Developers";
 import PublicProfile from "./pages/PublicProfile";
+import AIArchitect from "./pages/AIArchitect";
 
 import ProtectedRoute from "./routes/ProtectedRoute";
-
 import useAuth from "./hooks/useAuth";
 
 function App() {
@@ -41,22 +42,24 @@ function App() {
           </ProtectedRoute>
         }
       />
-<Route
-  path="/notifications"
-  element={
-    <ProtectedRoute>
-      <Notifications />
-    </ProtectedRoute>
-  }
-/>
+
       <Route
-  path="/messages"
-  element={
-    <ProtectedRoute>
-      <Messages />
-    </ProtectedRoute>
-  }
-/>
+        path="/notifications"
+        element={
+          <ProtectedRoute>
+            <Notifications />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/messages"
+        element={
+          <ProtectedRoute>
+            <Messages />
+          </ProtectedRoute>
+        }
+      />
 
       <Route
         path="/profile"
@@ -99,6 +102,15 @@ function App() {
         element={
           <ProtectedRoute>
             <PublicProfile />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/ai-architect"
+        element={
+          <ProtectedRoute>
+            <AIArchitect />
           </ProtectedRoute>
         }
       />

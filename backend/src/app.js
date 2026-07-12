@@ -14,7 +14,7 @@ import conversationRoutes from "./routes/conversationRoutes.js";
 import searchRoutes from "./routes/searchRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import projectChatRoutes from "./routes/projectChatRoutes.js";
-
+import aiRoutes from "./routes/aiRoutes.js";
 const app = express();
 
 // ==========================================
@@ -58,7 +58,7 @@ app.use("/api/conversations", conversationRoutes);
 app.use("/api/search", searchRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/project-chat", projectChatRoutes);
-
+app.use("/api/ai", aiRoutes);
 // =========================
 // HEALTH CHECK
 // =========================
