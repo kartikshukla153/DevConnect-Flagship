@@ -107,13 +107,13 @@ function App() {
       />
 
       <Route
-        path="/ai-architect"
-        element={
-          <ProtectedRoute>
-            <AIArchitect />
-          </ProtectedRoute>
-        }
-      />
+  path="/ai"
+  element={
+    <ProtectedRoute>
+      <AIArchitect />
+    </ProtectedRoute>
+  }
+/>
     </Routes>
   );
 }

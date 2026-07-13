@@ -1,9 +1,14 @@
 import { useState } from "react";
 import axios from "axios";
 
+import ProjectHeader from "../components/ai/ProjectHeader";
+import ProgressCard from "../components/ai/ProgressCard";
+import TechStack from "../components/ai/TechStack";
+import MilestoneCard from "../components/ai/MilestoneCard";
+import Workspace from "../components/ai/Workspace";
 const API = "http://localhost:5000/api";
 
-export default function AIArchitect() {
+function AIArchitect() {
   const [idea, setIdea] = useState("");
   const [loading, setLoading] = useState(false);
   const [workspace, setWorkspace] = useState(null);
@@ -16,7 +21,7 @@ export default function AIArchitect() {
     try {
       setLoading(true);
 
-      const res = await axios.post(
+      const roadmapRes = await axios.post(
         `${API}/ai/generate-roadmap`,
         {
           idea,
@@ -28,7 +33,7 @@ export default function AIArchitect() {
         }
       );
 
-      const projectId = res.data.project._id;
+      const projectId = roadmapRes.data.project._id;
 
       const workspaceRes = await axios.get(
         `${API}/ai/workspace/${projectId}`,
@@ -41,8 +46,8 @@ export default function AIArchitect() {
 
       setWorkspace(workspaceRes.data);
     } catch (err) {
-      console.log(err);
-      alert("Generation Failed");
+      console.error(err);
+      alert("Failed to generate project.");
     } finally {
       setLoading(false);
     }
@@ -51,102 +56,59 @@ export default function AIArchitect() {
   return (
     <div
       style={{
-        padding: 40,
         maxWidth: 1200,
-        margin: "auto",
+        margin: "40px auto",
+        padding: 20,
       }}
     >
-      <h1>🤖 AI Project Architect</h1>
+      <h1
+        style={{
+          fontSize: 40,
+          marginBottom: 25,
+        }}
+      >
+        🤖 AI Project Architect
+      </h1>
 
       <textarea
-        rows={6}
-        value={idea}
-        onChange={(e) => setIdea(e.target.value)}
-        placeholder="Describe your project..."
-        style={{
-          width: "100%",
-          padding: 15,
-          marginTop: 20,
-          fontSize: 16,
-        }}
-      />
+  rows={6}
+  value={idea}
+  onChange={(e) => setIdea(e.target.value)}
+  placeholder="Describe your project..."
+  style={{
+    width: "100%",
+    padding: 15,
+    marginTop: 20,
+    fontSize: 16,
+    background: "#ffffff",
+    color: "#000000",
+    border: "1px solid #ccc",
+    borderRadius: "8px",
+    outline: "none",
+  }}
+/>
 
       <button
         onClick={generateProject}
         disabled={loading}
         style={{
           marginTop: 20,
-          padding: "15px 30px",
+          padding: "14px 28px",
+          fontSize: 18,
           cursor: "pointer",
+          borderRadius: 10,
         }}
       >
-        {loading ? "Generating..." : "Generate Project"}
+        {loading
+          ? "Generating..."
+          : "Generate AI Workspace"}
       </button>
 
-      {workspace && (
-        <>
-          <hr />
-
-          <h2>{workspace.project.title}</h2>
-
-          <p>{workspace.project.overview}</p>
-
-          <h3>Progress</h3>
-
-          <h2>{workspace.stats.progress}%</h2>
-
-          <h3>Tech Stack</h3>
-
-          <div>
-            {workspace.techStack.map((tech) => (
-              <span
-                key={tech}
-                style={{
-                  padding: "8px 14px",
-                  background: "#222",
-                  color: "white",
-                  margin: 5,
-                  display: "inline-block",
-                  borderRadius: 20,
-                }}
-              >
-                {tech}
-              </span>
-            ))}
-          </div>
-
-          <hr />
-
-          {workspace.milestones.map((milestone) => (
-            <div
-              key={milestone.title}
-              style={{
-                marginBottom: 35,
-              }}
-            >
-              <h2>{milestone.title}</h2>
-
-              {milestone.tasks.map((task) => (
-                <div
-                  key={task._id}
-                  style={{
-                    padding: 15,
-                    marginBottom: 10,
-                    border: "1px solid #ddd",
-                    borderRadius: 10,
-                  }}
-                >
-                  <strong>{task.title}</strong>
-
-                  <br />
-
-                  {task.status}
-                </div>
-              ))}
-            </div>
-          ))}
-        </>
-      )}
+     {workspace && (
+  <Workspace workspace={workspace} />
+)}
     </div>
   );
 }
+
+export default AIArchitect;
