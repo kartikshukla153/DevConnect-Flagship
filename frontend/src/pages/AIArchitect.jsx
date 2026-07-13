@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 
 import ProjectHeader from "../components/ai/ProjectHeader";
@@ -14,6 +14,30 @@ function AIArchitect() {
   const [workspace, setWorkspace] = useState(null);
 
   const token = localStorage.getItem("token");
+  useEffect(() => {
+  const loadWorkspace = async () => {
+    const projectId = localStorage.getItem("aiProjectId");
+
+    if (!projectId) return;
+
+    try {
+      const res = await axios.get(
+        `${API}/ai/workspace/${projectId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      setWorkspace(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  loadWorkspace();
+}, []);
 
   const generateProject = async () => {
     if (!idea.trim()) return;
@@ -34,7 +58,7 @@ function AIArchitect() {
       );
 
       const projectId = roadmapRes.data.project._id;
-
+localStorage.setItem("aiProjectId", projectId);
       const workspaceRes = await axios.get(
         `${API}/ai/workspace/${projectId}`,
         {
@@ -105,7 +129,10 @@ function AIArchitect() {
       </button>
 
      {workspace && (
-  <Workspace workspace={workspace} />
+  <Workspace
+  workspace={workspace}
+  setWorkspace={setWorkspace}
+/>
 )}
     </div>
   );

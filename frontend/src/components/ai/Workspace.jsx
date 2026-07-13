@@ -1,15 +1,39 @@
+import axios from "axios";
 import ProjectHeader from "./ProjectHeader";
 import StatsCard from "./StatsCard";
 import TechStack from "./TechStack";
-import MilestoneCard from "./MilestoneCard";
+import Timeline from "./Timeline";
+import KanbanBoard from "./KanbanBoard";
+import DocsPanel from "./DocsPanel";
 
-function Workspace({ workspace }) {
+const API = "http://localhost:5000/api";
+
+function Workspace({ workspace, setWorkspace }) {
+  const token = localStorage.getItem("token");
+
+  const refreshWorkspace = async () => {
+    try {
+      const res = await axios.get(
+        `${API}/ai/workspace/${workspace.project._id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      setWorkspace(res.data);
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
+  const allTasks = workspace.milestones.flatMap(
+    (m) => m.tasks
+  );
+
   return (
-    <div
-      style={{
-        marginTop: 40,
-      }}
-    >
+    <div style={{ marginTop: 40 }}>
       <ProjectHeader project={workspace.project} />
 
       <div
@@ -34,7 +58,7 @@ function Workspace({ workspace }) {
 
         <StatsCard
           title="Completed"
-          value={workspace.stats.completedTasks}
+          value={workspace.stats.completed}
           color="#f59e0b"
         />
       </div>
@@ -45,21 +69,27 @@ function Workspace({ workspace }) {
 
       <TechStack techStack={workspace.techStack} />
 
+      <Timeline
+        milestones={workspace.milestones}
+      />
+
       <h2
         style={{
           color: "white",
+          marginTop: 35,
           marginBottom: 20,
         }}
       >
-        Milestones
+        Kanban Board
       </h2>
 
-      {workspace.milestones.map((milestone) => (
-        <MilestoneCard
-          key={milestone.title}
-          milestone={milestone}
-        />
-      ))}
+      <KanbanBoard
+        tasks={allTasks}
+        refreshWorkspace={refreshWorkspace}
+      />
+      <DocsPanel
+  project={workspace.project}
+/>
     </div>
   );
 }

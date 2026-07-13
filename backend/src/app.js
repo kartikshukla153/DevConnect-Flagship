@@ -2,6 +2,7 @@
 import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
+import aiDocsRoutes from "./routes/aiDocsRoutes.js";
 
 import authRoutes from "./routes/auth.js";
 import postRoutes from "./routes/Post.js";
@@ -31,6 +32,7 @@ const __dirname = path.dirname(__filename);
 app.use(cors());
 
 app.use(express.json());
+app.use("/api/ai-docs", aiDocsRoutes);
 
 // ==========================================
 // STATIC FILES

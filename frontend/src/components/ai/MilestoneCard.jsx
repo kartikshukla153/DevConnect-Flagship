@@ -1,6 +1,9 @@
 import TaskCard from "./TaskCard";
 
-function MilestoneCard({ milestone }) {
+function MilestoneCard({
+  milestone,
+  refreshWorkspace,
+}) {
   return (
     <div
       style={{
@@ -23,6 +26,7 @@ function MilestoneCard({ milestone }) {
         <TaskCard
           key={task._id}
           task={task}
+          refreshWorkspace={refreshWorkspace}
         />
       ))}
     </div>
