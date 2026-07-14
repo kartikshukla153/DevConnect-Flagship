@@ -13,9 +13,11 @@ import connectionRoutes from "./routes/connectionRoutes.js";
 import messageRoutes from "./routes/messageRoutes.js";
 import conversationRoutes from "./routes/conversationRoutes.js";
 import searchRoutes from "./routes/searchRoutes.js";
+import aiChatRoutes from "./routes/aiChatRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import projectChatRoutes from "./routes/projectChatRoutes.js";
 import aiRoutes from "./routes/aiRoutes.js";
+import aiCodeRoutes from "./routes/aiCodeRoutes.js";
 const app = express();
 
 // ==========================================
@@ -33,7 +35,8 @@ app.use(cors());
 
 app.use(express.json());
 app.use("/api/ai-docs", aiDocsRoutes);
-
+app.use("/api/ai-code", aiCodeRoutes);
+app.use("/api/ai-chat", aiChatRoutes);
 // ==========================================
 // STATIC FILES
 // ==========================================

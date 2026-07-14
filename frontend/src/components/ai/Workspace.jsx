@@ -4,6 +4,7 @@ import StatsCard from "./StatsCard";
 import TechStack from "./TechStack";
 import Timeline from "./Timeline";
 import KanbanBoard from "./KanbanBoard";
+import AIChat from "./AIChat";
 import DocsPanel from "./DocsPanel";
 
 const API = "http://localhost:5000/api";
@@ -89,6 +90,9 @@ function Workspace({ workspace, setWorkspace }) {
       />
       <DocsPanel
   project={workspace.project}
+/>
+<AIChat
+  projectId={workspace.project._id}
 />
     </div>
   );
