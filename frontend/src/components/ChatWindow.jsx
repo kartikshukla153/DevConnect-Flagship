@@ -3,8 +3,8 @@ import axios from "axios";
 import DropOverlay from "./chat/DropOverlay";
 import { getSocket } from "../socket/socket";
 import useOnlineUsers from "../hooks/useOnlineUsers";
-import ChatSearch from "./chat/ChatSearch";
 
+import ChatSearch from "./chat/ChatSearch";
 import ChatHeader from "./chat/ChatHeader";
 import MessageList from "./chat/MessageList";
 import MessageInput from "./chat/MessageInput";
@@ -22,24 +22,35 @@ function ChatWindow({ conversation }) {
   );
 
   const onlineUsers = useOnlineUsers();
-  const [dragging, setDragging] = useState(false);
 
   const isOnline = onlineUsers.includes(receiver._id);
+
+  const [dragging, setDragging] = useState(false);
 
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
   const [typing, setTyping] = useState(false);
+
   const [replyingTo, setReplyingTo] = useState(null);
+
   const [selectedFile, setSelectedFile] = useState(null);
+
   const [search, setSearch] = useState("");
-const [uploadProgress, setUploadProgress] = useState(0);
-const [uploading, setUploading] = useState(false);
+
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploading, setUploading] = useState(false);
+
+  // AI SUMMARY
+  const [summary, setSummary] = useState("");
+  const [loadingSummary, setLoadingSummary] =
+    useState(false);
+
   const bottomRef = useRef(null);
 
   const token = localStorage.getItem("token");
 
   // =====================================
-  // FETCH MESSAGES
+  // FETCH
   // =====================================
 
   const fetchMessages = async () => {
@@ -64,11 +75,11 @@ const [uploading, setUploading] = useState(false);
         });
       }
     } catch (err) {
-  console.log(err);
+      console.log(err);
 
-  setUploading(false);
-  setUploadProgress(0);
-}
+      setUploading(false);
+      setUploadProgress(0);
+    }
   };
 
   useEffect(() => {
@@ -82,7 +93,7 @@ const [uploading, setUploading] = useState(false);
   }, [messages]);
 
   // =====================================
-  // SOCKET EVENTS
+  // SOCKET
   // =====================================
 
   useEffect(() => {
@@ -93,25 +104,35 @@ const [uploading, setUploading] = useState(false);
     const handleNewMessage = (message) => {
       if (
         message.conversation === conversationId ||
-        message.conversation?._id === conversationId
+        message.conversation?._id ===
+          conversationId
       ) {
-        setMessages((prev) => [...prev, message]);
+        setMessages((prev) => [
+          ...prev,
+          message,
+        ]);
       }
     };
 
-    const handleTyping = ({ conversationId: id }) => {
+    const handleTyping = ({
+      conversationId: id,
+    }) => {
       if (id === conversationId) {
         setTyping(true);
       }
     };
 
-    const handleStopTyping = ({ conversationId: id }) => {
+    const handleStopTyping = ({
+      conversationId: id,
+    }) => {
       if (id === conversationId) {
         setTyping(false);
       }
     };
 
-    const replaceMessage = (updatedMessage) => {
+    const replaceMessage = (
+      updatedMessage
+    ) => {
       setMessages((prev) =>
         prev.map((msg) =>
           msg._id === updatedMessage._id
@@ -129,12 +150,18 @@ const [uploading, setUploading] = useState(false);
       setMessages((prev) =>
         prev.map((msg) => {
           if (
-            msg.sender._id === currentUser.id &&
-            !msg.readBy.includes(receiver._id)
+            msg.sender._id ===
+              currentUser.id &&
+            !msg.readBy.includes(
+              receiver._id
+            )
           ) {
             return {
               ...msg,
-              readBy: [...msg.readBy, receiver._id],
+              readBy: [
+                ...msg.readBy,
+                receiver._id,
+              ],
             };
           }
 
@@ -143,11 +170,20 @@ const [uploading, setUploading] = useState(false);
       );
     };
 
-    socket.on("newMessage", handleNewMessage);
+    socket.on(
+      "newMessage",
+      handleNewMessage
+    );
 
-    socket.on("typing", handleTyping);
+    socket.on(
+      "typing",
+      handleTyping
+    );
 
-    socket.on("stopTyping", handleStopTyping);
+    socket.on(
+      "stopTyping",
+      handleStopTyping
+    );
 
     socket.on(
       "messageUpdated",
@@ -236,148 +272,229 @@ const [uploading, setUploading] = useState(false);
   };
 
   // =====================================
-  // SEND MESSAGE
+  // SEND
   // =====================================
 
   const sendMessage = async () => {
-  if (!text.trim() && !selectedFile) return;
+    if (!text.trim() && !selectedFile)
+      return;
 
-  try {
-    setUploading(true);
-setUploadProgress(0);
-    const formData = new FormData();
+    try {
+      setUploading(true);
+      setUploadProgress(0);
 
-    formData.append("text", text);
+      const formData = new FormData();
 
-    if (replyingTo) {
-      formData.append("replyTo", replyingTo._id);
-    }
+      formData.append("text", text);
 
-    if (selectedFile) {
-      formData.append(
-        "attachment",
-        selectedFile
+      if (replyingTo) {
+        formData.append(
+          "replyTo",
+          replyingTo._id
+        );
+      }
+
+      if (selectedFile) {
+        formData.append(
+          "attachment",
+          selectedFile
+        );
+      }
+
+      const res = await axios.post(
+        `http://localhost:5000/api/messages/${conversationId}`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+
+          onUploadProgress: (
+            progressEvent
+          ) => {
+            const percent = Math.round(
+              (progressEvent.loaded *
+                100) /
+                (progressEvent.total ||
+                  1)
+            );
+
+            setUploadProgress(percent);
+          },
+        }
       );
+
+      setText("");
+      setReplyingTo(null);
+      setSelectedFile(null);
+
+      setUploading(false);
+      setUploadProgress(0);
+
+      setMessages((prev) => [
+        ...prev,
+        res.data.data,
+      ]);
+    } catch (err) {
+      console.log(err);
     }
-    console.log("Selected File:", selectedFile);
+  };
 
-for (let pair of formData.entries()) {
-  console.log(pair[0], pair[1]);
-}
+  // =====================================
+  // AI SUMMARY
+  // =====================================
 
-    const res = await axios.post(
-  `http://localhost:5000/api/messages/${conversationId}`,
-  formData,
-  {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+  const summarizeChat = async () => {
+    try {
+      setLoadingSummary(true);
 
-    onUploadProgress: (progressEvent) => {
-    const percent = Math.round(
-  (progressEvent.loaded * 100) /
-    (progressEvent.total || 1)
-);
+      const res = await axios.post(
+        "http://localhost:5000/api/ai-summary/chat",
+        {
+          conversationId,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
-      setUploadProgress(percent);
-    },
-  }
-);
-
-    setText("");
-    setReplyingTo(null);
-    setSelectedFile(null);
-    setUploading(false);
-setUploadProgress(0);
-
-    setMessages((prev) => [
-  ...prev,
-  res.data.data,
-]);
-
-  } catch (err) {
-    console.log(err);
-  }
-};
+      setSummary(res.data.summary);
+    } catch (err) {
+      console.log(err);
+      alert("Summary failed");
+    } finally {
+      setLoadingSummary(false);
+    }
+  };
 
   return (
-  <div
-  className="relative flex flex-col h-full bg-[#111827] rounded-xl border border-gray-700"
-  onDragOver={(e) => {
-    e.preventDefault();
-    setDragging(true);
-  }}
-  onDragLeave={() => setDragging(false)}
-  onDrop={(e) => {
-    e.preventDefault();
+    <div
+      className="relative flex flex-col h-full bg-[#111827] rounded-xl border border-gray-700"
+      onDragOver={(e) => {
+        e.preventDefault();
+        setDragging(true);
+      }}
+      onDragLeave={() =>
+        setDragging(false)
+      }
+      onDrop={(e) => {
+        e.preventDefault();
 
-    setDragging(false);
+        setDragging(false);
 
-    if (e.dataTransfer.files.length > 0) {
-      setSelectedFile(e.dataTransfer.files[0]);
-    }
-  }}
-> {dragging && <DropOverlay />}
+        if (
+          e.dataTransfer.files.length > 0
+        ) {
+          setSelectedFile(
+            e.dataTransfer.files[0]
+          );
+        }
+      }}
+    >
+      {dragging && <DropOverlay />}
+
       <ChatHeader
         receiver={receiver}
         isOnline={isOnline}
+        openSummary={summarizeChat}
       />
+
+      {summary && (
+        <div className="mx-4 mt-3 rounded-xl border border-cyan-500 bg-cyan-500/10 p-4">
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="font-bold text-cyan-300">
+              ✨ AI Conversation Summary
+            </h3>
+
+            {loadingSummary && (
+              <span className="text-xs text-gray-400">
+                Generating...
+              </span>
+            )}
+          </div>
+
+          <pre className="whitespace-pre-wrap text-sm text-white">
+            {summary}
+          </pre>
+        </div>
+      )}
+
       <ChatSearch
-  search={search}
-  setSearch={setSearch}
-/>
+        search={search}
+        setSearch={setSearch}
+      />
 
-     <MessageList
-  messages={messages.filter((msg) => {
-    if (!search.trim()) return true;
+      <MessageList
+        messages={messages.filter(
+          (msg) => {
+            if (!search.trim())
+              return true;
 
-    const query = search.toLowerCase();
+            const query =
+              search.toLowerCase();
 
-    return (
-      msg.text?.toLowerCase().includes(query) ||
-      msg.attachment?.originalName
-        ?.toLowerCase()
-        .includes(query)
-    );
-  })}
-  currentUser={currentUser}
-  bottomRef={bottomRef}
-  setReplyingTo={setReplyingTo}
-  search={search}
-/>
+            return (
+              msg.text
+                ?.toLowerCase()
+                .includes(query) ||
+              msg.attachment?.originalName
+                ?.toLowerCase()
+                .includes(query)
+            );
+          }
+        )}
+        currentUser={currentUser}
+        bottomRef={bottomRef}
+        setReplyingTo={
+          setReplyingTo
+        }
+        search={search}
+      />
+
       <TypingIndicator
         typing={typing}
         receiverName={receiver.name}
       />
 
-{uploading && (
-  <div className="mx-4 mb-2 rounded-lg bg-[#1F2937] p-3">
-    <div className="mb-1 flex justify-between text-sm text-white">
-      <span>Uploading...</span>
-      <span>{uploadProgress}%</span>
-    </div>
+      {uploading && (
+        <div className="mx-4 mb-2 rounded-lg bg-[#1F2937] p-3">
+          <div className="mb-1 flex justify-between text-sm text-white">
+            <span>Uploading...</span>
+            <span>
+              {uploadProgress}%
+            </span>
+          </div>
 
-    <div className="h-2 overflow-hidden rounded-full bg-gray-700">
-      <div
-        className="h-full bg-cyan-400 transition-all"
-        style={{
-          width: `${uploadProgress}%`,
-        }}
-      />
-    </div>
-  </div>
-)}
+          <div className="h-2 overflow-hidden rounded-full bg-gray-700">
+            <div
+              className="h-full bg-cyan-400 transition-all"
+              style={{
+                width: `${uploadProgress}%`,
+              }}
+            />
+          </div>
+        </div>
+      )}
+
       <MessageInput
-  text={text}
-  setText={setText}
-  sendMessage={sendMessage}
-  onTyping={handleTyping}
-  onStopTyping={handleStopTyping}
-  replyingTo={replyingTo}
-  setReplyingTo={setReplyingTo}
-  selectedFile={selectedFile}
-  setSelectedFile={setSelectedFile}
-/>
+        text={text}
+        setText={setText}
+        sendMessage={sendMessage}
+        onTyping={handleTyping}
+        onStopTyping={handleStopTyping}
+        replyingTo={replyingTo}
+        setReplyingTo={
+          setReplyingTo
+        }
+        selectedFile={
+          selectedFile
+        }
+        setSelectedFile={
+          setSelectedFile
+        }
+      />
     </div>
   );
 }

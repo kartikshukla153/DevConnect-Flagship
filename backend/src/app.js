@@ -20,6 +20,7 @@ import aiRoutes from "./routes/aiRoutes.js";
 import aiReviewRoutes from "./routes/aiReviewRoutes.js";
 import aiCodeRoutes from "./routes/aiCodeRoutes.js";
 import aiBugRoutes from "./routes/aiBugRoutes.js";
+import aiSummaryRoutes from "./routes/aiSummaryRoutes.js";
 const app = express();
 
 // ==========================================
@@ -41,6 +42,7 @@ app.use("/api/ai-code", aiCodeRoutes);
 app.use("/api/ai-chat", aiChatRoutes);
 app.use("/api/ai", aiReviewRoutes);
 app.use("/api/ai-bug", aiBugRoutes);
+app.use("/api/ai-summary", aiSummaryRoutes);
 // ==========================================
 // STATIC FILES
 // ==========================================
