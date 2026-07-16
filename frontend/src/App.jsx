@@ -15,6 +15,16 @@ import AIArchitect from "./pages/AIArchitect";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import useAuth from "./hooks/useAuth";
 
+import AppLayout from "./layout/AppLayout";
+
+function ProtectedLayout({ children }) {
+  return (
+    <ProtectedRoute>
+      <AppLayout>{children}</AppLayout>
+    </ProtectedRoute>
+  );
+}
+
 function App() {
   const { isAuthenticated } = useAuth();
 
@@ -37,83 +47,83 @@ function App() {
       <Route
         path="/feed"
         element={
-          <ProtectedRoute>
+          <ProtectedLayout>
             <Feed />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/notifications"
-        element={
-          <ProtectedRoute>
-            <Notifications />
-          </ProtectedRoute>
+          </ProtectedLayout>
         }
       />
 
       <Route
         path="/messages"
         element={
-          <ProtectedRoute>
+          <ProtectedLayout>
             <Messages />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/profile"
-        element={
-          <ProtectedRoute>
-            <Profile />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/create-profile"
-        element={
-          <ProtectedRoute>
-            <CreateProfile />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/add-experience"
-        element={
-          <ProtectedRoute>
-            <AddExperience />
-          </ProtectedRoute>
+          </ProtectedLayout>
         }
       />
 
       <Route
         path="/developers"
         element={
-          <ProtectedRoute>
+          <ProtectedLayout>
             <Developers />
-          </ProtectedRoute>
+          </ProtectedLayout>
         }
       />
 
       <Route
         path="/developers/:userId"
         element={
-          <ProtectedRoute>
+          <ProtectedLayout>
             <PublicProfile />
-          </ProtectedRoute>
+          </ProtectedLayout>
         }
       />
 
       <Route
-  path="/ai"
-  element={
-    <ProtectedRoute>
-      <AIArchitect />
-    </ProtectedRoute>
-  }
-/>
+        path="/profile"
+        element={
+          <ProtectedLayout>
+            <Profile />
+          </ProtectedLayout>
+        }
+      />
+
+      <Route
+        path="/notifications"
+        element={
+          <ProtectedLayout>
+            <Notifications />
+          </ProtectedLayout>
+        }
+      />
+
+      <Route
+        path="/create-profile"
+        element={
+          <ProtectedLayout>
+            <CreateProfile />
+          </ProtectedLayout>
+        }
+      />
+
+      <Route
+        path="/add-experience"
+        element={
+          <ProtectedLayout>
+            <AddExperience />
+          </ProtectedLayout>
+        }
+      />
+
+      <Route
+        path="/ai"
+        element={
+          <ProtectedLayout>
+            <AIArchitect />
+          </ProtectedLayout>
+        }
+      />
     </Routes>
   );
 }

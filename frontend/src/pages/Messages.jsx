@@ -1,8 +1,9 @@
 import { useState } from "react";
 
+import AppLayout from "../layout/AppLayout";
+
 import ConversationList from "../components/ConversationList";
 import ChatWindow from "../components/ChatWindow";
-
 import SuggestedDevelopers from "../components/chat/SuggestedDevelopers";
 
 function Messages() {
@@ -13,46 +14,76 @@ function Messages() {
 
   const handleConversationCreated = (conversation) => {
     setSelectedConversation(conversation);
-
     setRefreshKey((prev) => prev + 1);
   };
 
   return (
-    <div className="h-screen bg-[#070A12] text-white flex">
+    <AppLayout>
+      <div className="grid grid-cols-12 gap-6 h-[calc(100vh-150px)]">
 
-      <div className="w-[350px] border-r border-gray-800 flex flex-col">
+        {/* LEFT SIDEBAR */}
 
-        <ConversationList
-          key={refreshKey}
-          selectedConversation={selectedConversation}
-          setSelectedConversation={setSelectedConversation}
-        />
+        <div className="col-span-3">
 
-        <div className="border-t border-gray-800 p-4 overflow-y-auto">
-
-          <SuggestedDevelopers
-            onConversationCreated={handleConversationCreated}
+          <ConversationList
+            key={refreshKey}
+            selectedConversation={selectedConversation}
+            setSelectedConversation={setSelectedConversation}
           />
 
         </div>
 
-      </div>
+        {/* CHAT */}
 
-      <div className="flex-1">
+        <div className="col-span-6">
 
-        {selectedConversation ? (
-          <ChatWindow
-            conversation={selectedConversation}
-          />
-        ) : (
-          <div className="h-full flex items-center justify-center text-gray-500 text-xl">
-            Select a conversation or start a new one
+          {selectedConversation ? (
+            <ChatWindow
+              conversation={selectedConversation}
+            />
+          ) : (
+            <div className="h-full rounded-3xl border border-[#263243] bg-[#111827] flex items-center justify-center">
+
+              <div className="text-center">
+
+                <h2 className="text-3xl font-bold mb-4">
+                  Welcome to Messages
+                </h2>
+
+                <p className="text-gray-400">
+                  Select a conversation or start chatting
+                  with another developer.
+                </p>
+
+              </div>
+
+            </div>
+          )}
+
+        </div>
+
+        {/* RIGHT PANEL */}
+
+        <div className="col-span-3">
+
+          <div className="rounded-3xl border border-[#263243] bg-[#111827] h-full p-6 overflow-y-auto">
+
+            <h2 className="text-xl font-semibold mb-6">
+              Suggested Developers
+            </h2>
+
+            <SuggestedDevelopers
+              onConversationCreated={
+                handleConversationCreated
+              }
+            />
+
           </div>
-        )}
+
+        </div>
 
       </div>
-
-    </div>
+    </AppLayout>
   );
 }
 
