@@ -1,107 +1,257 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-
+import axios from "axios";
 import {
-  getProject,
-  dashboard,
-  activity,
-} from "../services/projectService";
-
-import {
-  Globe,
   Users,
-  Calendar,
+  Globe,
   Code2,
   ArrowLeft,
+  UserPlus,
 } from "lucide-react";
+import { Link, useParams } from "react-router-dom";
+
+const API = "http://localhost:5000/api/projects";
 
 function ProjectDetails() {
   const { id } = useParams();
 
+  const token = localStorage.getItem("token");
+
   const [project, setProject] = useState(null);
-  const [stats, setStats] = useState(null);
-  const [activities, setActivities] = useState([]);
+
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    load();
+    loadProject();
   }, []);
 
-  const load = async () => {
+  const loadProject = async () => {
     try {
-      const p = await getProject(id);
+      const res = await axios.get(`${API}/${id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-      setProject(p);
-
-      try {
-        const d = await dashboard(id);
-        setStats(d);
-      } catch {}
-
-      try {
-        const a = await activity(id);
-        setActivities(a.activities || []);
-      } catch {}
+      setProject(res.data);
     } catch (err) {
       console.log(err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (!project)
+  const requestJoin = async () => {
+    try {
+      await axios.put(
+        `${API}/join-request/${id}`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      alert("Join request sent.");
+    } catch (err) {
+      alert(err.response?.data?.message || "Error");
+    }
+  };
+
+  if (loading) {
     return (
-      <div className="py-24 text-center text-gray-400">
-        Loading...
+      <div className="flex h-[70vh] items-center justify-center text-xl text-gray-400">
+        Loading Project...
       </div>
     );
+  }
+
+  if (!project) {
+    return (
+      <div className="flex h-[70vh] items-center justify-center">
+        Project not found.
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
 
-      <div className="rounded-3xl border border-white/10 bg-[#111827] p-10">
+      <Link
+        to="/projects"
+        className="inline-flex items-center gap-2 text-cyan-400"
+      >
+        <ArrowLeft size={18} />
+        Back
+      </Link>
 
-        <div className="flex items-start justify-between">
+      <div className="rounded-3xl border border-white/10 bg-gradient-to-r from-cyan-600 to-indigo-600 p-10">
+
+        <div className="flex flex-col gap-6 lg:flex-row lg:justify-between">
 
           <div>
 
-            <h1 className="text-4xl font-bold">
+            <h1 className="text-5xl font-bold">
               {project.title}
             </h1>
 
-            <p className="mt-5 max-w-4xl leading-8 text-gray-400">
+            <p className="mt-5 max-w-3xl text-lg text-white/90">
               {project.description}
             </p>
 
           </div>
 
-          <span className="rounded-full bg-cyan-500/10 px-4 py-2 text-cyan-300">
-            {project.status}
-          </span>
+          <button
+            onClick={requestJoin}
+            className="flex h-fit items-center gap-3 rounded-xl bg-white px-6 py-3 font-semibold text-black"
+          >
+            <UserPlus size={18} />
+            Join Project
+          </button>
 
         </div>
 
-        <div className="mt-8 flex flex-wrap gap-3">
+      </div>
 
-          {(project.techStack || []).map((tech) => (
-            <span
-              key={tech}
-              className="rounded-full border border-cyan-500/20 bg-cyan-500/10 px-4 py-2"
-            >
-              {tech}
-            </span>
-          ))}
+      <div className="grid gap-8 lg:grid-cols-3">
+
+        <div className="space-y-8 lg:col-span-2">
+
+          <div className="rounded-3xl border border-white/10 bg-[#111827] p-8">
+
+            <h2 className="mb-5 text-2xl font-bold">
+              Overview
+            </h2>
+
+            <p className="leading-8 text-gray-300">
+              {project.overview || project.description}
+            </p>
+
+          </div>
+
+          <div className="rounded-3xl border border-white/10 bg-[#111827] p-8">
+
+            <h2 className="mb-6 text-2xl font-bold">
+              Tech Stack
+            </h2>
+
+            <div className="flex flex-wrap gap-3">
+
+              {project.techStack?.map((tech) => (
+                <span
+                  key={tech}
+                  className="rounded-full bg-cyan-500/10 px-4 py-2 text-cyan-300"
+                >
+                  {tech}
+                </span>
+              ))}
+
+            </div>
+
+          </div>
+
+          <div className="rounded-3xl border border-white/10 bg-[#111827] p-8">
+
+            <h2 className="mb-6 text-2xl font-bold">
+              Team Members
+            </h2>
+
+            <div className="space-y-4">
+
+              {project.members?.map((member) => (
+
+                <div
+                  key={member.user?._id}
+                  className="flex items-center justify-between rounded-xl border border-white/10 p-5"
+                >
+
+                  <div>
+
+                    <h3 className="font-semibold">
+                      {member.user?.name}
+                    </h3>
+
+                    <p className="text-sm text-gray-400">
+                      {member.role}
+                    </p>
+
+                  </div>
+
+                  <Users className="text-cyan-400" />
+
+                </div>
+
+              ))}
+
+            </div>
+
+          </div>
 
         </div>
 
-        <div className="mt-8 flex gap-4">
+        <div className="space-y-8">
+
+          <div className="rounded-3xl border border-white/10 bg-[#111827] p-8">
+
+            <h2 className="mb-6 text-xl font-bold">
+              Project Stats
+            </h2>
+
+            <div className="space-y-5">
+
+              <div className="flex justify-between">
+
+                <span>Members</span>
+
+                <span>{project.members?.length || 0}</span>
+
+              </div>
+
+              <div className="flex justify-between">
+
+                <span>Roles</span>
+
+                <span>{project.rolesNeeded?.length || 0}</span>
+
+              </div>
+
+              <div className="flex justify-between">
+
+                <span>Status</span>
+
+                <span>{project.status}</span>
+
+              </div>
+
+              <div className="flex justify-between">
+
+                <span>Difficulty</span>
+
+                <span>{project.difficulty || "-"}</span>
+
+              </div>
+
+              <div className="flex justify-between">
+
+                <span>Duration</span>
+
+                <span>{project.estimatedWeeks || 0} Weeks</span>
+
+              </div>
+
+            </div>
+
+          </div>
 
           {project.githubRepo && (
             <a
               href={project.githubRepo}
               target="_blank"
               rel="noreferrer"
-              className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#0B1220] px-5 py-3"
+              className="flex items-center gap-3 rounded-2xl border border-white/10 bg-[#111827] p-6 hover:border-cyan-400"
             >
-              <Code2 size={18} />
-              GitHub
+              <Code2 />
+              GitHub Repository
             </a>
           )}
 
@@ -110,127 +260,31 @@ function ProjectDetails() {
               href={project.liveLink}
               target="_blank"
               rel="noreferrer"
-              className="flex items-center gap-2 rounded-xl bg-cyan-400 px-5 py-3 font-semibold text-black"
+              className="flex items-center gap-3 rounded-2xl border border-white/10 bg-[#111827] p-6 hover:border-cyan-400"
             >
-              <Globe size={18} />
-              Live Demo
+              <Globe />
+              Live Project
             </a>
           )}
 
-        </div>
+          <div className="rounded-3xl border border-cyan-500/20 bg-cyan-500/10 p-8">
 
-      </div>
+            <Code2 className="mb-4 text-cyan-400" />
 
-      {stats && (
-        <div className="grid gap-6 md:grid-cols-5">
+            <h2 className="text-xl font-bold">
+              AI Workspace
+            </h2>
 
-          <Card title="Members" value={stats.totalMembers} />
-
-          <Card title="Tasks" value={stats.totalTasks} />
-
-          <Card title="Completed" value={stats.completedTasks} />
-
-          <Card title="In Progress" value={stats.inProgressTasks} />
-
-          <Card title="Completion" value={`${stats.completionRate}%`} />
-
-        </div>
-      )}
-
-      <div className="grid gap-8 xl:grid-cols-3">
-
-        <div className="xl:col-span-2 rounded-3xl border border-white/10 bg-[#111827] p-8">
-
-          <h2 className="mb-8 text-2xl font-bold">
-            Activity Timeline
-          </h2>
-
-          <div className="space-y-5">
-
-            {activities.length === 0 ? (
-              <p className="text-gray-500">
-                No activity yet.
-              </p>
-            ) : (
-              activities.map((item) => (
-                <div
-                  key={item._id}
-                  className="rounded-xl border border-white/10 bg-[#0B1220] p-5"
-                >
-                  <div className="font-semibold">
-                    {item.message}
-                  </div>
-
-                  <div className="mt-2 text-sm text-gray-500">
-                    {new Date(
-                      item.createdAt
-                    ).toLocaleString()}
-                  </div>
-                </div>
-              ))
-            )}
+            <p className="mt-3 text-gray-300">
+              AI code reviews, architecture suggestions, documentation,
+              debugging and summaries will be integrated directly into this
+              project workspace.
+            </p>
 
           </div>
 
         </div>
 
-        <div className="rounded-3xl border border-white/10 bg-[#111827] p-8">
-
-          <h2 className="mb-8 flex items-center gap-3 text-2xl font-bold">
-
-            <Users />
-
-            Team Members
-
-          </h2>
-
-          <div className="space-y-5">
-
-            {(project.members || []).map((m) => (
-              <div
-                key={m.user?._id}
-                className="flex items-center justify-between rounded-xl border border-white/10 bg-[#0B1220] p-4"
-              >
-                <div>
-
-                  <div className="font-semibold">
-                    {m.user?.name}
-                  </div>
-
-                  <div className="text-sm text-gray-500">
-                    {m.role}
-                  </div>
-
-                </div>
-
-                <CheckCircle2
-                  className="text-cyan-400"
-                  size={20}
-                />
-
-              </div>
-            ))}
-
-          </div>
-
-        </div>
-
-      </div>
-
-    </div>
-  );
-}
-
-function Card({ title, value }) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-[#111827] p-6">
-
-      <div className="text-sm text-gray-400">
-        {title}
-      </div>
-
-      <div className="mt-3 text-3xl font-bold">
-        {value}
       </div>
 
     </div>

@@ -1,72 +1,74 @@
-import { useEffect, useState } from "react";
 import {
-  User,
-  BriefcaseBusiness,
-  Code2,
-  MapPin,
+  FolderKanban,
+  Users,
+  MessageSquare,
+  Bell,
 } from "lucide-react";
 
-import { getMyProfile } from "../../services/profileService";
-
-function StatCard({ icon: Icon, title, value }) {
-  return (
-    <div className="rounded-3xl border border-white/10 bg-[#111827] p-6 transition hover:border-cyan-400/40">
-      <div className="flex items-center justify-between">
-        <Icon className="text-cyan-400" size={26} />
-        <span className="text-3xl font-bold text-white">
-          {value}
-        </span>
-      </div>
-
-      <h3 className="mt-6 text-sm uppercase tracking-wider text-gray-400">
-        {title}
-      </h3>
-    </div>
-  );
-}
+const stats = [
+  {
+    title: "Projects",
+    value: "12",
+    icon: FolderKanban,
+  },
+  {
+    title: "Connections",
+    value: "154",
+    icon: Users,
+  },
+  {
+    title: "Messages",
+    value: "42",
+    icon: MessageSquare,
+  },
+  {
+    title: "Notifications",
+    value: "9",
+    icon: Bell,
+  },
+];
 
 function StatsGrid() {
-  const [profile, setProfile] = useState(null);
-
-  useEffect(() => {
-    load();
-  }, []);
-
-  async function load() {
-    try {
-      const p = await getMyProfile();
-      setProfile(p);
-    } catch (e) {
-      console.log(e);
-    }
-  }
-
   return (
     <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
 
-      <StatCard
-        icon={User}
-        title="Skills"
-        value={profile?.skills?.length || 0}
-      />
+      {stats.map((item) => {
 
-      <StatCard
-        icon={BriefcaseBusiness}
-        title="Experience"
-        value={profile?.experience?.length || 0}
-      />
+        const Icon = item.icon;
 
-      <StatCard
-        icon={Code2}
-        title="Username"
-        value={profile?.username || "--"}
-      />
+        return (
+          <div
+            key={item.title}
+            className="rounded-3xl border border-white/10 bg-[#111827] p-7 transition hover:border-cyan-400 hover:-translate-y-1"
+          >
+            <div className="flex items-center justify-between">
 
-      <StatCard
-        icon={MapPin}
-        title="Location"
-        value={profile?.location || "--"}
-      />
+              <div>
+
+                <p className="text-gray-400">
+                  {item.title}
+                </p>
+
+                <h2 className="mt-3 text-4xl font-bold">
+                  {item.value}
+                </h2>
+
+              </div>
+
+              <div className="rounded-2xl bg-cyan-500/10 p-4">
+
+                <Icon
+                  size={28}
+                  className="text-cyan-400"
+                />
+
+              </div>
+
+            </div>
+
+          </div>
+        );
+      })}
 
     </div>
   );

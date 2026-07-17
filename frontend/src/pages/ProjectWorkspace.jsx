@@ -1,86 +1,76 @@
-import { useState } from "react";
+import { useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import axios from "axios";
 
 import WorkspaceHeader from "../components/workspace/WorkspaceHeader";
-import WorkspaceTabs from "../components/workspace/WorkspaceTabs";
-import OverviewTab from "../components/workspace/OverviewTab";
-import MembersTab from "../components/workspace/MembersTab";
+import WorkspaceSidebar from "../components/workspace/WorkspaceSidebar";
+import WorkspaceRightSidebar from "../components/workspace/WorkspaceRightSidebar";
+import KanbanBoard from "../components/workspace/KanbanBoard";
+
+const API = "http://localhost:5000/api";
 
 function ProjectWorkspace() {
-  const [activeTab, setActiveTab] = useState("Overview");
+  const { id } = useParams();
 
-  // Temporary data.
-  // This will come from backend in the next batch.
+  const token = localStorage.getItem("token");
 
-  const project = {
-    title: "DevConnect",
+  const [project, setProject] = useState(null);
+  const [tasks, setTasks] = useState([]);
 
-    description:
-      "A production-grade developer collaboration platform inspired by GitHub, Slack, Linear and Jira.",
+  useEffect(() => {
+    loadWorkspace();
+  }, []);
 
-    updatedAt: new Date(),
+  async function loadWorkspace() {
+    try {
+      const [projectRes, taskRes] = await Promise.all([
+        axios.get(`${API}/projects/${id}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }),
 
-    members: [
-      {
-        _id: "1",
-        name: "Kartik",
-        role: "Owner",
-      },
-      {
-        _id: "2",
-        name: "Alex",
-        role: "Backend Developer",
-      },
-    ],
+        axios.get(`${API}/tasks/project/${id}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }),
+      ]);
 
-    tasks: [
-      {
-        completed: true,
-      },
-      {
-        completed: false,
-      },
-      {
-        completed: false,
-      },
-    ],
-  };
+      setProject(projectRes.data);
+      setTasks(taskRes.data.tasks || []);
+    } catch (err) {
+      console.log(err);
+    }
+  }
+
+  if (!project)
+    return (
+      <div className="text-center text-gray-400 mt-20">
+        Loading Workspace...
+      </div>
+    );
 
   return (
     <div className="space-y-8">
 
       <WorkspaceHeader project={project} />
 
-      <WorkspaceTabs
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-      />
+      <div className="grid grid-cols-12 gap-8">
 
-      {activeTab === "Overview" && (
-        <OverviewTab project={project} />
-      )}
+        <div className="col-span-2">
+          <WorkspaceSidebar />
+        </div>
 
-      {activeTab === "Members" && (
-        <MembersTab
-          members={project.members}
-        />
-      )}
+        <div className="col-span-7">
+          <KanbanBoard tasks={tasks} />
+        </div>
 
-      {activeTab !== "Overview" &&
-        activeTab !== "Members" && (
+        <div className="col-span-3">
+          <WorkspaceRightSidebar />
+        </div>
 
-          <div className="rounded-3xl border border-[#263243] bg-[#111827] p-16 text-center">
-
-            <h2 className="text-2xl font-bold">
-              {activeTab}
-            </h2>
-
-            <p className="mt-4 text-gray-400">
-              This section will be connected to the backend in the upcoming batches.
-            </p>
-
-          </div>
-
-        )}
+      </div>
 
     </div>
   );

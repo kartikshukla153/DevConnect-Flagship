@@ -13,14 +13,15 @@ import Profile from "./pages/Profile";
 import CreateProfile from "./pages/CreateProfile";
 import AddExperience from "./pages/AddExperience";
 import AIArchitect from "./pages/AIArchitect";
+
+import Projects from "./pages/Projects";
+import ProjectDetails from "./pages/ProjectDetails";
 import ProjectWorkspace from "./pages/ProjectWorkspace";
+import CreateProject from "./pages/CreateProject";
+
 import ProtectedRoute from "./routes/ProtectedRoute";
 import useAuth from "./hooks/useAuth";
-import Projects from "./pages/Projects";
 import AppLayout from "./layout/AppLayout";
-import ProjectDetails from "./pages/ProjectDetails";
-
-
 
 function ProtectedLayout({ children }) {
   return (
@@ -35,26 +36,18 @@ function App() {
 
   return (
     <Routes>
-      {/* Root Redirect */}
 
       <Route
         path="/"
         element={
-          isAuthenticated ? (
-            <Navigate to="/dashboard" replace />
-          ) : (
-            <Navigate to="/login" replace />
-          )
+          isAuthenticated
+            ? <Navigate to="/dashboard" replace />
+            : <Navigate to="/login" replace />
         }
       />
 
-      {/* Public Routes */}
-
       <Route path="/login" element={<Login />} />
-
       <Route path="/register" element={<Register />} />
-
-      {/* Dashboard */}
 
       <Route
         path="/dashboard"
@@ -65,8 +58,6 @@ function App() {
         }
       />
 
-      {/* Feed */}
-
       <Route
         path="/feed"
         element={
@@ -76,8 +67,6 @@ function App() {
         }
       />
 
-      {/* Messages */}
-
       <Route
         path="/messages"
         element={
@@ -86,8 +75,6 @@ function App() {
           </ProtectedLayout>
         }
       />
-
-      {/* Developers */}
 
       <Route
         path="/developers"
@@ -107,8 +94,6 @@ function App() {
         }
       />
 
-      {/* Profile */}
-
       <Route
         path="/profile"
         element={
@@ -117,41 +102,6 @@ function App() {
           </ProtectedLayout>
         }
       />
-<Route
-  path="/workspace"
-  element={
-    <ProtectedLayout>
-      <ProjectWorkspace />
-    </ProtectedLayout>
-  }
-/>
-      <Route
-        path="/create-profile"
-        element={
-          <ProtectedLayout>
-            <CreateProfile />
-          </ProtectedLayout>
-        }
-      />
-      <Route
-  path="/projects/:id"
-  element={
-    <ProtectedLayout>
-      <ProjectDetails />
-    </ProtectedLayout>
-  }
-/>
-
-      <Route
-        path="/add-experience"
-        element={
-          <ProtectedLayout>
-            <AddExperience />
-          </ProtectedLayout>
-        }
-      />
-
-      {/* Notifications */}
 
       <Route
         path="/notifications"
@@ -162,7 +112,59 @@ function App() {
         }
       />
 
-      {/* AI Architect */}
+      <Route
+        path="/workspace"
+        element={
+          <ProtectedLayout>
+            <ProjectWorkspace />
+          </ProtectedLayout>
+        }
+      />
+
+      <Route
+        path="/projects"
+        element={
+          <ProtectedLayout>
+            <Projects />
+          </ProtectedLayout>
+        }
+      />
+
+      <Route
+        path="/projects/create"
+        element={
+          <ProtectedLayout>
+            <CreateProject />
+          </ProtectedLayout>
+        }
+      />
+
+      <Route
+        path="/projects/:id"
+        element={
+          <ProtectedLayout>
+            <ProjectDetails />
+          </ProtectedLayout>
+        }
+      />
+
+      <Route
+        path="/create-profile"
+        element={
+          <ProtectedLayout>
+            <CreateProfile />
+          </ProtectedLayout>
+        }
+      />
+
+      <Route
+        path="/add-experience"
+        element={
+          <ProtectedLayout>
+            <AddExperience />
+          </ProtectedLayout>
+        }
+      />
 
       <Route
         path="/ai"
@@ -172,16 +174,6 @@ function App() {
           </ProtectedLayout>
         }
       />
-      <Route
-  path="/projects"
-  element={
-    <ProtectedLayout>
-      <Projects />
-    </ProtectedLayout>
-  }
-/>
-
-      {/* Fallback */}
 
       <Route
         path="*"
@@ -192,6 +184,7 @@ function App() {
           />
         }
       />
+
     </Routes>
   );
 }
