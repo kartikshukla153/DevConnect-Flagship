@@ -5,9 +5,6 @@ let io;
 
 const userSocketMap = {};
 
-// ==========================================
-// INITIALIZE SOCKET.IO
-// ==========================================
 export const initializeSocket = (server) => {
   io = new Server(server, {
     cors: {
@@ -20,164 +17,161 @@ export const initializeSocket = (server) => {
   console.log("✅ Socket.IO Initialized");
 
   io.on("connection", async (socket) => {
-    console.log("====================================");
-    console.log("🟢 NEW SOCKET CONNECTED");
-    console.log("Socket ID:", socket.id);
+    console.log("🟢 Socket Connected:", socket.id);
 
     const userId = socket.handshake.query.userId;
 
-    console.log("User ID:", userId);
+    // =============================
+    // USER ONLINE
+    // =============================
 
-    // ======================================
-    // USER CONNECTED
-    // ======================================
     if (userId) {
       userSocketMap[userId] = socket.id;
 
       try {
-        const updatedUser = await User.findByIdAndUpdate(
-          userId,
-          {
-            isOnline: true,
-            lastSeen: new Date(),
-          },
-          {
-            returnDocument: "after",
-          }
-        );
-
-        console.log("✅ USER MARKED ONLINE");
-        console.log(updatedUser);
-
-        console.log("📡 ONLINE USERS:", Object.keys(userSocketMap));
+        await User.findByIdAndUpdate(userId, {
+          isOnline: true,
+          lastSeen: new Date(),
+        });
 
         io.emit("userOnline", userId);
         io.emit("onlineUsers", Object.keys(userSocketMap));
       } catch (err) {
-        console.log("Mongo Update Error:", err.message);
+        console.log(err.message);
       }
     }
 
-    // ======================================
-    // PROJECT ROOMS
-    // ======================================
+    // =============================
+    // PROJECT ROOM
+    // =============================
 
     socket.on("join_project", (projectId) => {
       socket.join(projectId);
-      console.log(`📁 Joined Project ${projectId}`);
+      console.log(`📁 Joined ${projectId}`);
     });
 
     socket.on("leave_project", (projectId) => {
       socket.leave(projectId);
-      console.log(`📂 Left Project ${projectId}`);
+      console.log(`📂 Left ${projectId}`);
     });
 
-    // ======================================
-    // TYPING EVENTS
-    // ======================================
+    // =============================
+    // PROJECT TYPING
+    // =============================
 
-    // ======================================
-// TYPING EVENTS
-// ======================================
-
-socket.on("typing", ({ senderId, receiverId, conversationId }) => {
-  const receiverSocketId = userSocketMap[receiverId];
-
-  if (receiverSocketId) {
-    io.to(receiverSocketId).emit("typing", {
-      senderId,
-      conversationId,
+    socket.on("project_typing", ({ projectId, user }) => {
+      socket.to(projectId).emit("project_typing", {
+        user,
+      });
     });
-  }
-});
 
-socket.on("stopTyping", ({ senderId, receiverId, conversationId }) => {
-  const receiverSocketId = userSocketMap[receiverId];
-
-  if (receiverSocketId) {
-    io.to(receiverSocketId).emit("stopTyping", {
-      senderId,
-      conversationId,
+    socket.on("project_stop_typing", (projectId) => {
+      socket.to(projectId).emit("project_stop_typing");
     });
-  }
-});
 
-// ======================================
-// MESSAGE READ
-// ======================================
+    // =============================
+    // PRIVATE CHAT TYPING
+    // =============================
 
-socket.on("messageRead", ({ receiverId, conversationId }) => {
-  const receiverSocketId = userSocketMap[receiverId];
+    socket.on(
+      "typing",
+      ({ senderId, receiverId, conversationId }) => {
+        const receiverSocketId =
+          userSocketMap[receiverId];
 
-  if (receiverSocketId) {
-    io.to(receiverSocketId).emit("messageRead", {
-      conversationId,
-    });
-  }
-});
-
-    socket.on("stopTyping", ({ senderId, receiverId }) => {
-      const receiverSocketId = userSocketMap[receiverId];
-
-      if (receiverSocketId) {
-        io.to(receiverSocketId).emit("stopTyping", {
-          senderId,
-        });
+        if (receiverSocketId) {
+          io.to(receiverSocketId).emit(
+            "typing",
+            {
+              senderId,
+              conversationId,
+            }
+          );
+        }
       }
-    });
+    );
 
-    // ======================================
+    socket.on(
+      "stopTyping",
+      ({ senderId, receiverId, conversationId }) => {
+        const receiverSocketId =
+          userSocketMap[receiverId];
+
+        if (receiverSocketId) {
+          io.to(receiverSocketId).emit(
+            "stopTyping",
+            {
+              senderId,
+              conversationId,
+            }
+          );
+        }
+      }
+    );
+
+    // =============================
+    // MESSAGE READ
+    // =============================
+
+    socket.on(
+      "messageRead",
+      ({ receiverId, conversationId }) => {
+        const receiverSocketId =
+          userSocketMap[receiverId];
+
+        if (receiverSocketId) {
+          io.to(receiverSocketId).emit(
+            "messageRead",
+            {
+              conversationId,
+            }
+          );
+        }
+      }
+    );
+
+    // =============================
     // DISCONNECT
-    // ======================================
+    // =============================
 
     socket.on("disconnect", async () => {
-      console.log("====================================");
-      console.log("🔴 SOCKET DISCONNECTED");
-      console.log("Socket ID:", socket.id);
+      console.log("🔴 Socket Disconnected");
 
       if (userId) {
         delete userSocketMap[userId];
 
         try {
-          const updatedUser = await User.findByIdAndUpdate(
-            userId,
-            {
-              isOnline: false,
-              lastSeen: new Date(),
-            },
-            {
-              returnDocument: "after",
-            }
-          );
-
-          console.log("❌ USER MARKED OFFLINE");
-          console.log(updatedUser);
-
-          console.log("📡 ONLINE USERS:", Object.keys(userSocketMap));
+          await User.findByIdAndUpdate(userId, {
+            isOnline: false,
+            lastSeen: new Date(),
+          });
 
           io.emit("userOffline", userId);
-          io.emit("onlineUsers", Object.keys(userSocketMap));
+          io.emit(
+            "onlineUsers",
+            Object.keys(userSocketMap)
+          );
         } catch (err) {
-          console.log("Mongo Update Error:", err.message);
+          console.log(err.message);
         }
       }
     });
   });
 };
 
-// ==========================================
-// HELPERS
-// ==========================================
-
 export const getIO = () => {
   if (!io) {
-    throw new Error("Socket.IO not initialized");
+    throw new Error(
+      "Socket.IO not initialized"
+    );
   }
 
   return io;
 };
 
-export const getReceiverSocketId = (userId) => {
+export const getReceiverSocketId = (
+  userId
+) => {
   return userSocketMap[userId];
 };
 

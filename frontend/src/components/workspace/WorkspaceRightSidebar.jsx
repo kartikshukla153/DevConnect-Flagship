@@ -1,64 +1,81 @@
-import {
-  Brain,
-  Clock3,
-  Users,
-  Sparkles,
-} from "lucide-react";
+import { Users } from "lucide-react";
+import ProjectChat from "./ProjectChat";
 
-function WorkspaceRightSidebar() {
+function WorkspaceRightSidebar({
+  project,
+}) {
   return (
     <div className="space-y-6">
 
-      <div className="rounded-3xl border border-[#263243] bg-[#111827] p-6">
-
-        <Brain className="mb-4 text-cyan-400" />
-
-        <h2 className="font-semibold">
-          AI Suggestions
-        </h2>
-
-        <p className="mt-3 text-sm leading-7 text-gray-400">
-          AI architecture reviews, debugging, documentation and sprint planning
-          will appear here.
-        </p>
-
-      </div>
+      {/* Online Members */}
 
       <div className="rounded-3xl border border-[#263243] bg-[#111827] p-6">
 
-        <Users className="mb-4 text-cyan-400" />
+        <div className="mb-5 flex items-center gap-3">
 
-        <h2 className="font-semibold">
-          Team Activity
-        </h2>
+          <Users
+            size={18}
+            className="text-cyan-400"
+          />
 
-        <p className="mt-3 text-sm text-gray-400">
-          Live member activity coming next.
-        </p>
+          <h2 className="font-semibold">
+            Team
+          </h2>
+
+        </div>
+
+        <div className="space-y-4">
+
+          {project.members?.map((member) => (
+            <div
+              key={member.user?._id}
+              className="flex items-center justify-between"
+            >
+
+              <div className="flex items-center gap-3">
+
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-cyan-500 font-bold text-black">
+
+                  {member.user?.name?.charAt(0)}
+
+                </div>
+
+                <div>
+
+                  <p className="font-medium">
+
+                    {member.user?.name}
+
+                  </p>
+
+                  <p className="text-xs text-gray-500">
+
+                    {member.role}
+
+                  </p>
+
+                </div>
+
+              </div>
+
+              <div className="h-3 w-3 rounded-full bg-green-500" />
+
+            </div>
+          ))}
+
+        </div>
 
       </div>
 
-      <div className="rounded-3xl border border-[#263243] bg-[#111827] p-6">
+      {/* Chat */}
 
-        <Clock3 className="mb-4 text-cyan-400" />
+      <div className="h-[520px]">
 
-        <h2 className="font-semibold">
-          Sprint
-        </h2>
-
-        <p className="mt-3 text-sm text-gray-400">
-          12 days remaining.
-        </p>
+        <ProjectChat
+          projectId={project._id}
+        />
 
       </div>
-
-      <button className="flex w-full items-center justify-center gap-3 rounded-2xl bg-cyan-400 py-4 font-semibold text-black hover:bg-cyan-300">
-
-        <Sparkles size={20} />
-
-        Open AI Architect
-
-      </button>
 
     </div>
   );

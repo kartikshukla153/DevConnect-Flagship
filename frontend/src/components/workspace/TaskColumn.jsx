@@ -1,7 +1,16 @@
 import { Circle } from "lucide-react";
+import {
+  Droppable,
+  Draggable,
+} from "@hello-pangea/dnd";
+
 import TaskCard from "./TaskCard";
 
-function TaskColumn({ title, tasks = [] }) {
+function TaskColumn({
+  id,
+  title,
+  tasks = [],
+}) {
   return (
     <div className="rounded-3xl border border-[#263243] bg-[#111827]">
 
@@ -9,7 +18,10 @@ function TaskColumn({ title, tasks = [] }) {
 
         <div className="flex items-center gap-3">
 
-          <Circle size={10} className="fill-cyan-400 text-cyan-400" />
+          <Circle
+            size={10}
+            className="fill-cyan-400 text-cyan-400"
+          />
 
           <h2 className="font-semibold text-white">
             {title}
@@ -23,19 +35,43 @@ function TaskColumn({ title, tasks = [] }) {
 
       </div>
 
-      <div className="space-y-4 p-4 min-h-[520px]">
+      <Droppable droppableId={id}>
+        {(provided) => (
+          <div
+            ref={provided.innerRef}
+            {...provided.droppableProps}
+            className="min-h-[520px] space-y-4 p-4"
+          >
 
-        {tasks.length === 0 ? (
-          <div className="flex h-32 items-center justify-center rounded-2xl border border-dashed border-[#2b3b4d] text-sm text-gray-500">
-            No Tasks
+            {tasks.map((task, index) => (
+              <Draggable
+                key={task._id}
+                draggableId={task._id}
+                index={index}
+              >
+                {(provided) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.draggableProps}
+                    {...provided.dragHandleProps}
+                  >
+                    <TaskCard task={task} />
+                  </div>
+                )}
+              </Draggable>
+            ))}
+
+            {provided.placeholder}
+
+            {tasks.length === 0 && (
+              <div className="flex h-32 items-center justify-center rounded-2xl border border-dashed border-[#2b3b4d] text-sm text-gray-500">
+                Drop tasks here
+              </div>
+            )}
+
           </div>
-        ) : (
-          tasks.map((task) => (
-            <TaskCard key={task._id} task={task} />
-          ))
         )}
-
-      </div>
+      </Droppable>
 
     </div>
   );

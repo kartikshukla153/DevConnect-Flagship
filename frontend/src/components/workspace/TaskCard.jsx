@@ -2,12 +2,18 @@ import {
   CalendarDays,
   Flag,
   MessageSquare,
+  User,
 } from "lucide-react";
 
-function TaskCard({ task }) {
+function TaskCard({
+  task,
+  onClick,
+}) {
   return (
-    <div className="cursor-pointer rounded-2xl border border-[#263243] bg-[#0B1220] p-5 transition duration-300 hover:-translate-y-1 hover:border-cyan-500">
-
+    <div
+      onClick={() => onClick(task)}
+      className="cursor-pointer rounded-2xl border border-[#263243] bg-[#0B1220] p-5 transition duration-300 hover:-translate-y-1 hover:border-cyan-500"
+    >
       <h3 className="text-lg font-semibold text-white">
         {task.title}
       </h3>
@@ -22,22 +28,41 @@ function TaskCard({ task }) {
           {task.priority || "Medium"}
         </span>
 
-        <Flag size={16} className="text-yellow-400" />
+        <Flag
+          size={16}
+          className="text-yellow-400"
+        />
 
       </div>
 
-      <div className="mt-5 flex items-center justify-between border-t border-[#263243] pt-4 text-xs text-gray-500">
+      <div className="mt-5 flex items-center gap-2 text-xs text-gray-500">
+
+        <User size={14} />
+
+        {task.assignedTo?.name || "Unassigned"}
+
+      </div>
+
+      <div className="mt-4 flex items-center justify-between border-t border-[#263243] pt-4 text-xs text-gray-500">
 
         <div className="flex items-center gap-2">
+
           <CalendarDays size={14} />
+
           {task.deadline
-            ? new Date(task.deadline).toLocaleDateString()
+            ? new Date(
+                task.deadline
+              ).toLocaleDateString()
             : "No deadline"}
+
         </div>
 
         <div className="flex items-center gap-2">
+
           <MessageSquare size={14} />
+
           0
+
         </div>
 
       </div>

@@ -1,44 +1,140 @@
+import { DragDropContext } from "@hello-pangea/dnd";
+import { useEffect, useState } from "react";
+import axios from "axios";
+
 import TaskColumn from "./TaskColumn";
 
-function KanbanBoard({ tasks }) {
-  const todo = tasks.filter((t) => t.status === "todo");
+const API = "http://localhost:5000/api";
 
-  const progress = tasks.filter(
-    (t) => t.status === "in-progress"
-  );
+function KanbanBoard({
+  tasks,
+  reloadTasks,
+  onTaskClick,
+}) {
+  const token = localStorage.getItem("token");
 
-  const review = tasks.filter(
-    (t) => t.status === "review"
-  );
+  const [columns, setColumns] = useState({
+    todo: [],
+    "in-progress": [],
+    review: [],
+    completed: [],
+  });
 
-  const completed = tasks.filter(
-    (t) => t.status === "completed"
-  );
+  useEffect(() => {
+    setColumns({
+      todo: tasks.filter((task) => task.status === "todo"),
+
+      "in-progress": tasks.filter(
+        (task) => task.status === "in-progress"
+      ),
+
+      review: tasks.filter(
+        (task) => task.status === "review"
+      ),
+
+      completed: tasks.filter(
+        (task) => task.status === "completed"
+      ),
+    });
+  }, [tasks]);
+
+  async function onDragEnd(result) {
+    const { source, destination } = result;
+
+    if (!destination) return;
+
+    if (
+      source.droppableId === destination.droppableId &&
+      source.index === destination.index
+    ) {
+      return;
+    }
+
+    const sourceColumn = [
+      ...columns[source.droppableId],
+    ];
+
+    const destinationColumn = [
+      ...columns[destination.droppableId],
+    ];
+
+    const [movedTask] = sourceColumn.splice(
+      source.index,
+      1
+    );
+
+    movedTask.status = destination.droppableId;
+
+    destinationColumn.splice(
+      destination.index,
+      0,
+      movedTask
+    );
+
+    setColumns({
+      ...columns,
+      [source.droppableId]: sourceColumn,
+      [destination.droppableId]:
+        destinationColumn,
+    });
+
+    try {
+      await axios.put(
+        `${API}/tasks/status/${movedTask._id}`,
+        {
+          status: destination.droppableId,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      reloadTasks();
+    } catch (error) {
+      console.log(error);
+
+      reloadTasks();
+    }
+  }
 
   return (
-    <div className="grid gap-6 xl:grid-cols-4">
+    <DragDropContext onDragEnd={onDragEnd}>
 
-      <TaskColumn
-        title="Todo"
-        tasks={todo}
-      />
+      <div className="grid gap-6 xl:grid-cols-4">
 
-      <TaskColumn
-        title="In Progress"
-        tasks={progress}
-      />
+        <TaskColumn
+          id="todo"
+          title="Todo"
+          tasks={columns.todo}
+          onTaskClick={onTaskClick}
+        />
 
-      <TaskColumn
-        title="Review"
-        tasks={review}
-      />
+        <TaskColumn
+          id="in-progress"
+          title="In Progress"
+          tasks={columns["in-progress"]}
+          onTaskClick={onTaskClick}
+        />
 
-      <TaskColumn
-        title="Completed"
-        tasks={completed}
-      />
+        <TaskColumn
+          id="review"
+          title="Review"
+          tasks={columns.review}
+          onTaskClick={onTaskClick}
+        />
 
-    </div>
+        <TaskColumn
+          id="completed"
+          title="Completed"
+          tasks={columns.completed}
+          onTaskClick={onTaskClick}
+        />
+
+      </div>
+
+    </DragDropContext>
   );
 }
 

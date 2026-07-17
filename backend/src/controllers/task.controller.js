@@ -1,7 +1,14 @@
 import Task from "../models/Task.js";
 import Project from "../models/project.js";
 import Activity from "../models/Activity.js";
+import {
+  emitTaskCreated,
+  emitTaskUpdated,
+  emitTaskDeleted,
+  emitProjectActivity,
+} from "../socket/projectEvents.js";
 /**
+ * 
  * CREATE TASK
  */
 export const createTask = async (req, res) => {
@@ -74,7 +81,7 @@ await Activity.create({
       await Task.findById(task._id)
         .populate("assignedTo", "name email")
         .populate("createdBy", "name email");
-
+emitTaskCreated(projectId, populatedTask);
     return res.status(201).json({
       success: true,
       task: populatedTask,
@@ -261,6 +268,7 @@ export const updateTaskStatus = async (
     task.status = status;
 
     await task.save();
+    
     await Activity.create({
   project: task.project,
   user: req.user._id,
@@ -278,7 +286,7 @@ export const updateTaskStatus = async (
           "createdBy",
           "name email"
         );
-
+emitTaskUpdated(task.project.toString(), updatedTask);
     return res.status(200).json({
       success: true,
       message:
@@ -330,6 +338,10 @@ export const deleteTask = async (
     }
 
     await Task.findByIdAndDelete(taskId);
+    emitTaskDeleted(
+  task.project.toString(),
+  taskId
+);
 
     return res.status(200).json({
       success: true,
