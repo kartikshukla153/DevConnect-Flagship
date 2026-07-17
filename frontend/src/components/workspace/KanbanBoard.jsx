@@ -1,6 +1,6 @@
 import { DragDropContext } from "@hello-pangea/dnd";
-import { useEffect, useState } from "react";
 import axios from "axios";
+import { useEffect, useState } from "react";
 
 import TaskColumn from "./TaskColumn";
 
@@ -22,18 +22,15 @@ function KanbanBoard({
 
   useEffect(() => {
     setColumns({
-      todo: tasks.filter((task) => task.status === "todo"),
-
+      todo: tasks.filter((t) => t.status === "todo"),
       "in-progress": tasks.filter(
-        (task) => task.status === "in-progress"
+        (t) => t.status === "in-progress"
       ),
-
       review: tasks.filter(
-        (task) => task.status === "review"
+        (t) => t.status === "review"
       ),
-
       completed: tasks.filter(
-        (task) => task.status === "completed"
+        (t) => t.status === "completed"
       ),
     });
   }, [tasks]);
@@ -50,37 +47,28 @@ function KanbanBoard({
       return;
     }
 
-    const sourceColumn = [
-      ...columns[source.droppableId],
-    ];
+    const previousColumns = structuredClone(columns);
 
-    const destinationColumn = [
-      ...columns[destination.droppableId],
-    ];
+    const start = [...columns[source.droppableId]];
+    const finish = [...columns[destination.droppableId]];
 
-    const [movedTask] = sourceColumn.splice(
-      source.index,
-      1
-    );
+    const [moved] = start.splice(source.index, 1);
 
-    movedTask.status = destination.droppableId;
+    moved.status = destination.droppableId;
 
-    destinationColumn.splice(
-      destination.index,
-      0,
-      movedTask
-    );
+    finish.splice(destination.index, 0, moved);
 
-    setColumns({
+    const optimisticState = {
       ...columns,
-      [source.droppableId]: sourceColumn,
-      [destination.droppableId]:
-        destinationColumn,
-    });
+      [source.droppableId]: start,
+      [destination.droppableId]: finish,
+    };
+
+    setColumns(optimisticState);
 
     try {
       await axios.put(
-        `${API}/tasks/status/${movedTask._id}`,
+        `${API}/tasks/status/${moved._id}`,
         {
           status: destination.droppableId,
         },
@@ -90,18 +78,15 @@ function KanbanBoard({
           },
         }
       );
+    } catch (err) {
+      console.log(err);
 
-      reloadTasks();
-    } catch (error) {
-      console.log(error);
-
-      reloadTasks();
+      setColumns(previousColumns);
     }
   }
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
-
       <div className="grid gap-6 xl:grid-cols-4">
 
         <TaskColumn
@@ -133,7 +118,6 @@ function KanbanBoard({
         />
 
       </div>
-
     </DragDropContext>
   );
 }

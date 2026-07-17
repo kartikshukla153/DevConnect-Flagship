@@ -113,13 +113,13 @@ function App() {
       />
 
       <Route
-        path="/workspace"
-        element={
-          <ProtectedLayout>
-            <ProjectWorkspace />
-          </ProtectedLayout>
-        }
-      />
+  path="/workspace/:id"
+  element={
+    <ProtectedLayout>
+      <ProjectWorkspace />
+    </ProtectedLayout>
+  }
+/>
 
       <Route
         path="/projects"
