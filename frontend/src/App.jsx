@@ -1,21 +1,26 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 
-import Messages from "./pages/Messages";
-import Notifications from "./pages/Notifications";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+
+import Dashboard from "./pages/Dashboard";
 import Feed from "./pages/Feed";
+import Messages from "./pages/Messages";
+import Notifications from "./pages/Notifications";
+import Developers from "./pages/Developers";
+import PublicProfile from "./pages/PublicProfile";
 import Profile from "./pages/Profile";
 import CreateProfile from "./pages/CreateProfile";
 import AddExperience from "./pages/AddExperience";
-import Developers from "./pages/Developers";
-import PublicProfile from "./pages/PublicProfile";
 import AIArchitect from "./pages/AIArchitect";
-
+import ProjectWorkspace from "./pages/ProjectWorkspace";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import useAuth from "./hooks/useAuth";
-
+import Projects from "./pages/Projects";
 import AppLayout from "./layout/AppLayout";
+import ProjectDetails from "./pages/ProjectDetails";
+
+
 
 function ProtectedLayout({ children }) {
   return (
@@ -30,19 +35,37 @@ function App() {
 
   return (
     <Routes>
+      {/* Root Redirect */}
+
       <Route
         path="/"
         element={
           isAuthenticated ? (
-            <Navigate to="/feed" replace />
+            <Navigate to="/dashboard" replace />
           ) : (
             <Navigate to="/login" replace />
           )
         }
       />
 
+      {/* Public Routes */}
+
       <Route path="/login" element={<Login />} />
+
       <Route path="/register" element={<Register />} />
+
+      {/* Dashboard */}
+
+      <Route
+        path="/dashboard"
+        element={
+          <ProtectedLayout>
+            <Dashboard />
+          </ProtectedLayout>
+        }
+      />
+
+      {/* Feed */}
 
       <Route
         path="/feed"
@@ -53,6 +76,8 @@ function App() {
         }
       />
 
+      {/* Messages */}
+
       <Route
         path="/messages"
         element={
@@ -61,6 +86,8 @@ function App() {
           </ProtectedLayout>
         }
       />
+
+      {/* Developers */}
 
       <Route
         path="/developers"
@@ -80,6 +107,8 @@ function App() {
         }
       />
 
+      {/* Profile */}
+
       <Route
         path="/profile"
         element={
@@ -88,16 +117,14 @@ function App() {
           </ProtectedLayout>
         }
       />
-
-      <Route
-        path="/notifications"
-        element={
-          <ProtectedLayout>
-            <Notifications />
-          </ProtectedLayout>
-        }
-      />
-
+<Route
+  path="/workspace"
+  element={
+    <ProtectedLayout>
+      <ProjectWorkspace />
+    </ProtectedLayout>
+  }
+/>
       <Route
         path="/create-profile"
         element={
@@ -106,6 +133,14 @@ function App() {
           </ProtectedLayout>
         }
       />
+      <Route
+  path="/projects/:id"
+  element={
+    <ProtectedLayout>
+      <ProjectDetails />
+    </ProtectedLayout>
+  }
+/>
 
       <Route
         path="/add-experience"
@@ -116,12 +151,45 @@ function App() {
         }
       />
 
+      {/* Notifications */}
+
+      <Route
+        path="/notifications"
+        element={
+          <ProtectedLayout>
+            <Notifications />
+          </ProtectedLayout>
+        }
+      />
+
+      {/* AI Architect */}
+
       <Route
         path="/ai"
         element={
           <ProtectedLayout>
             <AIArchitect />
           </ProtectedLayout>
+        }
+      />
+      <Route
+  path="/projects"
+  element={
+    <ProtectedLayout>
+      <Projects />
+    </ProtectedLayout>
+  }
+/>
+
+      {/* Fallback */}
+
+      <Route
+        path="*"
+        element={
+          <Navigate
+            to={isAuthenticated ? "/dashboard" : "/login"}
+            replace
+          />
         }
       />
     </Routes>
