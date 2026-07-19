@@ -1,4 +1,5 @@
 import axios from "axios";
+import TaskComments from "./TaskComments";
 import {
   X,
   CalendarDays,
@@ -111,7 +112,7 @@ function TaskDetailsDrawer({
             <Trash2 size={18} />
             Delete
           </button>
-
+<TaskComments task={task} />
         </div>
 
       </div>

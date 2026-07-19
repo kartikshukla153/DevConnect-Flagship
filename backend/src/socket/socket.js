@@ -35,7 +35,14 @@ export const initializeSocket = (server) => {
         });
 
         io.emit("userOnline", userId);
-        io.emit("onlineUsers", Object.keys(userSocketMap));
+        io.emit(
+  "onlineUsers",
+  Object.keys(userSocketMap)
+);
+io.emit(
+  "team_presence_updated",
+  Object.keys(userSocketMap)
+);
       } catch (err) {
         console.log(err.message);
       }
@@ -45,10 +52,21 @@ export const initializeSocket = (server) => {
     // PROJECT ROOM
     // =============================
 
-    socket.on("join_project", (projectId) => {
-      socket.join(projectId);
-      console.log(`📁 Joined ${projectId}`);
-    });
+    socket.on(
+  "join_project",
+  (projectId) => {
+    socket.join(projectId);
+
+    io.to(projectId).emit(
+      "team_presence_updated",
+      Object.keys(userSocketMap)
+    );
+
+    console.log(
+      `📁 Joined ${projectId}`
+    );
+  }
+);
 
     socket.on("leave_project", (projectId) => {
       socket.leave(projectId);

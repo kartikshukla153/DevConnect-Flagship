@@ -21,7 +21,9 @@ import aiReviewRoutes from "./routes/aiReviewRoutes.js";
 import aiCodeRoutes from "./routes/aiCodeRoutes.js";
 import aiBugRoutes from "./routes/aiBugRoutes.js";
 import aiSummaryRoutes from "./routes/aiSummaryRoutes.js";
+import invitationRoutes from "./routes/invitation.routes.js";
 import activityRoutes from "./routes/activityRoutes.js";
+import taskCommentRoutes from "./routes/taskComment.routes.js";
 const app = express();
 
 // ==========================================
@@ -44,7 +46,15 @@ app.use("/api/ai-chat", aiChatRoutes);
 app.use("/api/ai", aiReviewRoutes);
 app.use("/api/ai-bug", aiBugRoutes);
 app.use("/api/ai-summary", aiSummaryRoutes);
+app.use(
+  "/api/task-comments",
+  taskCommentRoutes
+);
 app.use("/api/activity", activityRoutes);
+app.use(
+  "/api/invitations",
+  invitationRoutes
+);
 // ==========================================
 // STATIC FILES
 // ==========================================

@@ -1,74 +1,92 @@
-import { MessageSquare } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import axios from "axios";
 
-function TaskComments({ comments = [] }) {
+import TaskCommentItem from "./TaskCommentItem";
+import TaskCommentInput from "./TaskCommentInput";
+import { getProjectSocket } from "../../socket/projectSocket";
+
+const API = "http://localhost:5000/api";
+
+function TaskComments({ task }) {
+  const token = localStorage.getItem("token");
+
+  const [comments, setComments] = useState([]);
+
+  const bottomRef = useRef(null);
+
+  useEffect(() => {
+    if (!task) return;
+
+    loadComments();
+  }, [task]);
+
+  useEffect(() => {
+    const socket = getProjectSocket();
+
+    if (!socket) return;
+
+    socket.on(
+      "task_comment_added",
+      (comment) => {
+        if (
+          comment.task === task._id ||
+          comment.task?._id === task._id
+        ) {
+          setComments((prev) => [
+            ...prev,
+            comment,
+          ]);
+        }
+      }
+    );
+
+    return () =>
+      socket.off("task_comment_added");
+  }, [task]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({
+      behavior: "smooth",
+    });
+  }, [comments]);
+
+  async function loadComments() {
+    const res = await axios.get(
+      `${API}/task-comments/${task._id}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    setComments(res.data.comments);
+  }
+
   return (
-    <div className="rounded-3xl border border-[#263243] bg-[#111827] p-6">
+    <div className="mt-8">
 
-      <div className="mb-5 flex items-center gap-3">
+      <h3 className="mb-5 text-lg font-semibold">
+        Discussion
+      </h3>
 
-        <MessageSquare
-          size={20}
-          className="text-cyan-400"
-        />
+      <div className="space-y-4">
 
-        <h2 className="text-lg font-semibold">
-          Comments
-        </h2>
+        {comments.map((comment) => (
+          <TaskCommentItem
+            key={comment._id}
+            comment={comment}
+          />
+        ))}
+
+        <div ref={bottomRef} />
 
       </div>
 
-      {comments.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-[#263243] p-8 text-center text-sm text-gray-500">
-          No comments yet.
-        </div>
-      ) : (
-        <div className="space-y-5">
-
-          {comments.map((comment) => (
-            <div
-              key={comment._id}
-              className="rounded-2xl bg-[#0B1220] p-4"
-            >
-
-              <div className="mb-2 flex items-center gap-3">
-
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-cyan-500 font-bold text-black">
-
-                  {comment.user?.name?.charAt(0)}
-
-                </div>
-
-                <div>
-
-                  <p className="font-medium">
-
-                    {comment.user?.name}
-
-                  </p>
-
-                  <p className="text-xs text-gray-500">
-
-                    {new Date(
-                      comment.createdAt
-                    ).toLocaleString()}
-
-                  </p>
-
-                </div>
-
-              </div>
-
-              <p className="text-sm leading-6 text-gray-300">
-
-                {comment.text}
-
-              </p>
-
-            </div>
-          ))}
-
-        </div>
-      )}
+      <TaskCommentInput
+        task={task}
+        onAdded={loadComments}
+      />
 
     </div>
   );

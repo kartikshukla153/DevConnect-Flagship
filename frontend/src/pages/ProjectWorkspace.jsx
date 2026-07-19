@@ -231,8 +231,9 @@ function ProjectWorkspace() {
 
           <div className="col-span-12 xl:col-span-3">
             <WorkspaceRightSidebar
-              project={project}
-            />
+  project={project}
+  reloadWorkspace={loadWorkspace}
+/>
           </div>
 
         </div>

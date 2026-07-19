@@ -1,47 +1,112 @@
 import { getIO } from "./socket.js";
 
+/**
+ * TASK CREATED
+ */
 export function emitTaskCreated(projectId, task) {
-  getIO().to(projectId).emit("task_created", task);
+  const io = getIO();
 
-  getIO().to(projectId).emit("activity_added", {
+  io.to(projectId).emit("task_created", task);
+
+  io.to(projectId).emit("activity_added", {
     type: "task_created",
     message: `${task.createdBy?.name || "Someone"} created "${task.title}"`,
     createdAt: new Date(),
   });
 }
 
+/**
+ * TASK UPDATED
+ */
 export function emitTaskUpdated(projectId, task) {
-  getIO().to(projectId).emit("task_updated", task);
+  const io = getIO();
 
-  getIO().to(projectId).emit("activity_added", {
+  io.to(projectId).emit("task_updated", task);
+
+  io.to(projectId).emit("activity_added", {
     type: "task_updated",
     message: `${task.title} moved to ${task.status}`,
     createdAt: new Date(),
   });
 }
 
+/**
+ * TASK DELETED
+ */
 export function emitTaskDeleted(projectId, taskId) {
-  getIO().to(projectId).emit("task_deleted", {
+  const io = getIO();
+
+  io.to(projectId).emit("task_deleted", {
     taskId,
   });
 
-  getIO().to(projectId).emit("activity_added", {
+  io.to(projectId).emit("activity_added", {
     type: "task_deleted",
-    message: "A task was deleted",
+    message: "Task deleted",
     createdAt: new Date(),
   });
 }
 
-export function emitProjectActivity(projectId, activity) {
+/**
+ * TASK COMMENT
+ */
+export function emitTaskComment(projectId, comment) {
+  const io = getIO();
+
+  io.to(projectId).emit(
+    "task_comment_added",
+    comment
+  );
+
+  io.to(projectId).emit("activity_added", {
+    type: "task_comment",
+    message: `${comment.author?.name || "Someone"} commented on a task`,
+    createdAt: new Date(),
+    comment,
+  });
+}
+
+/**
+ * PROJECT CHAT
+ */
+export function emitProjectChat(projectId, message) {
+  getIO().to(projectId).emit(
+    "project_chat",
+    message
+  );
+}
+
+/**
+ * PROJECT ACTIVITY
+ */
+export function emitProjectActivity(
+  projectId,
+  activity
+) {
   getIO().to(projectId).emit(
     "activity_added",
     activity
   );
 }
 
-export function emitProjectChat(projectId, message) {
+/**
+ * TEAM UPDATED
+ */
+export function emitTeamUpdated(projectId) {
   getIO().to(projectId).emit(
-    "project_chat",
-    message
+    "team_updated"
+  );
+}
+
+/**
+ * LIVE PRESENCE
+ */
+export function emitPresenceUpdate(
+  projectId,
+  users
+) {
+  getIO().to(projectId).emit(
+    "team_presence_updated",
+    users
   );
 }

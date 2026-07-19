@@ -1,31 +1,17 @@
+import TeamMembersPanel from "./TeamMembersPanel";
 import ProjectChat from "./ProjectChat";
-import OnlineMembers from "./OnlineMembers";
-import WorkspaceStats from "./WorkspaceStats";
-import ActivityFeed from "./ActivityFeed";
 
 function WorkspaceRightSidebar({
   project,
+  reloadWorkspace,
 }) {
   return (
     <div className="space-y-6">
 
-      {/* Workspace Stats */}
-
-      <WorkspaceStats />
-
-      {/* Online Members */}
-
-      <OnlineMembers
+      <TeamMembersPanel
         project={project}
+        reloadWorkspace={reloadWorkspace}
       />
-
-      {/* Activity */}
-
-      <ActivityFeed
-        projectId={project._id}
-      />
-
-      {/* Team Chat */}
 
       <div className="h-[520px]">
 
