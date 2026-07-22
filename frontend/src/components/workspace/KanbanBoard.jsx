@@ -7,7 +7,7 @@ import TaskColumn from "./TaskColumn";
 const API = "http://localhost:5000/api";
 
 function KanbanBoard({
-  tasks,
+  tasks = [],
   reloadTasks,
   onTaskClick,
 }) {
@@ -22,15 +22,15 @@ function KanbanBoard({
 
   useEffect(() => {
     setColumns({
-      todo: tasks.filter((t) => t.status === "todo"),
+      todo: tasks.filter((task) => task.status === "todo"),
       "in-progress": tasks.filter(
-        (t) => t.status === "in-progress"
+        (task) => task.status === "in-progress"
       ),
       review: tasks.filter(
-        (t) => t.status === "review"
+        (task) => task.status === "review"
       ),
       completed: tasks.filter(
-        (t) => t.status === "completed"
+        (task) => task.status === "completed"
       ),
     });
   }, [tasks]);
@@ -47,28 +47,39 @@ function KanbanBoard({
       return;
     }
 
-    const previousColumns = structuredClone(columns);
+    const previousState = structuredClone(columns);
 
-    const start = [...columns[source.droppableId]];
-    const finish = [...columns[destination.droppableId]];
+    const sourceColumn = [
+      ...columns[source.droppableId],
+    ];
 
-    const [moved] = start.splice(source.index, 1);
+    const destinationColumn = [
+      ...columns[destination.droppableId],
+    ];
 
-    moved.status = destination.droppableId;
+    const [movedTask] = sourceColumn.splice(
+      source.index,
+      1
+    );
 
-    finish.splice(destination.index, 0, moved);
+    movedTask.status = destination.droppableId;
 
-    const optimisticState = {
+    destinationColumn.splice(
+      destination.index,
+      0,
+      movedTask
+    );
+
+    setColumns({
       ...columns,
-      [source.droppableId]: start,
-      [destination.droppableId]: finish,
-    };
-
-    setColumns(optimisticState);
+      [source.droppableId]: sourceColumn,
+      [destination.droppableId]:
+        destinationColumn,
+    });
 
     try {
       await axios.put(
-        `${API}/tasks/status/${moved._id}`,
+        `${API}/tasks/status/${movedTask._id}`,
         {
           status: destination.droppableId,
         },
@@ -78,21 +89,25 @@ function KanbanBoard({
           },
         }
       );
-    } catch (err) {
-      console.log(err);
 
-      setColumns(previousColumns);
+      if (reloadTasks) {
+        reloadTasks();
+      }
+    } catch (err) {
+      console.error(err);
+
+      setColumns(previousState);
     }
   }
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
       <div className="grid gap-6 xl:grid-cols-4">
-
         <TaskColumn
           id="todo"
           title="Todo"
           tasks={columns.todo}
+          totalTasks={tasks.length}
           onTaskClick={onTaskClick}
         />
 
@@ -100,6 +115,7 @@ function KanbanBoard({
           id="in-progress"
           title="In Progress"
           tasks={columns["in-progress"]}
+          totalTasks={tasks.length}
           onTaskClick={onTaskClick}
         />
 
@@ -107,6 +123,7 @@ function KanbanBoard({
           id="review"
           title="Review"
           tasks={columns.review}
+          totalTasks={tasks.length}
           onTaskClick={onTaskClick}
         />
 
@@ -114,9 +131,9 @@ function KanbanBoard({
           id="completed"
           title="Completed"
           tasks={columns.completed}
+          totalTasks={tasks.length}
           onTaskClick={onTaskClick}
         />
-
       </div>
     </DragDropContext>
   );

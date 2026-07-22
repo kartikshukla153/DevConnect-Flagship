@@ -1,10 +1,8 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 
-import AppLayout from "../layout/AppLayout";
-
 import FeedStats from "../components/feed/FeedStats";
-import CreatePostCard from "../components/feed/CreatePostCard";
+import PostComposer from "../components/feed/PostComposer";
 import FeedPostCard from "../components/feed/FeedPostCard";
 import FeedRightSidebar from "../components/feed/FeedRightSidebar";
 
@@ -99,21 +97,29 @@ function Feed() {
   };
 
   return (
-    <AppLayout>
-
+    <div className="space-y-8">
       <FeedStats />
 
       <div className="grid grid-cols-12 gap-8">
+        {/* Feed */}
 
-        <div className="col-span-12 xl:col-span-8">
-
-          <CreatePostCard
+        <div className="col-span-12 xl:col-span-8 space-y-8">
+          <PostComposer
             onCreatePost={createPost}
           />
 
-          <div className="mt-8">
+          {posts.length === 0 ? (
+            <div className="rounded-3xl border border-dashed border-white/10 bg-[#111827] py-24 text-center">
+              <h3 className="text-2xl font-bold text-white">
+                No posts yet
+              </h3>
 
-            {posts.map((post) => (
+              <p className="mt-3 text-slate-400">
+                Be the first developer to share what you're building.
+              </p>
+            </div>
+          ) : (
+            posts.map((post) => (
               <FeedPostCard
                 key={post._id}
                 post={post}
@@ -122,21 +128,19 @@ function Feed() {
                 setCommentText={setCommentText}
                 addComment={addComment}
               />
-            ))}
+            ))
+          )}
+        </div>
 
+        {/* Sidebar */}
+
+        <div className="hidden xl:col-span-4 xl:block">
+          <div className="sticky top-24">
+            <FeedRightSidebar />
           </div>
-
         </div>
-
-        <div className="hidden xl:block xl:col-span-4">
-
-          <FeedRightSidebar />
-
-        </div>
-
       </div>
-
-    </AppLayout>
+    </div>
   );
 }
 

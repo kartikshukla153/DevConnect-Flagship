@@ -1,81 +1,69 @@
+import { ArrowUpRight } from "lucide-react";
+
 function StatCard({
   title,
   value,
-  subtitle,
   icon: Icon,
-  color = "cyan",
+  change,
+  subtitle,
 }) {
-  const colorClasses = {
-    cyan: {
-      bg: "bg-cyan-500/10",
-      text: "text-cyan-400",
-      border: "border-cyan-500/20",
-      glow: "group-hover:shadow-cyan-500/20",
-    },
-    green: {
-      bg: "bg-emerald-500/10",
-      text: "text-emerald-400",
-      border: "border-emerald-500/20",
-      glow: "group-hover:shadow-emerald-500/20",
-    },
-    yellow: {
-      bg: "bg-yellow-500/10",
-      text: "text-yellow-400",
-      border: "border-yellow-500/20",
-      glow: "group-hover:shadow-yellow-500/20",
-    },
-    purple: {
-      bg: "bg-violet-500/10",
-      text: "text-violet-400",
-      border: "border-violet-500/20",
-      glow: "group-hover:shadow-violet-500/20",
-    },
-  };
-
-  const theme = colorClasses[color] || colorClasses.cyan;
-
   return (
     <div
-      className={`group rounded-3xl border border-white/10 bg-[#111827] p-6 transition-all duration-300 hover:-translate-y-1 hover:border-white/20 hover:shadow-2xl ${theme.glow}`}
+      className="
+        group relative overflow-hidden rounded-3xl
+        border border-white/10
+        bg-[#111827]
+        p-6
+        transition-all duration-300
+        hover:-translate-y-1
+        hover:border-cyan-400/40
+        hover:shadow-[0_20px_60px_rgba(6,182,212,0.08)]
+      "
     >
-      <div className="flex items-start justify-between">
+      {/* Glow */}
 
+      <div className="absolute -right-10 -top-10 h-28 w-28 rounded-full bg-cyan-500/10 blur-3xl opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+
+      <div className="relative flex items-start justify-between">
         <div>
-
-          <p className="text-sm font-medium tracking-wide text-gray-400">
+          <p className="text-sm font-medium text-slate-400">
             {title}
           </p>
 
-          <h2 className="mt-3 text-4xl font-bold text-white">
+          <h2 className="mt-4 text-5xl font-black tracking-tight text-white transition-transform duration-300 group-hover:scale-[1.02]">
             {value}
           </h2>
 
-          <p className="mt-3 text-sm text-gray-500">
-            {subtitle}
-          </p>
+          <div className="mt-5 flex items-center gap-2">
+            <div className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-400">
+              <ArrowUpRight size={12} />
+              {change}
+            </div>
 
+            <span className="text-xs text-slate-500">
+              {subtitle}
+            </span>
+          </div>
         </div>
 
         <div
-          className={`flex h-14 w-14 items-center justify-center rounded-2xl border ${theme.border} ${theme.bg}`}
+          className="
+            rounded-2xl
+            border border-cyan-500/10
+            bg-cyan-500/10
+            p-4
+            transition-all duration-300
+            group-hover:scale-110
+            group-hover:rotate-6
+            group-hover:bg-cyan-500/20
+          "
         >
           <Icon
-            size={26}
-            className={theme.text}
+            size={28}
+            className="text-cyan-400"
           />
         </div>
-
       </div>
-
-      <div className="mt-6 h-1 w-full overflow-hidden rounded-full bg-white/5">
-
-        <div
-          className={`h-full rounded-full ${theme.bg.replace("/10", "")}`}
-          style={{ width: "70%" }}
-        />
-
-      </div>
-
     </div>
   );
 }

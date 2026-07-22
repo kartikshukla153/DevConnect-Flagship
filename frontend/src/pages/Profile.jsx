@@ -1,15 +1,12 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { Globe } from "lucide-react";
 
-
-import {
-  MapPin,
-  Pencil,
-  Plus,
-  Globe,
-  BriefcaseBusiness,
-  Trash2,
-} from "lucide-react";
+import ProfileHero from "../components/profile/ProfileHero";
+import FeaturedProjects from "../components/profile/FeaturedProjects";
+import ExperienceTimeline from "../components/profile/ExperienceTimeline";
+import Achievements from "../components/profile/Achievements";
+import ContributionHeatmap from "../components/dashboard/ContributionHeatmap";
 
 function Profile() {
   const [profile, setProfile] = useState(null);
@@ -19,7 +16,7 @@ function Profile() {
 
   const fetchProfile = async () => {
     try {
-      const res = await axios.get(
+      const { data } = await axios.get(
         "http://localhost:5000/api/profile/me",
         {
           headers: {
@@ -28,35 +25,13 @@ function Profile() {
         }
       );
 
-      setProfile(res.data.profile);
-    } catch (err) {
-      console.log(err.response?.data || err.message);
+      setProfile(data.profile);
+    } catch (error) {
+      console.error(
+        error.response?.data || error.message
+      );
     } finally {
       setLoading(false);
-    }
-  };
-
-  const deleteExperience = async (expId) => {
-    if (
-      !window.confirm(
-        "Delete this experience?"
-      )
-    )
-      return;
-
-    try {
-      await axios.delete(
-        `http://localhost:5000/api/profile/experience/${expId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      fetchProfile();
-    } catch (err) {
-      console.log(err);
     }
   };
 
@@ -65,417 +40,423 @@ function Profile() {
   }, []);
 
   if (loading) {
-  return (
-    <div className="flex h-[70vh] items-center justify-center">
-      <div className="text-gray-400 text-xl">
-        Loading profile...
+    return (
+      <div className="flex h-[70vh] items-center justify-center">
+        <div className="text-lg font-medium text-slate-400">
+          Loading profile...
+        </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
 
   if (!profile) {
-  return (
-    <div className="flex h-[70vh] items-center justify-center">
-      <div className="text-gray-400 text-xl">
-        Profile not found.
+    return (
+      <div className="flex h-[70vh] items-center justify-center">
+        <div className="text-lg font-medium text-slate-400">
+          Profile not found.
+        </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
 
   return (
-  <div className="mx-auto max-w-7xl">
+        <div className="mx-auto max-w-7xl space-y-8">
 
-        {/* HERO */}
+      {/* HERO */}
 
-        <div className="relative overflow-hidden rounded-3xl border border-[#263243] bg-[#111827]">
+      <ProfileHero profile={profile} />
 
-          <div className="h-48 bg-gradient-to-r from-cyan-500 via-sky-500 to-indigo-600" />
+      {/* FEATURED PROJECTS */}
 
-          <div className="px-10 pb-10">
+      <FeaturedProjects
+        projects={profile.projects || []}
+      />
 
-            <div className="-mt-16 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+      {/* MAIN GRID */}
 
-              <div className="flex gap-6">
+      <div className="grid grid-cols-12 gap-8">
 
-                <div className="flex h-32 w-32 items-center justify-center rounded-full border-4 border-[#111827] bg-cyan-500 text-5xl font-bold text-black shadow-xl">
-                  {profile.user?.name?.charAt(0)}
-                </div>
+        {/* LEFT COLUMN */}
 
-                <div className="pt-10">
+        <div className="col-span-12 space-y-8 xl:col-span-8">
 
-                  <h1 className="text-4xl font-bold">
-                    {profile.user?.name}
-                  </h1>
+          {/* ABOUT */}
 
-                  <p className="mt-2 text-cyan-400">
-                    @{profile.username}
-                  </p>
+          <section className="rounded-3xl border border-white/10 bg-[#111827] p-8">
 
-                  {profile.headline && (
-                    <p className="mt-3 text-lg text-gray-300">
-                      {profile.headline}
-                    </p>
-                  )}
+            <div className="mb-6 flex items-center justify-between">
 
-                  {profile.location && (
-                    <div className="mt-4 flex items-center gap-2 text-gray-400">
-                      <MapPin size={16} />
-                      {profile.location}
-                    </div>
-                  )}
+              <div>
 
-                </div>
+                <h2 className="text-2xl font-bold text-white">
+                  About
+                </h2>
 
-              </div>
-
-              <div className="flex gap-4">
-
-                <button
-                  onClick={() =>
-                    (window.location.href =
-                      "/create-profile")
-                  }
-                  className="flex items-center gap-2 rounded-xl bg-cyan-400 px-6 py-3 font-semibold text-black hover:bg-cyan-300"
-                >
-                  <Pencil size={18} />
-                  Edit Profile
-                </button>
-
-                <button
-                  onClick={() =>
-                    (window.location.href =
-                      "/add-experience")
-                  }
-                  className="flex items-center gap-2 rounded-xl border border-[#374151] bg-[#0B1220] px-6 py-3 hover:border-cyan-400"
-                >
-                  <Plus size={18} />
-                  Experience
-                </button>
+                <p className="mt-2 text-sm text-slate-400">
+                  A quick introduction about this developer.
+                </p>
 
               </div>
 
             </div>
 
-          </div>
+            <p className="leading-8 text-slate-300">
 
-        </div>
-        {/* MAIN GRID */}
+              {profile.bio?.trim()
+                ? profile.bio
+                : "No bio has been added yet. Tell other developers and recruiters about yourself, your interests and what you're currently building."}
 
-        <div className="mt-8 grid gap-8 xl:grid-cols-3">
+            </p>
 
-          {/* LEFT */}
+          </section>
 
-          <div className="xl:col-span-2 space-y-8">
+          {/* SKILLS */}
 
-            {/* ABOUT */}
+          <section className="rounded-3xl border border-white/10 bg-[#111827] p-8">
 
-            <section className="rounded-3xl border border-[#263243] bg-[#111827] p-8">
+            <div className="mb-6">
 
-              <h2 className="mb-6 text-2xl font-bold">
-                About
+              <h2 className="text-2xl font-bold text-white">
+                Tech Stack
               </h2>
 
-              <p className="leading-8 text-gray-300">
-                {profile.bio ||
-                  "No bio added yet."}
+              <p className="mt-2 text-sm text-slate-400">
+                Technologies frequently used across projects.
               </p>
 
-            </section>
+            </div>
 
-            {/* SKILLS */}
-
-            <section className="rounded-3xl border border-[#263243] bg-[#111827] p-8">
-
-              <h2 className="mb-6 text-2xl font-bold">
-                Skills
-              </h2>
+            {profile.skills?.length ? (
 
               <div className="flex flex-wrap gap-3">
 
-                {profile.skills?.length ? (
-                  profile.skills.map((skill) => (
-                    <span
-                      key={skill}
-                      className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-4 py-2 text-cyan-300"
-                    >
-                      {skill}
-                    </span>
-                  ))
-                ) : (
-                  <p className="text-gray-500">
-                    No skills added.
-                  </p>
-                )}
+                {profile.skills.map((skill) => (
+
+                  <span
+                    key={skill}
+                    className="
+                      rounded-xl
+                      border
+                      border-cyan-500/20
+                      bg-cyan-500/10
+                      px-4
+                      py-2
+                      text-sm
+                      font-medium
+                      text-cyan-300
+                      transition-all
+                      duration-300
+                      hover:border-cyan-400/40
+                      hover:bg-cyan-500/20
+                    "
+                  >
+                    {skill}
+                  </span>
+
+                ))}
 
               </div>
 
-            </section>
+            ) : (
 
-            {/* EXPERIENCE */}
+              <div className="rounded-2xl border border-dashed border-white/10 bg-[#0B1220] p-10 text-center">
 
-            <section className="rounded-3xl border border-[#263243] bg-[#111827] p-8">
-
-              <h2 className="mb-8 text-2xl font-bold">
-                Experience
-              </h2>
-
-              {!profile.experience ||
-              profile.experience.length === 0 ? (
-
-                <p className="text-gray-500">
-                  No experience yet.
+                <p className="text-slate-500">
+                  No skills have been added yet.
                 </p>
 
-              ) : (
+              </div>
 
-                <div className="space-y-6">
+            )}
 
-                  {profile.experience.map((exp) => (
+          </section>
 
-                    <div
-                      key={exp._id}
-                      className="rounded-2xl border border-[#374151] bg-[#0B1220] p-6 transition hover:border-cyan-500"
-                    >
+          {/* EXPERIENCE */}
 
-                      <div className="flex justify-between gap-6">
+          <ExperienceTimeline
+            experience={profile.experience || []}
+          />
 
-                        <div className="flex-1">
+          {/* CONTRIBUTIONS */}
 
-                          <div className="flex items-center gap-3">
+          <ContributionHeatmap />
 
-                            <BriefcaseBusiness
-                              size={20}
-                              className="text-cyan-400"
-                            />
+        </div>
+                {/* RIGHT SIDEBAR */}
 
-                            <h3 className="text-xl font-semibold">
-                              {exp.title}
-                            </h3>
+        <div className="col-span-12 space-y-8 xl:col-span-4">
 
-                          </div>
+          {/* PROFILE OVERVIEW */}
 
-                          <p className="mt-3 text-cyan-400">
-                            {exp.company}
-                          </p>
+          <section className="rounded-3xl border border-white/10 bg-[#111827] p-8">
 
-                          {exp.location && (
-                            <p className="mt-2 text-gray-500">
-                              {exp.location}
-                            </p>
-                          )}
+            <h2 className="text-2xl font-bold text-white">
+              Profile Overview
+            </h2>
 
-                          <p className="mt-3 text-sm text-gray-500">
+            <p className="mt-2 text-sm text-slate-400">
+              A quick snapshot of your developer profile.
+            </p>
 
-                            {new Date(
-                              exp.startDate
-                            ).toLocaleDateString()}
+            <div className="mt-8 space-y-5">
 
-                            {"  •  "}
+              <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-[#0B1220] px-5 py-4">
 
-                            {exp.current
-                              ? "Present"
-                              : exp.endDate
-                              ? new Date(
-                                  exp.endDate
-                                ).toLocaleDateString()
-                              : "Present"}
+                <span className="text-slate-400">
+                  Skills
+                </span>
 
-                          </p>
+                <span className="text-xl font-bold text-white">
+                  {profile.skills?.length || 0}
+                </span>
 
-                          {exp.description && (
-                            <p className="mt-5 leading-7 text-gray-300">
-                              {exp.description}
-                            </p>
-                          )}
+              </div>
 
-                        </div>
+              <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-[#0B1220] px-5 py-4">
 
-                        <button
-                          onClick={() =>
-                            deleteExperience(
-                              exp._id
-                            )
-                          }
-                          className="h-fit rounded-xl border border-red-500/20 bg-red-500/10 p-3 transition hover:bg-red-500/20"
-                        >
-                          <Trash2
-                            size={18}
-                            className="text-red-400"
-                          />
-                        </button>
+                <span className="text-slate-400">
+                  Experience
+                </span>
 
-                      </div>
+                <span className="text-xl font-bold text-white">
+                  {profile.experience?.length || 0}
+                </span>
 
-                    </div>
+              </div>
 
-                  ))}
+              <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-[#0B1220] px-5 py-4">
 
-                </div>
+                <span className="text-slate-400">
+                  Featured Projects
+                </span>
+
+                <span className="text-xl font-bold text-white">
+                  {profile.projects?.length || 0}
+                </span>
+
+              </div>
+
+              <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-[#0B1220] px-5 py-4">
+
+                <span className="text-slate-400">
+                  Status
+                </span>
+
+                <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-emerald-400">
+                  Active
+                </span>
+
+              </div>
+
+            </div>
+
+          </section>
+
+          {/* SOCIAL LINKS */}
+
+          <section className="rounded-3xl border border-white/10 bg-[#111827] p-8">
+
+            <h2 className="text-2xl font-bold text-white">
+              Social Links
+            </h2>
+
+            <p className="mt-2 text-sm text-slate-400">
+              Connect across platforms.
+            </p>
+
+            <div className="mt-8 space-y-4">
+
+              {profile.socialLinks?.github && (
+
+                <a
+                  href={profile.socialLinks.github}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center justify-between rounded-2xl border border-white/10 bg-[#0B1220] p-4 transition-all duration-300 hover:border-cyan-400/30 hover:bg-cyan-500/10"
+                >
+
+                  <span className="font-medium text-white">
+                    GitHub
+                  </span>
+
+                  <Globe
+                    size={18}
+                    className="text-cyan-400"
+                  />
+
+                </a>
 
               )}
 
-            </section>
+              {profile.socialLinks?.linkedin && (
 
-          </div>
+                <a
+                  href={profile.socialLinks.linkedin}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center justify-between rounded-2xl border border-white/10 bg-[#0B1220] p-4 transition-all duration-300 hover:border-cyan-400/30 hover:bg-cyan-500/10"
+                >
 
-          {/* RIGHT SIDEBAR */}
-
-          <div className="space-y-8">
-
-            {/* STATS */}
-
-            <section className="rounded-3xl border border-[#263243] bg-[#111827] p-8">
-
-              <h2 className="mb-6 text-2xl font-bold">
-                Profile Stats
-              </h2>
-
-              <div className="space-y-5">
-
-                <div className="flex justify-between">
-
-                  <span className="text-gray-400">
-                    Skills
+                  <span className="font-medium text-white">
+                    LinkedIn
                   </span>
 
-                  <span className="font-bold">
-                    {profile.skills?.length || 0}
+                  <Globe
+                    size={18}
+                    className="text-cyan-400"
+                  />
+
+                </a>
+
+              )}
+
+              {profile.socialLinks?.portfolio && (
+
+                <a
+                  href={profile.socialLinks.portfolio}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center justify-between rounded-2xl border border-white/10 bg-[#0B1220] p-4 transition-all duration-300 hover:border-cyan-400/30 hover:bg-cyan-500/10"
+                >
+
+                  <span className="font-medium text-white">
+                    Portfolio
                   </span>
 
-                </div>
+                  <Globe
+                    size={18}
+                    className="text-cyan-400"
+                  />
 
-                <div className="flex justify-between">
+                </a>
 
-                  <span className="text-gray-400">
-                    Experience
+              )}
+
+              {profile.socialLinks?.twitter && (
+
+                <a
+                  href={profile.socialLinks.twitter}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center justify-between rounded-2xl border border-white/10 bg-[#0B1220] p-4 transition-all duration-300 hover:border-cyan-400/30 hover:bg-cyan-500/10"
+                >
+
+                  <span className="font-medium text-white">
+                    Twitter
                   </span>
 
-                  <span className="font-bold">
-                    {profile.experience?.length || 0}
-                  </span>
+                  <Globe
+                    size={18}
+                    className="text-cyan-400"
+                  />
 
-                </div>
+                </a>
 
-                <div className="flex justify-between">
+              )}
 
-                  <span className="text-gray-400">
-                    Status
-                  </span>
+              {!profile.socialLinks?.github &&
+                !profile.socialLinks?.linkedin &&
+                !profile.socialLinks?.portfolio &&
+                !profile.socialLinks?.twitter && (
 
-                  <span className="font-semibold text-cyan-400">
-                    Active
-                  </span>
+                  <div className="rounded-2xl border border-dashed border-white/10 bg-[#0B1220] p-8 text-center text-slate-500">
 
-                </div>
+                    No social links added yet.
+
+                  </div>
+
+              )}
+
+            </div>
+
+          </section>
+                    {/* ACHIEVEMENTS */}
+
+          <Achievements />
+
+          {/* PROFILE COMPLETION */}
+
+          <section className="overflow-hidden rounded-3xl border border-cyan-500/20 bg-gradient-to-br from-cyan-500/10 via-sky-500/5 to-[#111827] p-8">
+
+            <div className="flex items-start justify-between gap-6">
+
+              <div>
+
+                <span className="rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-cyan-300">
+                  Developer Profile
+                </span>
+
+                <h2 className="mt-5 text-3xl font-bold text-white">
+                  Keep your profile recruiter ready.
+                </h2>
+
+                <p className="mt-4 max-w-sm leading-7 text-slate-300">
+                  A complete profile helps recruiters, collaborators and
+                  AI recommendations understand your strengths and current
+                  work much better.
+                </p>
 
               </div>
 
-            </section>
-            {/* SOCIAL LINKS */}
+            </div>
 
-            <section className="rounded-3xl border border-[#263243] bg-[#111827] p-8">
+            <div className="mt-8">
 
-              <h2 className="mb-6 text-2xl font-bold">
-                Social Links
-              </h2>
+              <div className="mb-3 flex items-center justify-between">
 
-              <div className="space-y-4">
+                <span className="text-sm text-slate-400">
+                  Profile Completion
+                </span>
 
-                {profile.socialLinks?.github && (
-                  <a
-                    href={profile.socialLinks.github}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-3 rounded-xl border border-[#374151] bg-[#0B1220] p-4 transition hover:border-cyan-400"
-                  >
-                    GitHub
-                    <span>GitHub</span>
-                  </a>
-                )}
-
-                {profile.socialLinks?.linkedin && (
-                  <a
-                    href={profile.socialLinks.linkedin}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-3 rounded-xl border border-[#374151] bg-[#0B1220] p-4 transition hover:border-cyan-400"
-                  >
-                    <span>💼</span>
-                    <span>LinkedIn</span>
-                  </a>
-                )}
-
-                {profile.socialLinks?.portfolio && (
-                  <a
-                    href={profile.socialLinks.portfolio}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-3 rounded-xl border border-[#374151] bg-[#0B1220] p-4 transition hover:border-cyan-400"
-                  >
-                    <Globe size={20} />
-                    <span>Portfolio</span>
-                  </a>
-                )}
-
-                {profile.socialLinks?.twitter && (
-                  <a
-                    href={profile.socialLinks.twitter}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-3 rounded-xl border border-[#374151] bg-[#0B1220] p-4 transition hover:border-cyan-400"
-                  >
-                    <span>𝕏</span>
-                    <span>Twitter</span>
-                  </a>
-                )}
-
-                {!profile.socialLinks?.github &&
-                  !profile.socialLinks?.linkedin &&
-                  !profile.socialLinks?.portfolio &&
-                  !profile.socialLinks?.twitter && (
-                    <p className="text-gray-500">
-                      No social links added.
-                    </p>
-                  )}
+                <span className="font-semibold text-cyan-300">
+                  80%
+                </span>
 
               </div>
 
-            </section>
+              <div className="h-3 overflow-hidden rounded-full bg-white/10">
 
-            {/* PROFILE COMPLETION */}
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-sky-500"
+                  style={{ width: "80%" }}
+                />
 
-            <section className="rounded-3xl border border-cyan-500/20 bg-gradient-to-br from-cyan-500/10 to-sky-500/5 p-8">
+              </div>
 
-              <h2 className="text-2xl font-bold">
-                DevConnect Profile
-              </h2>
+            </div>
 
-              <p className="mt-3 text-gray-300 leading-7">
-                Keep your profile updated to improve discoverability,
-                collaboration opportunities, recruiter visibility,
-                and AI-powered recommendations.
-              </p>
+            <button
+              onClick={() =>
+                (window.location.href =
+                  "/create-profile")
+              }
+              className="
+                mt-8
+                w-full
+                rounded-2xl
+                bg-cyan-400
+                px-6
+                py-4
+                text-base
+                font-semibold
+                text-black
+                transition-all
+                duration-300
+                hover:-translate-y-0.5
+                hover:bg-cyan-300
+              "
+            >
+              Edit Profile
+            </button>
 
-              <button
-                onClick={() =>
-                  (window.location.href =
-                    "/create-profile")
-                }
-                className="mt-6 rounded-xl bg-cyan-400 px-6 py-3 font-semibold text-black transition hover:bg-cyan-300"
-              >
-                Complete Profile
-              </button>
-
-            </section>
-
-          </div>
+          </section>
 
         </div>
 
-          </div>
-);
+      </div>
+
+    </div>
+  );
 }
 
 export default Profile;

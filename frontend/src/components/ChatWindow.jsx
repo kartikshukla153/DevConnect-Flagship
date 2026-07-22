@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import axios from "axios";
+
 import DropOverlay from "./chat/DropOverlay";
 import { getSocket } from "../socket/socket";
 import useOnlineUsers from "../hooks/useOnlineUsers";
@@ -25,33 +26,37 @@ function ChatWindow({ conversation }) {
 
   const isOnline = onlineUsers.includes(receiver._id);
 
-  const [dragging, setDragging] = useState(false);
-
-  const [messages, setMessages] = useState([]);
-  const [text, setText] = useState("");
-  const [typing, setTyping] = useState(false);
-
-  const [replyingTo, setReplyingTo] = useState(null);
-
-  const [selectedFile, setSelectedFile] = useState(null);
-
-  const [search, setSearch] = useState("");
-
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [uploading, setUploading] = useState(false);
-
-  // AI SUMMARY
-  const [summary, setSummary] = useState("");
-  const [loadingSummary, setLoadingSummary] =
-    useState(false);
+  const token = localStorage.getItem("token");
 
   const bottomRef = useRef(null);
 
-  const token = localStorage.getItem("token");
+  const [dragging, setDragging] = useState(false);
 
-  // =====================================
-  // FETCH
-  // =====================================
+  const [messages, setMessages] = useState([]);
+
+  const [text, setText] = useState("");
+
+  const [typing, setTyping] = useState(false);
+
+  const [replyingTo, setReplyingTo] =
+    useState(null);
+
+  const [selectedFile, setSelectedFile] =
+    useState(null);
+
+  const [search, setSearch] = useState("");
+
+  const [uploadProgress, setUploadProgress] =
+    useState(0);
+
+  const [uploading, setUploading] =
+    useState(false);
+
+  const [summary, setSummary] =
+    useState("");
+
+  const [loadingSummary, setLoadingSummary] =
+    useState(false);
 
   const fetchMessages = async () => {
     try {
@@ -76,9 +81,6 @@ function ChatWindow({ conversation }) {
       }
     } catch (err) {
       console.log(err);
-
-      setUploading(false);
-      setUploadProgress(0);
     }
   };
 
@@ -92,10 +94,6 @@ function ChatWindow({ conversation }) {
     });
   }, [messages]);
 
-  // =====================================
-  // SOCKET
-  // =====================================
-
   useEffect(() => {
     const socket = getSocket();
 
@@ -103,7 +101,8 @@ function ChatWindow({ conversation }) {
 
     const handleNewMessage = (message) => {
       if (
-        message.conversation === conversationId ||
+        message.conversation ===
+          conversationId ||
         message.conversation?._id ===
           conversationId
       ) {
@@ -117,17 +116,15 @@ function ChatWindow({ conversation }) {
     const handleTyping = ({
       conversationId: id,
     }) => {
-      if (id === conversationId) {
+      if (id === conversationId)
         setTyping(true);
-      }
     };
 
     const handleStopTyping = ({
       conversationId: id,
     }) => {
-      if (id === conversationId) {
+      if (id === conversationId)
         setTyping(false);
-      }
     };
 
     const replaceMessage = (
@@ -142,7 +139,7 @@ function ChatWindow({ conversation }) {
       );
     };
 
-    const handleMessageRead = ({
+    const handleRead = ({
       conversationId: id,
     }) => {
       if (id !== conversationId) return;
@@ -202,7 +199,7 @@ function ChatWindow({ conversation }) {
 
     socket.on(
       "messageRead",
-      handleMessageRead
+      handleRead
     );
 
     return () => {
@@ -238,14 +235,10 @@ function ChatWindow({ conversation }) {
 
       socket.off(
         "messageRead",
-        handleMessageRead
+        handleRead
       );
     };
   }, [conversationId]);
-
-  // =====================================
-  // TYPING
-  // =====================================
 
   const handleTyping = () => {
     const socket = getSocket();
@@ -270,14 +263,8 @@ function ChatWindow({ conversation }) {
       conversationId,
     });
   };
-
-  // =====================================
-  // SEND
-  // =====================================
-
-  const sendMessage = async () => {
-    if (!text.trim() && !selectedFile)
-      return;
+    const sendMessage = async () => {
+    if (!text.trim() && !selectedFile) return;
 
     try {
       setUploading(true);
@@ -288,10 +275,7 @@ function ChatWindow({ conversation }) {
       formData.append("text", text);
 
       if (replyingTo) {
-        formData.append(
-          "replyTo",
-          replyingTo._id
-        );
+        formData.append("replyTo", replyingTo._id);
       }
 
       if (selectedFile) {
@@ -309,14 +293,10 @@ function ChatWindow({ conversation }) {
             Authorization: `Bearer ${token}`,
           },
 
-          onUploadProgress: (
-            progressEvent
-          ) => {
+          onUploadProgress: (progressEvent) => {
             const percent = Math.round(
-              (progressEvent.loaded *
-                100) /
-                (progressEvent.total ||
-                  1)
+              (progressEvent.loaded * 100) /
+                (progressEvent.total || 1)
             );
 
             setUploadProgress(percent);
@@ -339,10 +319,6 @@ function ChatWindow({ conversation }) {
       console.log(err);
     }
   };
-
-  // =====================================
-  // AI SUMMARY
-  // =====================================
 
   const summarizeChat = async () => {
     try {
@@ -371,7 +347,7 @@ function ChatWindow({ conversation }) {
 
   return (
     <div
-      className="relative flex flex-col h-full bg-[#111827] rounded-xl border border-gray-700"
+      className="relative flex h-full flex-col overflow-hidden rounded-[30px] border border-white/10 bg-gradient-to-b from-[#121A2A] via-[#0F172A] to-[#0B1220] shadow-2xl shadow-cyan-500/5"
       onDragOver={(e) => {
         e.preventDefault();
         setDragging(true);
@@ -395,42 +371,70 @@ function ChatWindow({ conversation }) {
     >
       {dragging && <DropOverlay />}
 
-      <ChatHeader
-        receiver={receiver}
-        isOnline={isOnline}
-        openSummary={summarizeChat}
-      />
+      {/* HEADER */}
+
+      <div className="sticky top-0 z-20 border-b border-white/10 bg-[#111827]/90 backdrop-blur-xl">
+
+        <ChatHeader
+          receiver={receiver}
+          isOnline={isOnline}
+          openSummary={summarizeChat}
+        />
+
+      </div>
+
+      {/* AI SUMMARY */}
 
       {summary && (
-        <div className="mx-4 mt-3 rounded-xl border border-cyan-500 bg-cyan-500/10 p-4">
-          <div className="mb-2 flex items-center justify-between">
-            <h3 className="font-bold text-cyan-300">
-              ✨ AI Conversation Summary
-            </h3>
+        <div className="mx-5 mt-5 rounded-3xl border border-cyan-500/20 bg-gradient-to-r from-cyan-500/10 via-sky-500/10 to-indigo-500/10 p-6">
+
+          <div className="mb-4 flex items-center justify-between">
+
+            <div>
+
+              <h3 className="text-lg font-bold text-cyan-300">
+                ✨ AI Conversation Summary
+              </h3>
+
+              <p className="mt-1 text-sm text-slate-400">
+                Automatically generated overview
+              </p>
+
+            </div>
 
             {loadingSummary && (
-              <span className="text-xs text-gray-400">
+              <span className="rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-1 text-xs text-cyan-300">
                 Generating...
               </span>
             )}
+
           </div>
 
-          <pre className="whitespace-pre-wrap text-sm text-white">
+          <pre className="whitespace-pre-wrap font-sans leading-7 text-slate-200">
             {summary}
           </pre>
+
         </div>
       )}
 
-      <ChatSearch
-        search={search}
-        setSearch={setSearch}
-      />
+      {/* SEARCH */}
 
-      <MessageList
-        messages={messages.filter(
-          (msg) => {
-            if (!search.trim())
-              return true;
+      <div className="border-b border-white/5 bg-[#111827]/40 px-5 py-4 backdrop-blur">
+
+        <ChatSearch
+          search={search}
+          setSearch={setSearch}
+        />
+
+      </div>
+
+      {/* MESSAGES */}
+
+      <div className="flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top,#152238_0%,#0B1220_65%)] px-5 py-6">
+
+        <MessageList
+          messages={messages.filter((msg) => {
+            if (!search.trim()) return true;
 
             const query =
               search.toLowerCase();
@@ -443,58 +447,68 @@ function ChatWindow({ conversation }) {
                 ?.toLowerCase()
                 .includes(query)
             );
-          }
-        )}
-        currentUser={currentUser}
-        bottomRef={bottomRef}
-        setReplyingTo={
-          setReplyingTo
-        }
-        search={search}
-      />
+          })}
+          currentUser={currentUser}
+          bottomRef={bottomRef}
+          setReplyingTo={setReplyingTo}
+          search={search}
+        />
 
-      <TypingIndicator
-        typing={typing}
-        receiverName={receiver.name}
-      />
+        <TypingIndicator
+          typing={typing}
+          receiverName={receiver.name}
+        />
+              </div>
+
+      {/* Upload Progress */}
 
       {uploading && (
-        <div className="mx-4 mb-2 rounded-lg bg-[#1F2937] p-3">
-          <div className="mb-1 flex justify-between text-sm text-white">
-            <span>Uploading...</span>
-            <span>
+        <div className="border-t border-white/10 bg-[#111827]/90 px-5 py-4 backdrop-blur">
+
+          <div className="mb-2 flex items-center justify-between text-sm">
+
+            <span className="font-medium text-slate-300">
+              Uploading attachment...
+            </span>
+
+            <span className="font-semibold text-cyan-400">
               {uploadProgress}%
             </span>
+
           </div>
 
-          <div className="h-2 overflow-hidden rounded-full bg-gray-700">
+          <div className="h-2 overflow-hidden rounded-full bg-[#1F2937]">
+
             <div
-              className="h-full bg-cyan-400 transition-all"
+              className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-sky-400 to-indigo-500 transition-all duration-300"
               style={{
                 width: `${uploadProgress}%`,
               }}
             />
+
           </div>
+
         </div>
       )}
 
-      <MessageInput
-        text={text}
-        setText={setText}
-        sendMessage={sendMessage}
-        onTyping={handleTyping}
-        onStopTyping={handleStopTyping}
-        replyingTo={replyingTo}
-        setReplyingTo={
-          setReplyingTo
-        }
-        selectedFile={
-          selectedFile
-        }
-        setSelectedFile={
-          setSelectedFile
-        }
-      />
+      {/* Message Composer */}
+
+      <div className="sticky bottom-0 border-t border-white/10 bg-[#111827]/95 p-5 backdrop-blur-xl">
+
+        <MessageInput
+          text={text}
+          setText={setText}
+          sendMessage={sendMessage}
+          onTyping={handleTyping}
+          onStopTyping={handleStopTyping}
+          replyingTo={replyingTo}
+          setReplyingTo={setReplyingTo}
+          selectedFile={selectedFile}
+          setSelectedFile={setSelectedFile}
+        />
+
+      </div>
+
     </div>
   );
 }
