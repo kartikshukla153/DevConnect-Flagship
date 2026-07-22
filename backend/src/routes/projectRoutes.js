@@ -13,6 +13,10 @@ import {
   rejectProjectInvite,
   getProjectDashboard,
   getProjectActivity,
+  getProjectMembers,
+  changeMemberRole,
+  removeMember,
+  leaveProject,
 } from "../controllers/projectController.js";
 
 import authMiddleware from "../middleware/authMiddleware.js";
@@ -20,9 +24,28 @@ import checkProjectRole from "../middleware/projectPermissionMiddleware.js";
 
 const router = express.Router();
 
+/* -------------------- PROJECTS -------------------- */
+
 router.post("/", authMiddleware, createProject);
 
 router.get("/", getAllProjects);
+router.get(
+  "/members/:projectId",
+  authMiddleware,
+  checkProjectRole("owner", "admin", "member"),
+  getProjectMembers
+);
+
+router.get("/:id", getSingleProject);
+
+router.delete(
+  "/:id",
+  authMiddleware,
+  checkProjectRole("owner"),
+  deleteProject
+);
+
+/* -------------------- DASHBOARD -------------------- */
 
 router.get(
   "/dashboard/:projectId",
@@ -38,13 +61,52 @@ router.get(
   getProjectActivity
 );
 
-router.get("/:id", getSingleProject);
+/* -------------------- MEMBERS -------------------- */
+
+router.get(
+  "/members/:projectId",
+  authMiddleware,
+  checkProjectRole("owner", "admin", "member"),
+  getProjectMembers
+);
+
+router.put(
+  "/member-role/:projectId/:userId",
+  authMiddleware,
+  checkProjectRole("owner"),
+  changeMemberRole
+);
+
+router.delete(
+  "/member/:projectId/:userId",
+  authMiddleware,
+  checkProjectRole("owner"),
+  removeMember
+);
+
+/* -------------------- JOIN REQUESTS -------------------- */
 
 router.put(
   "/join-request/:id",
   authMiddleware,
   requestToJoinProject
 );
+
+router.put(
+  "/approve-request/:projectId/:userId",
+  authMiddleware,
+  checkProjectRole("owner", "admin"),
+  approveJoinRequest
+);
+
+router.put(
+  "/reject-request/:projectId/:userId",
+  authMiddleware,
+  checkProjectRole("owner", "admin"),
+  rejectJoinRequest
+);
+
+/* -------------------- INVITES -------------------- */
 
 router.put(
   "/invite/:projectId/:userId",
@@ -66,24 +128,9 @@ router.put(
 );
 
 router.put(
-  "/approve-request/:projectId/:userId",
+  "/leave/:projectId",
   authMiddleware,
-  checkProjectRole("owner", "admin"),
-  approveJoinRequest
+  checkProjectRole("owner", "admin", "member"),
+  leaveProject
 );
-
-router.put(
-  "/reject-request/:projectId/:userId",
-  authMiddleware,
-  checkProjectRole("owner", "admin"),
-  rejectJoinRequest
-);
-
-router.delete(
-  "/:id",
-  authMiddleware,
-  checkProjectRole("owner"),
-  deleteProject
-);
-
 export default router;

@@ -1,6 +1,7 @@
 import Task from "../models/Task.js";
 import Project from "../models/project.js";
 import Activity from "../models/Activity.js";
+import Notification from "../models/Notification.js";
 import {
   emitTaskCreated,
   emitTaskUpdated,
@@ -403,6 +404,191 @@ export const getSingleTask = async (
     });
   } catch (error) {
     return res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+/**
+ * SUBMIT TASK
+ */
+export const submitTask = async (req, res) => {
+  try {
+    const { taskId } = req.params;
+
+    const {
+      githubPR,
+      githubCommit,
+      liveLink,
+      notes,
+    } = req.body;
+
+    const task = await Task.findById(taskId);
+
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        message: "Task not found",
+      });
+    }
+
+    if (
+      !task.assignedTo ||
+      task.assignedTo.toString() !== req.user._id.toString()
+    ) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "Only the assigned developer can submit this task",
+      });
+    }
+
+    task.submission = {
+      githubPR,
+      githubCommit,
+      liveLink,
+      notes,
+
+      submittedBy: req.user._id,
+      submittedAt: new Date(),
+
+      status: "pending",
+    };
+
+    task.status = "review";
+
+    await task.save();
+
+    await Activity.create({
+      project: task.project,
+      user: req.user._id,
+      type: "submission_uploaded",
+      message: `${req.user.name} submitted "${task.title}" for review`,
+    });
+
+    const project = await Project.findById(task.project);
+
+    const ownersAndAdmins = project.members.filter(
+      (member) =>
+        member.role === "owner" ||
+        member.role === "admin"
+    );
+
+    for (const member of ownersAndAdmins) {
+      await Notification.create({
+        recipient: member.user,
+        sender: req.user._id,
+        type: "task_submission",
+        message: `${req.user.name} submitted "${task.title}" for review`,
+        relatedProject: project._id,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Task submitted successfully",
+      submission: task.submission,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+/**
+ * REVIEW TASK SUBMISSION
+ */
+export const reviewTaskSubmission = async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const { status, reviewComment } = req.body;
+
+    if (!["approved", "rejected"].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid review status",
+      });
+    }
+
+    const task = await Task.findById(taskId);
+
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        message: "Task not found",
+      });
+    }
+
+    const project = await Project.findById(task.project);
+
+    const reviewer = project.members.find(
+      (member) =>
+        member.user.toString() === req.user._id.toString()
+    );
+
+    if (
+      !reviewer ||
+      !["owner", "admin"].includes(reviewer.role)
+    ) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "Only owner/admin can review submissions",
+      });
+    }
+
+    task.submission.status = status;
+    task.submission.reviewComment =
+      reviewComment || "";
+    task.submission.reviewedBy = req.user._id;
+    task.submission.reviewedAt = new Date();
+
+    if (status === "approved") {
+      task.status = "completed";
+      task.completedAt = new Date();
+    } else {
+      task.status = "in-progress";
+    }
+
+    await task.save();
+
+    await Activity.create({
+      project: task.project,
+      user: req.user._id,
+      type:
+        status === "approved"
+          ? "task_submission_approved"
+          : "task_submission_rejected",
+      message: `${req.user.name} ${status} submission for "${task.title}"`,
+    });
+
+    await Notification.create({
+      recipient: task.assignedTo,
+      sender: req.user._id,
+      type:
+        status === "approved"
+          ? "task_submission_approved"
+          : "task_submission_rejected",
+      message:
+        status === "approved"
+          ? `Your submission for "${task.title}" was approved`
+          : `Your submission for "${task.title}" was rejected`,
+      relatedProject: project._id,
+    });
+
+    emitTaskUpdated(
+      project._id.toString(),
+      task
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: `Submission ${status}`,
+      task,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
       message: error.message,
     });
   }

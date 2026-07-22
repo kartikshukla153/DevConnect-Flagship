@@ -5,6 +5,7 @@ import {
   getMyProfile,
   getUserProfile,
   getAllProfiles,
+  
   searchProfilesBySkill,
   addExperience,
   deleteExperience,
@@ -23,6 +24,7 @@ router.post("/", authMiddleware, createOrUpdateProfile);
  * ADD EXPERIENCE
  */
 router.post("/experience", authMiddleware, addExperience);
+
 
 /**
  * DELETE EXPERIENCE
@@ -43,6 +45,8 @@ router.get("/search/skills", searchProfilesBySkill);
  * GET ALL PROFILES
  */
 router.get("/", getAllProfiles);
+
+
 
 /**
  * GET PUBLIC PROFILE

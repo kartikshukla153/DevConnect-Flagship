@@ -2,6 +2,7 @@ import Project from "../models/project.js";
 import Notification from "../models/Notification.js";
 import Task from "../models/Task.js";
 import Activity from "../models/Activity.js";
+import User from "../models/User.js";
 export const createProject = async (req, res) => {
   try {
     const {
@@ -614,6 +615,242 @@ export const getProjectActivity = async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+/**
+ * GET PROJECT MEMBERS
+ */
+export const getProjectMembers = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+
+    const project = await Project.findById(projectId)
+      .populate(
+        "members.user",
+        "name email profilePicture headline"
+      )
+      .populate(
+        "pendingInvites.user",
+        "name email profilePicture headline"
+      )
+      .populate(
+        "joinRequests",
+        "name email profilePicture headline"
+      );
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: "Project not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      members: project.members,
+      pendingInvites: project.pendingInvites,
+      joinRequests: project.joinRequests,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+/**
+ * CHANGE MEMBER ROLE
+ */
+export const changeMemberRole = async (req, res) => {
+  try {
+    const { projectId, userId } = req.params;
+    const { role } = req.body;
+
+    if (!["admin", "member"].includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid role",
+      });
+    }
+
+    const project = await Project.findById(projectId);
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: "Project not found",
+      });
+    }
+
+    const member = project.members.find(
+      (member) => member.user.toString() === userId
+    );
+
+    if (!member) {
+      return res.status(404).json({
+        success: false,
+        message: "Member not found",
+      });
+    }
+
+    if (member.role === "owner") {
+      return res.status(400).json({
+        success: false,
+        message: "Owner role cannot be changed",
+      });
+    }
+
+    member.role = role;
+
+    await project.save();
+
+    await Activity.create({
+      project: project._id,
+      user: req.user.id,
+      type:
+        role === "admin"
+          ? "member_promoted"
+          : "member_demoted",
+      message: `${req.user.name} changed a member role to ${role}`,
+    });
+
+    await Notification.create({
+      recipient: userId,
+      sender: req.user.id,
+      type: "project_role_updated",
+      message: `Your role has been changed to ${role}`,
+      relatedProject: project._id,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Member role updated successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+export const removeMember = async (req, res) => {
+  try {
+    const { projectId, userId } = req.params;
+
+    const project = await Project.findById(projectId);
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: "Project not found",
+      });
+    }
+
+    const member = project.members.find(
+      (m) => m.user.toString() === userId
+    );
+
+    if (!member) {
+      return res.status(404).json({
+        success: false,
+        message: "Member not found",
+      });
+    }
+
+    if (member.role === "owner") {
+      return res.status(400).json({
+        success: false,
+        message: "Owner cannot be removed",
+      });
+    }
+
+    project.members = project.members.filter(
+      (m) => m.user.toString() !== userId
+    );
+
+    await project.save();
+
+    await Activity.create({
+      project: project._id,
+      user: req.user.id,
+      type: "member_removed",
+      message: `${req.user.name} removed a member from the project`,
+    });
+
+    await Notification.create({
+      recipient: userId,
+      sender: req.user.id,
+      type: "project_member_removed",
+      message: `You have been removed from "${project.title}"`,
+      relatedProject: project._id,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Member removed successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+export const leaveProject = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+
+    const project = await Project.findById(projectId);
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: "Project not found",
+      });
+    }
+
+    const member = project.members.find(
+      (m) => m.user.toString() === req.user.id
+    );
+
+    if (!member) {
+      return res.status(404).json({
+        success: false,
+        message: "You are not a member",
+      });
+    }
+
+    if (member.role === "owner") {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Transfer ownership before leaving the project",
+      });
+    }
+
+    project.members = project.members.filter(
+      (m) => m.user.toString() !== req.user.id
+    );
+
+    await project.save();
+
+    await Activity.create({
+      project: project._id,
+      user: req.user.id,
+      type: "member_removed",
+      message: `${req.user.name} left the project`,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "You left the project successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
       message: error.message,
     });
   }

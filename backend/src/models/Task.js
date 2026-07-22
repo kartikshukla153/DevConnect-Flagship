@@ -88,6 +88,70 @@ const taskSchema = new mongoose.Schema(
       default: false,
     },
 
+    /* ===========================
+       TASK SUBMISSION
+    =========================== */
+
+    submission: {
+      githubPR: {
+        type: String,
+        default: "",
+      },
+
+      githubCommit: {
+        type: String,
+        default: "",
+      },
+
+      liveLink: {
+        type: String,
+        default: "",
+      },
+
+      notes: {
+        type: String,
+        default: "",
+      },
+
+      submittedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        default: null,
+      },
+
+      submittedAt: {
+        type: Date,
+        default: null,
+      },
+
+      status: {
+        type: String,
+        enum: [
+          "not_submitted",
+          "pending",
+          "approved",
+          "rejected",
+        ],
+        default: "not_submitted",
+      },
+
+      reviewComment: {
+        type: String,
+        default: "",
+      },
+
+      reviewedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        default: null,
+      },
+
+      reviewedAt: {
+        type: Date,
+        default: null,
+      },
+    },
+
     completedAt: {
       type: Date,
     },

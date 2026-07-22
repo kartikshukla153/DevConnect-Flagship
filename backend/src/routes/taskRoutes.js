@@ -9,6 +9,8 @@ import {
   updateTaskStatus,
   deleteTask,
   getSingleTask,
+  reviewTaskSubmission,
+  submitTask,
 } from "../controllers/task.controller.js";
 
 const router = express.Router();
@@ -40,6 +42,19 @@ router.get(
   getSingleTask
 );
 
+/**
+ * SUBMIT TASK
+ */
+router.post(
+  "/submit/:taskId",
+  authMiddleware,
+  submitTask
+);
+router.put(
+  "/review/:taskId",
+  authMiddleware,
+  reviewTaskSubmission
+);
 /**
  * ASSIGN TASK
  */

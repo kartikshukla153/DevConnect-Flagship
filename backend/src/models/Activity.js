@@ -17,13 +17,40 @@ const activitySchema = new mongoose.Schema(
     type: {
       type: String,
       enum: [
-        "project_created",
-        "task_created",
-        "task_assigned",
-        "task_status_updated",
-        "member_joined",
-        "member_removed",
-      ],
+  "project_created",
+
+  "member_joined",
+  "member_removed",
+  "member_promoted",
+  "member_demoted",
+
+  "invite_sent",
+  "invite_accepted",
+  "invite_rejected",
+
+  "join_request_sent",
+  "join_request_approved",
+  "join_request_rejected",
+
+  "task_created",
+  "task_assigned",
+  "task_status_updated",
+  "task_completed",
+
+  "comment_added",
+  "submission_uploaded",
+
+  "ai_generated_tasks",
+  "ai_review_completed",
+  "file_uploaded",
+  "file_deleted",
+"github_connected",
+"github_pr_linked",
+"task_reviewed",
+"task_reopened",
+"task_submission_approved",
+"task_submission_rejected",
+],
       required: true,
     },
 
