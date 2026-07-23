@@ -113,6 +113,25 @@ const taskSchema = new mongoose.Schema(
         default: "",
       },
 
+      attachments: [
+        {
+          fileName: {
+            type: String,
+            default: "",
+          },
+
+          fileUrl: {
+            type: String,
+            default: "",
+          },
+
+          uploadedAt: {
+            type: Date,
+            default: Date.now,
+          },
+        },
+      ],
+
       submittedBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
@@ -150,13 +169,64 @@ const taskSchema = new mongoose.Schema(
         type: Date,
         default: null,
       },
+
+      history: [
+        {
+          action: {
+            type: String,
+            default: "",
+          },
+
+          user: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+          },
+
+          comment: {
+            type: String,
+            default: "",
+          },
+
+          createdAt: {
+            type: Date,
+            default: Date.now,
+          },
+        },
+      ],
+
+      aiReview: {
+        score: {
+          type: Number,
+          default: 0,
+        },
+
+        summary: {
+          type: String,
+          default: "",
+        },
+
+        suggestions: [
+          {
+            type: String,
+          },
+        ],
+
+        reviewedAt: {
+          type: Date,
+          default: null,
+        },
+      },
     },
 
     completedAt: {
       type: Date,
+      default: null,
     },
 
-    deadline: Date,
+    deadline: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,

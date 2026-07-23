@@ -1,5 +1,5 @@
 import express from "express";
-
+import { searchDevelopers } from "../controllers/projectController.js";
 import {
   createProject,
   getAllProjects,
@@ -35,7 +35,11 @@ router.get(
   checkProjectRole("owner", "admin", "member"),
   getProjectMembers
 );
-
+router.get(
+  "/developers/search",
+  authMiddleware,
+  searchDevelopers
+);
 router.get("/:id", getSingleProject);
 
 router.delete(

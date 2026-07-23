@@ -14,6 +14,7 @@ import {
   connectProjectSocket,
   disconnectProjectSocket,
 } from "../socket/projectSocket";
+import InviteMemberModal from "../components/workspace/InviteMemberModal";
 
 const API = "http://localhost:5000/api";
 
@@ -35,6 +36,8 @@ function ProjectWorkspace() {
 
   const [selectedTask, setSelectedTask] =
     useState(null);
+
+    const [inviteOpen, setInviteOpen] = useState(false);
 
   const [drawerOpen, setDrawerOpen] =
     useState(false);
@@ -193,12 +196,18 @@ function ProjectWorkspace() {
     <>
       <div className="space-y-6">
 
-       <WorkspaceHeader
+    <WorkspaceHeader
   project={project}
   tasks={tasks}
-  onCreateTask={() =>
-    setOpenCreateModal(true)
-  }
+  onCreateTask={() => setOpenCreateModal(true)}
+  onInvite={() => setInviteOpen(true)}
+  onShare={() => {
+    navigator.clipboard.writeText(window.location.href);
+    alert("Workspace link copied!");
+  }}
+  onOpenAI={() => {
+    alert("AI Workspace coming soon");
+  }}
 />
 
         <WorkspaceToolbar
@@ -248,7 +257,12 @@ function ProjectWorkspace() {
         projectId={id}
         reloadTasks={loadWorkspace}
       />
-
+<InviteMemberModal
+  open={inviteOpen}
+  onClose={() => setInviteOpen(false)}
+  projectId={id}
+  refreshTeam={loadWorkspace}
+/>
       <TaskDetailsDrawer
         open={drawerOpen}
         task={selectedTask}

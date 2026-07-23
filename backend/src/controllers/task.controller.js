@@ -441,21 +441,21 @@ export const submitTask = async (req, res) => {
           "Only the assigned developer can submit this task",
       });
     }
+task.submission.githubPR = githubPR;
+task.submission.githubCommit = githubCommit;
+task.submission.liveLink = liveLink;
+task.submission.notes = notes;
 
-    task.submission = {
-      githubPR,
-      githubCommit,
-      liveLink,
-      notes,
-
-      submittedBy: req.user._id,
-      submittedAt: new Date(),
-
-      status: "pending",
-    };
+task.submission.submittedBy = req.user._id;
+task.submission.submittedAt = new Date();
+task.submission.status = "pending";
 
     task.status = "review";
-
+task.submission.history.push({
+  action: "submitted",
+  user: req.user._id,
+  comment: notes || "",
+});
     await task.save();
 
     await Activity.create({
@@ -549,7 +549,11 @@ export const reviewTaskSubmission = async (req, res) => {
     } else {
       task.status = "in-progress";
     }
-
+task.submission.history.push({
+  action: status,
+  user: req.user._id,
+  comment: reviewComment || "",
+});
     await task.save();
 
     await Activity.create({

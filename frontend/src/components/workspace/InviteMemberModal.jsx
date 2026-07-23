@@ -24,8 +24,8 @@ function InviteMemberModal({
     try {
       setLoading(true);
 
-      const res = await axios.get(
-        `${API}/search/users?keyword=${search}`,
+   const res = await axios.get(
+  `${API}/projects/developers/search?search=${search}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -53,13 +53,9 @@ function InviteMemberModal({
 
   async function invite(userId) {
     try {
-      await axios.post(
-        `${API}/invitations`,
-        {
-          projectId,
-          receiverId: userId,
-          role: "member",
-        },
+     await axios.put(
+  `${API}/projects/invite/${projectId}/${userId}`,
+  {},
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -116,7 +112,6 @@ function InviteMemberModal({
             />
 
           </div>
-
           <div className="max-h-[420px] space-y-3 overflow-y-auto">
 
             {loading && (

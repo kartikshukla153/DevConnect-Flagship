@@ -15,6 +15,9 @@ function WorkspaceHeader({
   project,
   tasks = [],
   onCreateTask,
+  onInvite,
+  onShare,
+  onOpenAI,
 }) {
   const completed = tasks.filter(
     (task) => task.status === "completed"
@@ -239,99 +242,101 @@ function WorkspaceHeader({
                 Create Task
               </button>
 
-              <button
-                className="
-                  flex
-                  items-center
-                  justify-center
-                  gap-3
-                  rounded-2xl
-                  border
-                  border-cyan-500/30
-                  bg-cyan-500/10
-                  px-6
-                  py-4
-                  font-semibold
-                  text-cyan-300
-                  transition-all
-                  hover:border-cyan-400
-                  hover:bg-cyan-500/20
-                "
-              >
-                <Sparkles size={19} />
-                AI Assistant
-              </button>
+   <button
+  onClick={onOpenAI}
+  className="
+    flex
+    items-center
+    justify-center
+    gap-3
+    rounded-2xl
+    border
+    border-cyan-500/30
+    bg-cyan-500/10
+    px-6
+    py-4
+    font-semibold
+    text-cyan-300
+    transition-all
+    hover:border-cyan-400
+    hover:bg-cyan-500/20
+  "
+>
+  <Sparkles size={19} />
+  AI Assistant
+</button>
 
-              <div className="grid grid-cols-2 gap-4">
+<div className="grid grid-cols-2 gap-4">
 
-                <button
-                  className="
-                    flex
-                    items-center
-                    justify-center
-                    gap-2
-                    rounded-2xl
-                    border
-                    border-white/10
-                    bg-white/5
-                    px-4
-                    py-4
-                    text-sm
-                    font-medium
-                    text-white
-                    transition-all
-                    hover:border-cyan-400/30
-                    hover:bg-cyan-500/10
-                  "
-                >
-                  <Users size={18} />
-                  Invite
-                </button>
+  <button
+    onClick={onInvite}
+    className="
+      flex
+      items-center
+      justify-center
+      gap-2
+      rounded-2xl
+      border
+      border-white/10
+      bg-white/5
+      px-4
+      py-4
+      text-sm
+      font-medium
+      text-white
+      transition-all
+      hover:border-cyan-400/30
+      hover:bg-cyan-500/10
+    "
+  >
+    <Users size={18} />
+    Invite
+  </button>
+<button
+  onClick={onShare}
+  className="
+    flex
+    items-center
+    justify-center
+    gap-2
+    rounded-2xl
+    border
+    border-white/10
+    bg-white/5
+    px-4
+    py-4
+    text-sm
+    font-medium
+    text-white
+    transition-all
+    hover:border-cyan-400/30
+    hover:bg-cyan-500/10
+  "
+>
+  <Share2 size={18} />
+  Share
+</button>
 
-                <button
-                  className="
-                    flex
-                    items-center
-                    justify-center
-                    gap-2
-                    rounded-2xl
-                    border
-                    border-white/10
-                    bg-white/5
-                    px-4
-                    py-4
-                    text-sm
-                    font-medium
-                    text-white
-                    transition-all
-                    hover:border-cyan-400/30
-                    hover:bg-cyan-500/10
-                  "
-                >
-                  <Share2 size={18} />
-                  Share
-                </button>
+</div>
 
-              </div>
-
-              <button
-                className="
-                  flex
-                  items-center
-                  justify-center
-                  gap-3
-                  rounded-2xl
-                  border
-                  border-white/10
-                  bg-white/5
-                  px-6
-                  py-4
-                  text-white
-                  transition-all
-                  hover:border-white/20
-                  hover:bg-white/10
-                "
-              >
+<button
+  className="
+    flex
+    items-center
+    justify-center
+    gap-3
+    rounded-2xl
+    border
+    border-white/10
+    bg-white/5
+    px-6
+    py-4
+    text-white
+    transition-all
+    hover:border-white/20
+    hover:bg-white/10
+  "
+>
                 <GitBranch size={18} />
                 Repository
               </button>

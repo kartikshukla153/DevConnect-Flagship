@@ -855,3 +855,27 @@ export const leaveProject = async (req, res) => {
     });
   }
 };
+export const searchDevelopers = async (req, res) => {
+  try {
+    const keyword = req.query.search || "";
+
+    const users = await User.find({
+      name: {
+        $regex: keyword,
+        $options: "i",
+      },
+    })
+      .select("name email profilePicture headline")
+      .limit(20);
+
+    return res.status(200).json({
+      success: true,
+      users,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
