@@ -133,9 +133,10 @@ function CreateProject() {
           />
 
           <button
-            disabled={loading}
-            className="rounded-xl bg-cyan-400 px-8 py-4 font-semibold text-black"
-          >
+  type="submit"
+  disabled={loading}
+  className="rounded-xl bg-cyan-400 px-8 py-4 font-semibold text-black"
+>
             {loading ? "Creating..." : "Create Project"}
           </button>
 

@@ -6,33 +6,47 @@ import User from "../models/User.js";
 export const createProject = async (req, res) => {
   try {
     const {
-      title,
-      description,
-      techStack,
-      rolesNeeded,
-      status,
-      githubRepo,
-      liveLink,
-    } = req.body;
-
+  title,
+  description,
+  overview,
+  techStack,
+  rolesNeeded,
+  status,
+  githubRepo,
+  liveLink,
+  difficulty,
+  estimatedWeeks,
+} = req.body;
+console.log(req.body);
     const newProject = new Project({
-      creator: req.user.id,
 
-      title,
-      description,
-      techStack,
-      rolesNeeded,
-      status,
-      githubRepo,
-      liveLink,
+  creator: req.user.id,
 
-      members: [
-        {
-          user: req.user.id,
-          role: "owner",
-        },
-      ],
-    });
+  title,
+  description,
+  overview,
+
+  techStack,
+
+  rolesNeeded,
+
+  status,
+
+  githubRepo,
+
+  liveLink,
+
+  difficulty,
+
+  estimatedWeeks,
+
+  members: [
+    {
+      user: req.user.id,
+      role: "owner",
+    },
+  ],
+});
 
    const savedProject = await newProject.save();
 

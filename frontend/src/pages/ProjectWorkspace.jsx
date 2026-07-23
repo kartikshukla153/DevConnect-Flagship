@@ -201,10 +201,27 @@ function ProjectWorkspace() {
   tasks={tasks}
   onCreateTask={() => setOpenCreateModal(true)}
   onInvite={() => setInviteOpen(true)}
-  onShare={() => {
-    navigator.clipboard.writeText(window.location.href);
-    alert("Workspace link copied!");
-  }}
+  onShare={async () => {
+  const url = window.location.href;
+
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: project.title,
+        text: project.description,
+        url,
+      });
+      return;
+    } catch (err) {}
+  }
+
+  try {
+    await navigator.clipboard.writeText(url);
+    alert("Workspace URL copied to clipboard.");
+  } catch {
+    alert("Unable to copy workspace URL.");
+  }
+}}
   onOpenAI={() => {
     alert("AI Workspace coming soon");
   }}

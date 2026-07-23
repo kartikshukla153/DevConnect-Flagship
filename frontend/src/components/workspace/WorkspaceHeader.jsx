@@ -320,6 +320,13 @@ function WorkspaceHeader({
 </div>
 
 <button
+  onClick={() => {
+    if (project.githubRepo) {
+      window.open(project.githubRepo, "_blank");
+    } else {
+      alert("No repository linked to this project.");
+    }
+  }}
   className="
     flex
     items-center
@@ -337,9 +344,9 @@ function WorkspaceHeader({
     hover:bg-white/10
   "
 >
-                <GitBranch size={18} />
-                Repository
-              </button>
+  <GitBranch size={18} />
+  Repository
+</button>
 
               <div
                 className="
