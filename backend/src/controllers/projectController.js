@@ -660,7 +660,7 @@ export const getProjectMembers = async (req, res) => {
         message: "Project not found",
       });
     }
-
+console.log(project.joinRequests);
     return res.status(200).json({
       success: true,
       members: project.members,

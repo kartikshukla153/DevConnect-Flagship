@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import axios from "axios";
 
+
 import WorkspaceHeader from "../components/workspace/WorkspaceHeader";
 import WorkspaceToolbar from "../components/workspace/WorkspaceToolbar";
 import WorkspaceSidebar from "../components/workspace/WorkspaceSidebar";
@@ -15,6 +16,7 @@ import {
   disconnectProjectSocket,
 } from "../socket/projectSocket";
 import InviteMemberModal from "../components/workspace/InviteMemberModal";
+import ProjectMembersCard from "../components/workspace/ProjectMembersCard";
 
 const API = "http://localhost:5000/api";
 
@@ -201,25 +203,15 @@ function ProjectWorkspace() {
   tasks={tasks}
   onCreateTask={() => setOpenCreateModal(true)}
   onInvite={() => setInviteOpen(true)}
-  onShare={async () => {
-  const url = window.location.href;
 
-  if (navigator.share) {
-    try {
-      await navigator.share({
-        title: project.title,
-        text: project.description,
-        url,
-      });
-      return;
-    } catch (err) {}
-  }
-
+ onShare={async () => {
   try {
-    await navigator.clipboard.writeText(url);
-    alert("Workspace URL copied to clipboard.");
-  } catch {
-    alert("Unable to copy workspace URL.");
+    await navigator.clipboard.writeText(window.location.href);
+
+    alert("✅ Workspace link copied to clipboard.");
+  } catch (err) {
+    console.log(err);
+    alert("Unable to copy workspace link.");
   }
 }}
   onOpenAI={() => {
@@ -256,10 +248,19 @@ function ProjectWorkspace() {
           </div>
 
           <div className="col-span-12 xl:col-span-3">
-            <WorkspaceRightSidebar
-  project={project}
-  reloadWorkspace={loadWorkspace}
-/>
+       <div className="space-y-6">
+
+  <WorkspaceRightSidebar
+    project={project}
+    reloadWorkspace={loadWorkspace}
+  />
+
+  <ProjectMembersCard
+    project={project}
+    reloadWorkspace={loadWorkspace}
+  />
+
+</div>
           </div>
 
         </div>

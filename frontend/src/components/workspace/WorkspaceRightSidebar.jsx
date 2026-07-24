@@ -6,7 +6,7 @@ import {
   TrendingUp,
   Circle,
 } from "lucide-react";
-
+import ProjectMembersCard from "./ProjectMembersCard";
 function WorkspaceRightSidebar({
   project,
   reloadWorkspace,
@@ -125,77 +125,11 @@ function WorkspaceRightSidebar({
 
       </section>
 
-      {/* Team */}
-
-      <section className="rounded-3xl border border-white/10 bg-[#111827]">
-
-        <div className="flex items-center justify-between border-b border-white/10 p-5">
-
-          <div className="flex items-center gap-3">
-
-            <Users className="text-cyan-300" />
-
-            <h2 className="font-semibold">
-              Team Members
-            </h2>
-
-          </div>
-
-          <span className="rounded-full bg-cyan-500/10 px-3 py-1 text-xs text-cyan-300">
-
-            {members.length}
-
-          </span>
-
-        </div>
-
-        <div className="space-y-3 p-5">
-
-          {members.slice(0, 5).map((member) => (
-
-            <div
-              key={member.user?._id}
-              className="flex items-center justify-between rounded-2xl bg-[#0B1220] p-4 transition hover:bg-[#101b2c]"
-            >
-
-              <div className="flex items-center gap-3">
-
-                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-cyan-500 font-bold text-black">
-
-                  {member.user?.name?.charAt(0)}
-
-                </div>
-
-                <div>
-
-                  <h3 className="font-medium">
-
-                    {member.user?.name}
-
-                  </h3>
-
-                  <p className="text-xs text-slate-500">
-
-                    {member.role}
-
-                  </p>
-
-                </div>
-
-              </div>
-
-              <Circle
-                size={10}
-                className="fill-green-400 text-green-400"
-              />
-
-            </div>
-
-          ))}
-
-        </div>
-
-      </section>       {/* Upcoming Deadlines */}
+      <ProjectMembersCard
+  project={project}
+  reloadWorkspace={reloadWorkspace}
+/>
+      {/* Upcoming Deadlines */}
 
       <section className="rounded-3xl border border-white/10 bg-[#111827]">
 
