@@ -11,13 +11,15 @@ import {
   Target,
 } from "lucide-react";
 function WorkspaceHeader({
-  project,
+    project,
   tasks = [],
   onCreateTask,
   onInvite,
   onRepository,
   onShare,
   onOpenAI,
+  onDelete,
+  deleting,
 })
    {
   const completed = tasks.filter(
@@ -343,6 +345,33 @@ function WorkspaceHeader({
   Repository
 </button>
 
+{onDelete && (
+  <button
+    onClick={onDelete}
+    disabled={deleting}
+    className="
+      flex
+      items-center
+      justify-center
+      gap-3
+      rounded-2xl
+      border
+      border-red-500/30
+      bg-red-500/10
+      px-6
+      py-4
+      font-semibold
+      text-red-400
+      transition-all
+      hover:bg-red-500/20
+      hover:border-red-400
+      disabled:cursor-not-allowed
+      disabled:opacity-60
+    "
+  >
+    {deleting ? "Deleting..." : "Delete Project"}
+  </button>
+)}
               <div
                 className="
                   rounded-2xl

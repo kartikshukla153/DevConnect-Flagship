@@ -30,12 +30,6 @@ router.post("/", authMiddleware, createProject);
 
 router.get("/", getAllProjects);
 router.get(
-  "/members/:projectId",
-  authMiddleware,
-  checkProjectRole("owner", "admin", "member"),
-  getProjectMembers
-);
-router.get(
   "/developers/search",
   authMiddleware,
   searchDevelopers

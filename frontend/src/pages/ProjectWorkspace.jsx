@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import useAuth from "../hooks/useAuth";
 
@@ -22,6 +22,7 @@ const API = "http://localhost:5000/api";
 
 function ProjectWorkspace() {
   const { id } = useParams();
+  const navigate = useNavigate();
 
   const token = localStorage.getItem("token");
 const { user } = useAuth();
@@ -43,6 +44,7 @@ const { user } = useAuth();
 
   const [drawerOpen, setDrawerOpen] =
     useState(false);
+    const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     loadWorkspace();
@@ -97,6 +99,39 @@ console.log(socket.listeners("connect"));
 };
   }, [id]);
 
+  async function deleteProject() {
+  const confirmed = window.confirm(
+    "Delete this project permanently?\n\nThis will delete all tasks, activities and cannot be undone."
+  );
+
+  if (!confirmed) return;
+
+  try {
+    setDeleting(true);
+
+    await axios.delete(
+      `${API}/projects/${id}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    alert("Project deleted successfully.");
+
+    navigate("/projects");
+  } catch (err) {
+    console.log(err);
+
+    alert(
+      err.response?.data?.message ||
+        "Unable to delete project."
+    );
+  } finally {
+    setDeleting(false);
+  }
+}
   async function loadWorkspace() {
     try {
       setLoading(true);
@@ -224,47 +259,40 @@ console.log(socket.listeners("connect"));
     <WorkspaceHeader
   project={project}
   tasks={tasks}
+
   onCreateTask={() => setOpenCreateModal(true)}
+
   onInvite={() => setInviteOpen(true)}
 
   onRepository={() => {
-  window.open(`/repository/${id}`, "_blank");
-}}
-  onRepository={() => {
-    if (project?.githubRepo) {
-      window.open(project.githubRepo, "_blank");
-    } else {
-      alert("No GitHub repository linked.");
-    }
+    navigate(`/repository/${id}`);
   }}
+
   onShare={async () => {
     try {
-      await navigator.clipboard.writeText(window.location.href);
+      await navigator.clipboard.writeText(
+        window.location.href
+      );
+
       alert("✅ Workspace link copied.");
     } catch (err) {
       console.log(err);
     }
   }}
+
   onOpenAI={() => {
     alert("AI Workspace coming soon");
   }}
 
-  onInvite={() => setInviteOpen(true)}
-
- onShare={async () => {
-  try {
-    await navigator.clipboard.writeText(window.location.href);
-
-    alert("✅ Workspace link copied to clipboard.");
-  } catch (err) {
-    console.log(err);
-    alert("Unable to copy workspace link.");
+  onDelete={
+    project.creator?._id === user?.id
+      ? deleteProject
+      : null
   }
-}}
-  onOpenAI={() => {
-    alert("AI Workspace coming soon");
-  }}
+
+  deleting={deleting}
 />
+    
 
         <WorkspaceToolbar
           search={search}
