@@ -1,42 +1,29 @@
-import { io } from "socket.io-client";
+import {
+  connectSocket,
+  getSocket,
+  disconnectSocket,
+} from "./socket";
 
-let socket;
+/*
+===========================================
+Temporary Compatibility Wrapper
 
-export function connectProjectSocket(
-  userId
-) {
-  if (
-    socket &&
-    socket.connected
-  ) {
-    return socket;
-  }
+This keeps the old API working while the
+project migrates to a single global socket.
 
-  socket = io(
-    "http://localhost:5000",
-    {
-      transports: ["websocket"],
-      query: {
-        userId,
-      },
-      reconnection: true,
-      reconnectionAttempts: Infinity,
-      reconnectionDelay: 1000,
-      autoConnect: true,
-    }
-  );
+After migration this file will be deleted.
+===========================================
+*/
 
-  return socket;
+export function connectProjectSocket(userId) {
+  return connectSocket(userId);
 }
 
 export function getProjectSocket() {
-  return socket;
+  return getSocket();
 }
 
 export function disconnectProjectSocket() {
-  if (!socket) return;
-
-  socket.disconnect();
-
-  socket = null;
+  // Intentionally empty.
+  // The global socket is owned by SocketContext.
 }

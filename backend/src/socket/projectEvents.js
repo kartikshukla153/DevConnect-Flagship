@@ -1,10 +1,16 @@
 import { getIO } from "./socket.js";
 
 /**
+ * ==========================================
  * TASK CREATED
+ * ==========================================
  */
 export function emitTaskCreated(projectId, task) {
   const io = getIO();
+
+  console.log("========== TASK CREATED ==========");
+  console.log("ROOM:", projectId);
+  console.log("TITLE:", task.title);
 
   io.to(projectId).emit("task_created", task);
 
@@ -13,13 +19,22 @@ export function emitTaskCreated(projectId, task) {
     message: `${task.createdBy?.name || "Someone"} created "${task.title}"`,
     createdAt: new Date(),
   });
+
+  console.log("========== SENT ==========");
 }
 
 /**
+ * ==========================================
  * TASK UPDATED
+ * ==========================================
  */
 export function emitTaskUpdated(projectId, task) {
   const io = getIO();
+
+  console.log("========== TASK UPDATED ==========");
+  console.log("ROOM:", projectId);
+  console.log("TITLE:", task.title);
+  console.log("STATUS:", task.status);
 
   io.to(projectId).emit("task_updated", task);
 
@@ -28,13 +43,21 @@ export function emitTaskUpdated(projectId, task) {
     message: `${task.title} moved to ${task.status}`,
     createdAt: new Date(),
   });
+
+  console.log("========== SENT ==========");
 }
 
 /**
+ * ==========================================
  * TASK DELETED
+ * ==========================================
  */
 export function emitTaskDeleted(projectId, taskId) {
   const io = getIO();
+
+  console.log("========== TASK DELETED ==========");
+  console.log("ROOM:", projectId);
+  console.log("TASK:", taskId);
 
   io.to(projectId).emit("task_deleted", {
     taskId,
@@ -45,18 +68,22 @@ export function emitTaskDeleted(projectId, taskId) {
     message: "Task deleted",
     createdAt: new Date(),
   });
+
+  console.log("========== SENT ==========");
 }
 
 /**
+ * ==========================================
  * TASK COMMENT
+ * ==========================================
  */
 export function emitTaskComment(projectId, comment) {
   const io = getIO();
 
-  io.to(projectId).emit(
-    "task_comment_added",
-    comment
-  );
+  console.log("========== TASK COMMENT ==========");
+  console.log("ROOM:", projectId);
+
+  io.to(projectId).emit("task_comment_added", comment);
 
   io.to(projectId).emit("activity_added", {
     type: "task_comment",
@@ -64,49 +91,50 @@ export function emitTaskComment(projectId, comment) {
     createdAt: new Date(),
     comment,
   });
+
+  console.log("========== SENT ==========");
 }
 
 /**
+ * ==========================================
  * PROJECT CHAT
+ * ==========================================
  */
 export function emitProjectChat(projectId, message) {
-  getIO().to(projectId).emit(
-    "project_chat",
-    message
-  );
+  const io = getIO();
+
+  io.to(projectId).emit("project_chat", message);
 }
 
 /**
+ * ==========================================
  * PROJECT ACTIVITY
+ * ==========================================
  */
-export function emitProjectActivity(
-  projectId,
-  activity
-) {
-  getIO().to(projectId).emit(
-    "activity_added",
-    activity
-  );
+export function emitProjectActivity(projectId, activity) {
+  const io = getIO();
+
+  io.to(projectId).emit("activity_added", activity);
 }
 
 /**
+ * ==========================================
  * TEAM UPDATED
+ * ==========================================
  */
 export function emitTeamUpdated(projectId) {
-  getIO().to(projectId).emit(
-    "team_updated"
-  );
+  const io = getIO();
+
+  io.to(projectId).emit("team_updated");
 }
 
 /**
+ * ==========================================
  * LIVE PRESENCE
+ * ==========================================
  */
-export function emitPresenceUpdate(
-  projectId,
-  users
-) {
-  getIO().to(projectId).emit(
-    "team_presence_updated",
-    users
-  );
+export function emitPresenceUpdate(projectId, users) {
+  const io = getIO();
+
+  io.to(projectId).emit("team_presence_updated", users);
 }

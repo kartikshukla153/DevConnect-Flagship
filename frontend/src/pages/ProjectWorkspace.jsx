@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import axios from "axios";
-
+import useAuth from "../hooks/useAuth";
 
 import WorkspaceHeader from "../components/workspace/WorkspaceHeader";
 import WorkspaceToolbar from "../components/workspace/WorkspaceToolbar";
@@ -24,7 +24,7 @@ function ProjectWorkspace() {
   const { id } = useParams();
 
   const token = localStorage.getItem("token");
-
+const { user } = useAuth();
   const [project, setProject] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -49,29 +49,52 @@ function ProjectWorkspace() {
   }, [id]);
 
   useEffect(() => {
-    const user = JSON.parse(
-      localStorage.getItem("user")
-    );
+if (!user?.id) return;
 
-    if (!user?._id) return;
+const userId = user.id;
 
-    const socket = connectProjectSocket(user._id);
+const socket = connectProjectSocket(userId);
 
+if (socket.connected) {
+ 
+} else {
+  socket.on("connect", () => {
+    console.log("EMITTING JOIN");
+console.log(socket.id);
+console.log(socket.connected);
+console.log(socket.listeners("connect"));
     socket.emit("join_project", id);
+    console.log("JOINED PROJECT AFTER CONNECT:", id);
+  });
+}
+    socket.emit("join_project", id);
+    console.log("Joined room:", id);
 
-    socket.on("task_created", loadWorkspace);
-    socket.on("task_updated", loadWorkspace);
-    socket.on("task_deleted", loadWorkspace);
+   socket.on("task_created", (task) => {
+  console.log("🔥 TASK CREATED RECEIVED", task);
 
-    return () => {
-      socket.emit("leave_project", id);
+  loadWorkspace();
+});
+    socket.on("task_updated", (task) => {
+  console.log("🔥 TASK UPDATED RECEIVED", task);
 
-      socket.off("task_created");
-      socket.off("task_updated");
-      socket.off("task_deleted");
+  loadWorkspace();
+});
+    socket.on("task_deleted", (task) => {
+  console.log("🔥 TASK DELETED RECEIVED", task);
 
-      disconnectProjectSocket();
-    };
+  loadWorkspace();
+});
+
+  return () => {
+  socket.emit("leave_project", id);
+
+  socket.off("task_created");
+  socket.off("task_updated");
+  socket.off("task_deleted");
+
+  // DO NOT disconnect the global socket.
+};
   }, [id]);
 
   async function loadWorkspace() {
@@ -202,6 +225,30 @@ function ProjectWorkspace() {
   project={project}
   tasks={tasks}
   onCreateTask={() => setOpenCreateModal(true)}
+  onInvite={() => setInviteOpen(true)}
+
+  onRepository={() => {
+  window.open(`/repository/${id}`, "_blank");
+}}
+  onRepository={() => {
+    if (project?.githubRepo) {
+      window.open(project.githubRepo, "_blank");
+    } else {
+      alert("No GitHub repository linked.");
+    }
+  }}
+  onShare={async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      alert("✅ Workspace link copied.");
+    } catch (err) {
+      console.log(err);
+    }
+  }}
+  onOpenAI={() => {
+    alert("AI Workspace coming soon");
+  }}
+
   onInvite={() => setInviteOpen(true)}
 
  onShare={async () => {

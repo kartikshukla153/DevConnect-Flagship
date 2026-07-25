@@ -24,6 +24,7 @@ import aiSummaryRoutes from "./routes/aiSummaryRoutes.js";
 import invitationRoutes from "./routes/invitation.routes.js";
 import activityRoutes from "./routes/activityRoutes.js";
 import taskCommentRoutes from "./routes/taskComment.routes.js";
+import repositoryRoutes from "./routes/repositoryRoutes.js";
 const app = express();
 
 // ==========================================
@@ -55,6 +56,7 @@ app.use(
   "/api/invitations",
   invitationRoutes
 );
+app.use("/api/repository", repositoryRoutes);
 // ==========================================
 // STATIC FILES
 // ==========================================

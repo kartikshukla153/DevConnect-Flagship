@@ -1,10 +1,5 @@
 export const generateWithAI = async (prompt) => {
   try {
-    console.log("======================================");
-    console.log("OPENROUTER KEY:");
-    console.log(process.env.OPENROUTER_API_KEY?.substring(0, 20) + "...");
-    console.log("======================================");
-
     const response = await fetch(
       "https://openrouter.ai/api/v1/chat/completions",
       {
@@ -18,52 +13,79 @@ export const generateWithAI = async (prompt) => {
         },
 
         body: JSON.stringify({
-  model: "qwen/qwen3-coder",
+          model: "qwen/qwen3-coder",
 
-  messages: [
-    {
-      role: "system",
-      content: `You are a Senior Software Architect.
+          messages: [
+            {
+              role: "system",
+              content: `
+You are a Senior Software Architect.
 
-Always respond ONLY with valid JSON.
+Return ONLY valid JSON.
 
 Never use markdown.
+Never use code blocks.
+Never explain anything.
 
-Never use code fences.
+Generate software project architecture.
 
-Generate detailed software project roadmaps.`,
-    },
-    {
-      role: "user",
-      content: prompt,
-    },
-  ],
+The JSON MUST include ALL of these fields:
 
-  temperature: 0.3,
-  max_tokens: 1000
-}),
-           
+{
+"title":"",
+"description":"",
+"overview":"",
+"techStack":[],
+"estimatedWeeks":0,
+"difficulty":"",
+"githubRepo":"https://github.com/<owner>/<repo>",
+"liveLink":"",
+"rolesNeeded":[],
+"tasks":[]
+}
+
+Rules:
+
+1. githubRepo MUST ALWAYS contain a realistic GitHub URL.
+
+Example:
+
+https://github.com/facebook/react
+
+or
+
+https://github.com/vercel/next.js
+
+or
+
+https://github.com/your-org/project-name
+
+Never leave githubRepo empty.
+
+Never omit githubRepo.
+              `,
+            },
+            {
+              role: "user",
+              content: prompt,
+            },
+          ],
+
+          temperature: 0.3,
+          max_tokens: 1800,
+        }),
       }
     );
 
     const data = await response.json();
 
-    console.log("========== OPENROUTER STATUS ==========");
-    console.log(response.status);
-
-    console.log("========== OPENROUTER RESPONSE ==========");
-    console.log(JSON.stringify(data, null, 2));
-
     if (!response.ok) {
-      throw new Error(
-        JSON.stringify(data.error || data)
-      );
+      throw new Error(JSON.stringify(data));
     }
 
     return data.choices[0].message.content;
   } catch (err) {
-    console.log("========== OPENROUTER ERROR ==========");
-    console.error(err);
+    console.log(err);
     throw err;
   }
 };

@@ -10,15 +10,16 @@ import {
   Activity,
   Target,
 } from "lucide-react";
-
 function WorkspaceHeader({
   project,
   tasks = [],
   onCreateTask,
   onInvite,
+  onRepository,
   onShare,
   onOpenAI,
-}) {
+})
+   {
   const completed = tasks.filter(
     (task) => task.status === "completed"
   ).length;
@@ -320,13 +321,7 @@ function WorkspaceHeader({
 </div>
 
 <button
-  onClick={() => {
-    if (project.githubRepo) {
-      window.open(project.githubRepo, "_blank");
-    } else {
-      alert("No repository linked to this project.");
-    }
-  }}
+  onClick={onRepository}
   className="
     flex
     items-center

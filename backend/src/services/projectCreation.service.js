@@ -7,30 +7,66 @@ export const createProjectFromRoadmap = async ({
   title,
 }) => {
   // Create Project
-  const project = await Project.create({
-    creator: creatorId,
+  // -------------------------
+// Extract GitHub URL
+// -------------------------
 
-    title,
+const githubMatch =
+  title.match(/https?:\/\/github\.com\/[^\s]+/i);
 
-    description: roadmap.overview,
+const githubUrl = githubMatch
+  ? githubMatch[0]
+  : "";
 
-    overview: roadmap.overview,
+let owner = "";
+let repo = "";
 
-    techStack: roadmap.techStack || [],
+if (githubUrl) {
+  const parts = githubUrl.replace(
+    "https://github.com/",
+    ""
+  ).split("/");
 
-    estimatedWeeks: roadmap.estimatedWeeks || 0,
+  owner = parts[0] || "";
+  repo = parts[1] || "";
+}
 
-    difficulty: roadmap.difficulty || "Intermediate",
+const project = await Project.create({
+  creator: creatorId,
 
-    aiGenerated: true,
+  title,
 
-    members: [
-      {
-        user: creatorId,
-        role: "owner",
-      },
-    ],
-  });
+  description: roadmap.overview,
+
+  overview: roadmap.overview,
+
+  techStack: roadmap.techStack || [],
+
+  estimatedWeeks: roadmap.estimatedWeeks || 0,
+
+  difficulty: roadmap.difficulty || "Intermediate",
+
+  aiGenerated: true,
+
+  githubRepo: githubUrl,
+
+  githubRepository: {
+    url: githubUrl,
+    owner,
+    repo,
+    branch: "main",
+    connectedAt: githubUrl
+      ? new Date()
+      : null,
+  },
+
+  members: [
+    {
+      user: creatorId,
+      role: "owner",
+    },
+  ],
+});
 
   const createdTasks = [];
 

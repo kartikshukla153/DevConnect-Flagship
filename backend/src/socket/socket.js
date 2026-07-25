@@ -35,14 +35,11 @@ export const initializeSocket = (server) => {
         });
 
         io.emit("userOnline", userId);
+        io.emit("onlineUsers", Object.keys(userSocketMap));
         io.emit(
-  "onlineUsers",
-  Object.keys(userSocketMap)
-);
-io.emit(
-  "team_presence_updated",
-  Object.keys(userSocketMap)
-);
+          "team_presence_updated",
+          Object.keys(userSocketMap)
+        );
       } catch (err) {
         console.log(err.message);
       }
@@ -52,40 +49,55 @@ io.emit(
     // PROJECT ROOM
     // =============================
 
-    socket.on(
-  "join_project",
-  (projectId) => {
-    socket.join(projectId);
+    socket.on("join_project", (projectId) => {
+      socket.join(projectId);
 
-    io.to(projectId).emit(
-      "team_presence_updated",
-      Object.keys(userSocketMap)
-    );
+      console.log("==================================");
+      console.log("📁 Joined Room:", projectId);
+      console.log("🆔 Socket:", socket.id);
+      console.log("🏠 Rooms:", [...socket.rooms]);
+      console.log("🗺 Adapter Rooms:");
+  console.log(io.sockets.adapter.rooms);
+      console.log("==================================");
 
-    console.log(
-      `📁 Joined ${projectId}`
-    );
-  }
-);
+      io.to(projectId).emit(
+        "team_presence_updated",
+        Object.keys(userSocketMap)
+      );
+    });
 
     socket.on("leave_project", (projectId) => {
       socket.leave(projectId);
-      console.log(`📂 Left ${projectId}`);
+
+      console.log(
+        `📂 Left Room: ${projectId}`
+      );
     });
 
     // =============================
     // PROJECT TYPING
     // =============================
 
-    socket.on("project_typing", ({ projectId, user }) => {
-      socket.to(projectId).emit("project_typing", {
-        user,
-      });
-    });
+    socket.on(
+      "project_typing",
+      ({ projectId, user }) => {
+        socket.to(projectId).emit(
+          "project_typing",
+          {
+            user,
+          }
+        );
+      }
+    );
 
-    socket.on("project_stop_typing", (projectId) => {
-      socket.to(projectId).emit("project_stop_typing");
-    });
+    socket.on(
+      "project_stop_typing",
+      (projectId) => {
+        socket
+          .to(projectId)
+          .emit("project_stop_typing");
+      }
+    );
 
     // =============================
     // PRIVATE CHAT TYPING
@@ -93,7 +105,11 @@ io.emit(
 
     socket.on(
       "typing",
-      ({ senderId, receiverId, conversationId }) => {
+      ({
+        senderId,
+        receiverId,
+        conversationId,
+      }) => {
         const receiverSocketId =
           userSocketMap[receiverId];
 
@@ -111,7 +127,11 @@ io.emit(
 
     socket.on(
       "stopTyping",
-      ({ senderId, receiverId, conversationId }) => {
+      ({
+        senderId,
+        receiverId,
+        conversationId,
+      }) => {
         const receiverSocketId =
           userSocketMap[receiverId];
 
@@ -133,7 +153,10 @@ io.emit(
 
     socket.on(
       "messageRead",
-      ({ receiverId, conversationId }) => {
+      ({
+        receiverId,
+        conversationId,
+      }) => {
         const receiverSocketId =
           userSocketMap[receiverId];
 
@@ -153,7 +176,10 @@ io.emit(
     // =============================
 
     socket.on("disconnect", async () => {
-      console.log("🔴 Socket Disconnected");
+      console.log(
+        "🔴 Socket Disconnected:",
+        socket.id
+      );
 
       if (userId) {
         delete userSocketMap[userId];

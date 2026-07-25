@@ -13,7 +13,7 @@ import Profile from "./pages/Profile";
 import CreateProfile from "./pages/CreateProfile";
 import AddExperience from "./pages/AddExperience";
 import AIArchitect from "./pages/AIArchitect";
-
+import Repository from "./pages/Repository";
 import Projects from "./pages/Projects";
 import ProjectDetails from "./pages/ProjectDetails";
 import ProjectWorkspace from "./pages/ProjectWorkspace";
@@ -36,13 +36,14 @@ function App() {
 
   return (
     <Routes>
-
       <Route
         path="/"
         element={
-          isAuthenticated
-            ? <Navigate to="/dashboard" replace />
-            : <Navigate to="/login" replace />
+          isAuthenticated ? (
+            <Navigate to="/dashboard" replace />
+          ) : (
+            <Navigate to="/login" replace />
+          )
         }
       />
 
@@ -113,13 +114,23 @@ function App() {
       />
 
       <Route
-  path="/workspace/:id"
-  element={
-    <ProtectedLayout>
-      <ProjectWorkspace />
-    </ProtectedLayout>
-  }
-/>
+        path="/workspace/:id"
+        element={
+          <ProtectedLayout>
+            <ProjectWorkspace />
+          </ProtectedLayout>
+        }
+      />
+
+      {/* NEW REPOSITORY PAGE */}
+      <Route
+        path="/projects/:id/repository"
+        element={
+          <ProtectedLayout>
+            <Repository />
+          </ProtectedLayout>
+        }
+      />
 
       <Route
         path="/projects"
@@ -166,6 +177,15 @@ function App() {
         }
       />
 
+<Route
+  path="/repository/:id"
+  element={
+    <ProtectedLayout>
+      <Repository />
+    </ProtectedLayout>
+  }
+/>
+
       <Route
         path="/ai"
         element={
@@ -184,7 +204,6 @@ function App() {
           />
         }
       />
-
     </Routes>
   );
 }

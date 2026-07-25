@@ -1,5 +1,8 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { connectSocket, disconnectSocket } from "../socket/socket";
+import {
+  connectProjectSocket,
+  disconnectProjectSocket,
+} from "../socket/projectSocket";
 import useAuth from "../hooks/useAuth";
 
 const SocketContext = createContext();
@@ -8,47 +11,39 @@ export const SocketProvider = ({ children }) => {
   const { user } = useAuth();
 
   const [socket, setSocket] = useState(null);
-
   const [onlineUsers, setOnlineUsers] = useState([]);
-
   const [notifications, setNotifications] = useState([]);
 
   useEffect(() => {
     if (!user?.id) return;
 
-    const socketInstance = connectSocket(user.id);
+    const socketInstance = connectProjectSocket(user.id);
 
     setSocket(socketInstance);
-
-    // ===========================
-    // ONLINE USERS
-    // ===========================
 
     socketInstance.on("onlineUsers", (users) => {
       console.log("🔥 ONLINE USERS:", users);
       setOnlineUsers(users);
     });
 
-    // ===========================
-    // REALTIME NOTIFICATIONS
-    // ===========================
+    socketInstance.on(
+      "newNotification",
+      (notification) => {
+        console.log("🔔 NEW NOTIFICATION");
 
-    socketInstance.on("newNotification", (notification) => {
-      console.log("🔔 NEW NOTIFICATION");
-
-      console.log(notification);
-
-      setNotifications((prev) => [
-        notification,
-        ...prev,
-      ]);
-    });
+        setNotifications((prev) => [
+          notification,
+          ...prev,
+        ]);
+      }
+    );
 
     return () => {
       socketInstance.off("onlineUsers");
       socketInstance.off("newNotification");
 
-      disconnectSocket();
+      // Don't disconnect here.
+      // ProjectWorkspace also uses the same socket.
     };
   }, [user]);
 
@@ -56,11 +51,8 @@ export const SocketProvider = ({ children }) => {
     <SocketContext.Provider
       value={{
         socket,
-
         onlineUsers,
-
         notifications,
-
         setNotifications,
       }}
     >
@@ -69,4 +61,5 @@ export const SocketProvider = ({ children }) => {
   );
 };
 
-export const useSocket = () => useContext(SocketContext);
+export const useSocket = () =>
+  useContext(SocketContext);

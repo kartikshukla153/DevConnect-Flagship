@@ -8,6 +8,7 @@ import {
   emitTaskDeleted,
   emitProjectActivity,
 } from "../socket/projectEvents.js";
+import { getIO } from "../socket/socket.js";
 /**
  * 
  * CREATE TASK
@@ -287,6 +288,16 @@ export const updateTaskStatus = async (
           "createdBy",
           "name email"
         );
+console.log("========== EMITTING ==========");
+console.log("Project:", task.project.toString());
+console.log("Socket rooms:");
+
+const io = getIO();
+
+console.log(io.sockets.adapter.rooms);
+console.log("CONTROLLER EMITTING");
+console.log(task.project.toString());
+console.log(updatedTask.title);
 emitTaskUpdated(task.project.toString(), updatedTask);
     return res.status(200).json({
       success: true,

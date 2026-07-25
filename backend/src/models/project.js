@@ -57,9 +57,49 @@ const projectSchema = new mongoose.Schema(
       default: "open",
     },
 
-    githubRepo: String,
+    // =====================================
+    // Legacy fields
+    // =====================================
 
-    liveLink: String,
+    githubRepo: {
+      type: String,
+      default: "",
+    },
+
+    liveLink: {
+      type: String,
+      default: "",
+    },
+
+    // =====================================
+    // GitHub Repository Integration
+    // =====================================
+
+    githubRepository: {
+      url: {
+        type: String,
+        default: "",
+      },
+
+      owner: {
+        type: String,
+        default: "",
+      },
+
+      repo: {
+        type: String,
+        default: "",
+      },
+
+      branch: {
+        type: String,
+        default: "main",
+      },
+
+      connectedAt: {
+        type: Date,
+      },
+    },
 
     members: [
       {
@@ -106,5 +146,8 @@ const projectSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+const Project =
+  mongoose.models.Project ||
+  mongoose.model("Project", projectSchema);
 
-export default mongoose.model("Project", projectSchema);
+export default Project;
