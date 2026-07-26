@@ -14,6 +14,7 @@ import {
   getProjectDashboard,
   getProjectActivity,
   getProjectMembers,
+    updateProject,
   changeMemberRole,
   removeMember,
   leaveProject,
@@ -35,6 +36,14 @@ router.get(
   searchDevelopers
 );
 router.get("/:id", getSingleProject);
+
+router.put(
+  "/:id",
+  authMiddleware,
+  checkProjectRole("owner"),
+  updateProject
+);
+
 
 router.delete(
   "/:id",

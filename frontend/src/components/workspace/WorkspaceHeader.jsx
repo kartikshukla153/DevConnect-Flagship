@@ -11,13 +11,14 @@ import {
   Target,
 } from "lucide-react";
 function WorkspaceHeader({
-    project,
+  project,
   tasks = [],
   onCreateTask,
   onInvite,
   onRepository,
   onShare,
   onOpenAI,
+  onEditProject,
   onDelete,
   deleting,
 })
@@ -268,6 +269,30 @@ function WorkspaceHeader({
   <Sparkles size={19} />
   AI Assistant
 </button>
+{onEditProject && (
+  <button
+    onClick={onEditProject}
+    className="
+      flex
+      items-center
+      justify-center
+      gap-3
+      rounded-2xl
+      border
+      border-cyan-500/30
+      bg-cyan-500/10
+      px-6
+      py-4
+      font-semibold
+      text-cyan-300
+      transition-all
+      hover:border-cyan-400
+      hover:bg-cyan-500/20
+    "
+  >
+    ✏️ Edit Project
+  </button>
+)}
 
 <div className="grid grid-cols-2 gap-4">
 

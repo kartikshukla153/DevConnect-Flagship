@@ -499,25 +499,97 @@ export const rejectJoinRequest = async (
  */
 export const deleteProject = async (req, res) => {
   try {
-    const project = await Project.findById(req.params.id);
+    const { id } = req.params;
+
+    const project = await Project.findById(id);
 
     if (!project) {
       return res.status(404).json({
+        success: false,
         message: "Project not found",
       });
     }
 
-  
+    // Only owner can delete
+    if (project.creator.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: "Only the project owner can delete this project.",
+      });
+    }
 
-    await project.deleteOne();
+    // Delete all project tasks
+    await Task.deleteMany({
+      project: id,
+    });
+    // Delete project notifications
+    await Notification.deleteMany({
+      relatedProject: id,
+    });
 
-    res.status(200).json({
-      message: "Project deleted successfully",
+    // Delete project activities
+    await Activity.deleteMany({
+      project: id,
+    });
+
+    // Delete project itself
+    await Project.findByIdAndDelete(id);
+
+    return res.status(200).json({
+      success: true,
+      message: "Project deleted successfully.",
+    });
+
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+export const updateProject = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const {
+      title,
+      description,
+      overview,
+      difficulty,
+      estimatedWeeks,
+      githubRepo,
+      liveLink,
+    } = req.body;
+
+    const project = await Project.findById(id);
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: "Project not found",
+      });
+    }
+
+    project.title = title;
+    project.description = description;
+    project.overview = overview;
+    project.difficulty = difficulty;
+    project.estimatedWeeks = estimatedWeeks;
+    project.githubRepo = githubRepo;
+    project.liveLink = liveLink;
+
+    await project.save();
+
+    return res.status(200).json({
+      success: true,
+      project,
     });
   } catch (error) {
-    res.status(500).json({
-      message: "Server Error",
-      error: error.message,
+    return res.status(500).json({
+      success: false,
+      message: error.message,
     });
   }
 };

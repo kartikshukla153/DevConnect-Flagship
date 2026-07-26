@@ -17,6 +17,7 @@ import {
 } from "../socket/projectSocket";
 import InviteMemberModal from "../components/workspace/InviteMemberModal";
 import ProjectMembersCard from "../components/workspace/ProjectMembersCard";
+import EditProjectModal from "../components/workspace/EditProjectModal";
 
 const API = "http://localhost:5000/api";
 
@@ -41,7 +42,7 @@ const { user } = useAuth();
     useState(null);
 
     const [inviteOpen, setInviteOpen] = useState(false);
-
+const [editProjectOpen, setEditProjectOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] =
     useState(false);
     const [deleting, setDeleting] = useState(false);
@@ -261,7 +262,7 @@ console.log(socket.listeners("connect"));
   tasks={tasks}
 
   onCreateTask={() => setOpenCreateModal(true)}
-
+onEditProject={() => setEditProjectOpen(true)}
   onInvite={() => setInviteOpen(true)}
 
   onRepository={() => {
@@ -355,6 +356,12 @@ console.log(socket.listeners("connect"));
   onClose={() => setInviteOpen(false)}
   projectId={id}
   refreshTeam={loadWorkspace}
+/>
+<EditProjectModal
+  open={editProjectOpen}
+  onClose={() => setEditProjectOpen(false)}
+  project={project}
+  refreshProject={loadWorkspace}
 />
       <TaskDetailsDrawer
         open={drawerOpen}
