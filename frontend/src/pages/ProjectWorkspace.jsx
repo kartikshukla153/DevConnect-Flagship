@@ -18,6 +18,7 @@ import {
 import InviteMemberModal from "../components/workspace/InviteMemberModal";
 import ProjectMembersCard from "../components/workspace/ProjectMembersCard";
 import EditProjectModal from "../components/workspace/EditProjectModal";
+import ActivityFeed from "../components/workspace/ActivityFeed";
 
 const API = "http://localhost:5000/api";
 
@@ -307,39 +308,51 @@ onEditProject={() => setEditProjectOpen(true)}
   tasks={tasks}
   project={project}
 />
-        <div className="grid grid-cols-12 gap-8">
+  <div className="grid grid-cols-12 gap-8">
 
-          <div className="col-span-12 xl:col-span-2">
-            <WorkspaceSidebar
-              project={project}
-            />
-          </div>
+  {/* LEFT SIDEBAR */}
 
-          <div className="col-span-12 xl:col-span-7">
-            <KanbanBoard
-              tasks={filteredTasks}
-              reloadTasks={loadWorkspace}
-              onTaskClick={openTask}
-            />
-          </div>
+  <div className="col-span-12 xl:col-span-2">
+    <WorkspaceSidebar
+      project={project}
+    />
+  </div>
 
-          <div className="col-span-12 xl:col-span-3">
-       <div className="space-y-6">
+  {/* CENTER KANBAN */}
 
-  <WorkspaceRightSidebar
-    project={project}
-    reloadWorkspace={loadWorkspace}
-  />
+  <div className="col-span-12 xl:col-span-7">
+    <KanbanBoard
+      tasks={filteredTasks}
+      reloadTasks={loadWorkspace}
+      onTaskClick={openTask}
+    />
+  </div>
 
-  <ProjectMembersCard
-    project={project}
-    reloadWorkspace={loadWorkspace}
-  />
+  {/* RIGHT SIDEBAR */}
+
+  <div className="col-span-12 xl:col-span-3">
+
+    <div className="space-y-6">
+
+      <WorkspaceRightSidebar
+        project={project}
+        reloadWorkspace={loadWorkspace}
+      />
+
+      <ProjectMembersCard
+        project={project}
+        reloadWorkspace={loadWorkspace}
+      />
+
+      <ActivityFeed
+        projectId={id}
+      />
+
+    </div>
+
+  </div>
 
 </div>
-          </div>
-
-        </div>
 
       </div>
 

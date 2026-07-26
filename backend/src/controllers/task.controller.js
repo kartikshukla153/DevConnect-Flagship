@@ -24,10 +24,10 @@ export const createTask = async (req, res) => {
       deadline,
     } = req.body;
 await Activity.create({
-  project: projectId,
+  project: task.project,
   user: req.user._id,
-  type: "task_created",
-  message: `${req.user.name} created task "${title}"`,
+  type: "task_assigned",
+  message: `${req.user.name} assigned "${task.title}"`,
 });
     const project = await Project.findById(projectId);
 
@@ -275,7 +275,7 @@ export const updateTaskStatus = async (
   project: task.project,
   user: req.user._id,
   type: "task_status_updated",
-  message: `${req.user.name} changed task "${task.title}" status to ${status}`,
+  message: `${req.user.name} moved "${task.title}" to ${status}`,
 });
 
     const updatedTask =
@@ -348,6 +348,13 @@ export const deleteTask = async (
           "Only owner or admin can delete tasks",
       });
     }
+
+    await Activity.create({
+  project: task.project,
+  user: req.user._id,
+  type: "task_deleted",
+  message: `${req.user.name} created "${title}"`,
+});
 
     await Task.findByIdAndDelete(taskId);
     emitTaskDeleted(
@@ -473,7 +480,7 @@ task.submission.history.push({
       project: task.project,
       user: req.user._id,
       type: "submission_uploaded",
-      message: `${req.user.name} submitted "${task.title}" for review`,
+      message: `${req.user.name} submitted "${task.title}"`,
     });
 
     const project = await Project.findById(task.project);
@@ -489,7 +496,7 @@ task.submission.history.push({
         recipient: member.user,
         sender: req.user._id,
         type: "task_submission",
-        message: `${req.user.name} submitted "${task.title}" for review`,
+        message: `${req.user.name} submitted "${task.title}"`,
         relatedProject: project._id,
       });
     }
@@ -574,7 +581,10 @@ task.submission.history.push({
         status === "approved"
           ? "task_submission_approved"
           : "task_submission_rejected",
-      message: `${req.user.name} ${status} submission for "${task.title}"`,
+      message:
+  status === "approved"
+    ? `${req.user.name} approved "${task.title}"`
+    : `${req.user.name} requested changes on "${task.title}"`,
     });
 
     await Notification.create({
