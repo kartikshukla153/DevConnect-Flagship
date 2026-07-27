@@ -98,10 +98,10 @@ emitTaskCreated(projectId, populatedTask);
 /**
  * GET PROJECT TASKS
  */
-export const getProjectTasks = async (
-  req,
-  res
-) => {
+
+export const getProjectTasks = async ( req,res)  =>{
+  console.log("🔥 getProjectTasks reached");
+ 
   try {
     const { projectId } = req.params;
 

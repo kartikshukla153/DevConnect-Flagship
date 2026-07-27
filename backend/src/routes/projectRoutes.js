@@ -18,6 +18,8 @@ import {
   changeMemberRole,
   removeMember,
   leaveProject,
+  connectGitHubRepository,
+getGitHubRepositoryDetails,
 } from "../controllers/projectController.js";
 
 import authMiddleware from "../middleware/authMiddleware.js";
@@ -139,5 +141,16 @@ router.put(
   authMiddleware,
   checkProjectRole("owner", "admin", "member"),
   leaveProject
+);
+router.post(
+  "/:projectId/github/connect",
+  authMiddleware,
+  connectGitHubRepository
+);
+
+router.get(
+  "/:projectId/github",
+  authMiddleware,
+  getGitHubRepositoryDetails
 );
 export default router;

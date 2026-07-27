@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { connectRepository } from "../../api/github";
+
 
 const API = "http://localhost:5000/api";
 
@@ -35,26 +37,43 @@ function EditProjectModal({
     }
   }, [project]);
 
-  async function saveProject() {
-    try {
-      await axios.put(
-        `${API}/projects/${project._id}`,
-        form,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+ async function saveProject() {
+  try {
+
+    await axios.put(
+      `${API}/projects/${project._id}`,
+      form,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (
+      form.githubRepo &&
+      form.githubRepo.includes("github.com")
+    ) {
+
+      await connectRepository(
+        project._id,
+        form.githubRepo
       );
 
-      await refreshProject();
-
-      onClose();
-    } catch (err) {
-      console.log(err);
-      alert("Unable to update project.");
     }
+
+    await refreshProject();
+
+    onClose();
+
+  } catch (err) {
+
+    console.log(err);
+
+    alert("Unable to update project.");
+
   }
+}
 
   if (!open) return null;
 

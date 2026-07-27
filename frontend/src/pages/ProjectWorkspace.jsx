@@ -7,18 +7,23 @@ import WorkspaceHeader from "../components/workspace/WorkspaceHeader";
 import WorkspaceToolbar from "../components/workspace/WorkspaceToolbar";
 import WorkspaceSidebar from "../components/workspace/WorkspaceSidebar";
 import WorkspaceRightSidebar from "../components/workspace/WorkspaceRightSidebar";
+import WorkspaceStats from "../components/workspace/WorkspaceStats";
+
 import KanbanBoard from "../components/workspace/KanbanBoard";
+
 import CreateTaskModal from "../components/workspace/CreateTaskModal";
 import TaskDetailsDrawer from "../components/workspace/TaskDetailsDrawer";
-import WorkspaceStats from "../components/workspace/WorkspaceStats";
+
+import InviteMemberModal from "../components/workspace/InviteMemberModal";
+import EditProjectModal from "../components/workspace/EditProjectModal";
+
+import ProjectMembersCard from "../components/workspace/ProjectMembersCard";
+import ActivityFeed from "../components/workspace/ActivityFeed";
+import GitHubRepositoryCard from "../components/workspace/GitHubRepositoryCard";
+
 import {
   connectProjectSocket,
-  disconnectProjectSocket,
 } from "../socket/projectSocket";
-import InviteMemberModal from "../components/workspace/InviteMemberModal";
-import ProjectMembersCard from "../components/workspace/ProjectMembersCard";
-import EditProjectModal from "../components/workspace/EditProjectModal";
-import ActivityFeed from "../components/workspace/ActivityFeed";
 
 const API = "http://localhost:5000/api";
 
@@ -26,8 +31,10 @@ function ProjectWorkspace() {
   const { id } = useParams();
   const navigate = useNavigate();
 
+  const { user } = useAuth();
+
   const token = localStorage.getItem("token");
-const { user } = useAuth();
+
   const [project, setProject] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -42,126 +49,188 @@ const { user } = useAuth();
   const [selectedTask, setSelectedTask] =
     useState(null);
 
-    const [inviteOpen, setInviteOpen] = useState(false);
-const [editProjectOpen, setEditProjectOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] =
     useState(false);
-    const [deleting, setDeleting] = useState(false);
+
+  const [inviteOpen, setInviteOpen] =
+    useState(false);
+
+  const [editProjectOpen, setEditProjectOpen] =
+    useState(false);
+
+  const [deleting, setDeleting] =
+    useState(false);
 
   useEffect(() => {
     loadWorkspace();
   }, [id]);
 
   useEffect(() => {
-if (!user?.id) return;
+    if (!user?.id) return;
 
-const userId = user.id;
+    const socket =
+      connectProjectSocket(user.id);
 
-const socket = connectProjectSocket(userId);
+    const joinRoom = () => {
+      socket.emit(
+        "join_project",
+        id
+      );
 
-if (socket.connected) {
- 
-} else {
-  socket.on("connect", () => {
-    console.log("EMITTING JOIN");
-console.log(socket.id);
-console.log(socket.connected);
-console.log(socket.listeners("connect"));
-    socket.emit("join_project", id);
-    console.log("JOINED PROJECT AFTER CONNECT:", id);
-  });
-}
-    socket.emit("join_project", id);
-    console.log("Joined room:", id);
+      console.log(
+        "📁 Joined Project Room:",
+        id
+      );
+    };
 
-   socket.on("task_created", (task) => {
-  console.log("🔥 TASK CREATED RECEIVED", task);
+    if (socket.connected) {
+      joinRoom();
+    } else {
+      socket.once(
+        "connect",
+        joinRoom
+      );
+    }
 
-  loadWorkspace();
-});
-    socket.on("task_updated", (task) => {
-  console.log("🔥 TASK UPDATED RECEIVED", task);
+    socket.on(
+      "task_created",
+      () => {
+        console.log(
+          "🟢 task_created"
+        );
 
-  loadWorkspace();
-});
-    socket.on("task_deleted", (task) => {
-  console.log("🔥 TASK DELETED RECEIVED", task);
-
-  loadWorkspace();
-});
-
-  return () => {
-  socket.emit("leave_project", id);
-
-  socket.off("task_created");
-  socket.off("task_updated");
-  socket.off("task_deleted");
-
-  // DO NOT disconnect the global socket.
-};
-  }, [id]);
-
-  async function deleteProject() {
-  const confirmed = window.confirm(
-    "Delete this project permanently?\n\nThis will delete all tasks, activities and cannot be undone."
-  );
-
-  if (!confirmed) return;
-
-  try {
-    setDeleting(true);
-
-    await axios.delete(
-      `${API}/projects/${id}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        loadWorkspace();
       }
     );
 
-    alert("Project deleted successfully.");
+    socket.on(
+      "task_updated",
+      () => {
+        console.log(
+          "🟡 task_updated"
+        );
 
-    navigate("/projects");
-  } catch (err) {
-    console.log(err);
-
-    alert(
-      err.response?.data?.message ||
-        "Unable to delete project."
+        loadWorkspace();
+      }
     );
-  } finally {
-    setDeleting(false);
-  }
-}
+
+    socket.on(
+      "task_deleted",
+      () => {
+        console.log(
+          "🔴 task_deleted"
+        );
+
+        loadWorkspace();
+      }
+    );
+
+    return () => {
+      socket.emit(
+        "leave_project",
+        id
+      );
+
+      socket.off(
+        "task_created"
+      );
+
+      socket.off(
+        "task_updated"
+      );
+
+      socket.off(
+        "task_deleted"
+      );
+
+      socket.off(
+        "connect",
+        joinRoom
+      );
+    };
+  }, [id, user]);
+
   async function loadWorkspace() {
     try {
       setLoading(true);
 
-      const [projectRes, taskRes] =
-        await Promise.all([
-          axios.get(`${API}/projects/${id}`, {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }),
+      const headers = {
+        Authorization: `Bearer ${token}`,
+      };
 
-          axios.get(
-            `${API}/tasks/project/${id}`,
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            }
-          ),
-        ]);
+      const [
+        projectRes,
+        taskRes,
+      ] = await Promise.all([
+        axios.get(
+          `${API}/projects/${id}`,
+          {
+            headers,
+          }
+        ),
 
-      setProject(projectRes.data);
-      setTasks(taskRes.data.tasks || []);
+        axios.get(
+          `${API}/tasks/project/${id}`,
+          {
+            headers,
+          }
+        ),
+      ]);
+
+      console.log(
+        "PROJECT SUCCESS",
+        projectRes.data
+      );
+
+      console.log(
+        "TASK SUCCESS",
+        taskRes.data
+      );
+
+      setProject(
+        projectRes.data
+      );
+
+      setTasks(
+        taskRes.data.tasks || []
+      );
     } catch (err) {
       console.log(err);
     } finally {
       setLoading(false);
+    }
+  }
+    async function deleteProject() {
+    const confirmed = window.confirm(
+      "Delete this project permanently?\n\nThis will delete every task, activity and cannot be undone."
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setDeleting(true);
+
+      await axios.delete(
+        `${API}/projects/${id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      alert("Project deleted successfully.");
+
+      navigate("/projects");
+    } catch (err) {
+      console.log(err);
+
+      alert(
+        err.response?.data?.message ||
+          "Unable to delete project."
+      );
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -211,6 +280,7 @@ console.log(socket.listeners("connect"));
             (order[b.priority] || 0) -
             (order[a.priority] || 0)
         );
+
         break;
       }
 
@@ -231,7 +301,12 @@ console.log(socket.listeners("connect"));
     }
 
     return list;
-  }, [tasks, search, filter, sort]);
+  }, [
+    tasks,
+    search,
+    filter,
+    sort,
+  ]);
 
   function openTask(task) {
     setSelectedTask(task);
@@ -258,43 +333,47 @@ console.log(socket.listeners("connect"));
     <>
       <div className="space-y-6">
 
-    <WorkspaceHeader
-  project={project}
-  tasks={tasks}
+        <WorkspaceHeader
+          project={project}
+          tasks={tasks}
+          onCreateTask={() =>
+            setOpenCreateModal(true)
+          }
+          onEditProject={() =>
+            setEditProjectOpen(true)
+          }
+          onInvite={() =>
+            setInviteOpen(true)
+          }
+          onRepository={() =>
+            navigate(`/repository/${id}`)
+          }
+          onShare={async () => {
+            try {
+              await navigator.clipboard.writeText(
+                window.location.href
+              );
 
-  onCreateTask={() => setOpenCreateModal(true)}
-onEditProject={() => setEditProjectOpen(true)}
-  onInvite={() => setInviteOpen(true)}
-
-  onRepository={() => {
-    navigate(`/repository/${id}`);
-  }}
-
-  onShare={async () => {
-    try {
-      await navigator.clipboard.writeText(
-        window.location.href
-      );
-
-      alert("✅ Workspace link copied.");
-    } catch (err) {
-      console.log(err);
-    }
-  }}
-
-  onOpenAI={() => {
-    alert("AI Workspace coming soon");
-  }}
-
-  onDelete={
-    project.creator?._id === user?.id
-      ? deleteProject
-      : null
-  }
-
-  deleting={deleting}
-/>
-    
+              alert(
+                "✅ Workspace link copied."
+              );
+            } catch (err) {
+              console.log(err);
+            }
+          }}
+          onOpenAI={() => {
+            alert(
+              "AI Workspace coming soon"
+            );
+          }}
+          onDelete={
+            project.creator?._id ===
+            user?.id
+              ? deleteProject
+              : null
+          }
+          deleting={deleting}
+        />
 
         <WorkspaceToolbar
           search={search}
@@ -304,59 +383,65 @@ onEditProject={() => setEditProjectOpen(true)}
           sort={sort}
           setSort={setSort}
         />
-<WorkspaceStats
-  tasks={tasks}
-  project={project}
-/>
-  <div className="grid grid-cols-12 gap-8">
 
-  {/* LEFT SIDEBAR */}
+        <WorkspaceStats
+          tasks={tasks}
+          project={project}
+        />
+                <div className="grid grid-cols-12 gap-8">
 
-  <div className="col-span-12 xl:col-span-2">
-    <WorkspaceSidebar
-      project={project}
-    />
-  </div>
+          {/* LEFT SIDEBAR */}
 
-  {/* CENTER KANBAN */}
+          <div className="col-span-12 xl:col-span-2">
+            <WorkspaceSidebar
+              project={project}
+            />
+          </div>
 
-  <div className="col-span-12 xl:col-span-7">
-    <KanbanBoard
-      tasks={filteredTasks}
-      reloadTasks={loadWorkspace}
-      onTaskClick={openTask}
-    />
-  </div>
+          {/* CENTER CONTENT */}
 
-  {/* RIGHT SIDEBAR */}
+          <div className="col-span-12 xl:col-span-7">
 
-  <div className="col-span-12 xl:col-span-3">
+            <KanbanBoard
+              tasks={filteredTasks}
+              reloadTasks={loadWorkspace}
+              onTaskClick={openTask}
+            />
 
-    <div className="space-y-6">
+          </div>
 
-      <WorkspaceRightSidebar
-        project={project}
-        reloadWorkspace={loadWorkspace}
-      />
+          {/* RIGHT SIDEBAR */}
 
-      <ProjectMembersCard
-        project={project}
-        reloadWorkspace={loadWorkspace}
-      />
+          <div className="col-span-12 xl:col-span-3">
 
-      <ActivityFeed
-        projectId={id}
-      />
+            <div className="space-y-6">
 
-    </div>
+              <WorkspaceRightSidebar
+                project={project}
+                reloadWorkspace={loadWorkspace}
+              />
 
-  </div>
+              <GitHubRepositoryCard
+                projectId={id}
+              />
 
-</div>
+              <ActivityFeed
+                projectId={id}
+              />
+
+              <ProjectMembersCard
+                project={project}
+                reloadWorkspace={loadWorkspace}
+              />
+
+            </div>
+
+          </div>
+
+        </div>
 
       </div>
-
-      <CreateTaskModal
+            <CreateTaskModal
         open={openCreateModal}
         onClose={() =>
           setOpenCreateModal(false)
@@ -364,18 +449,25 @@ onEditProject={() => setEditProjectOpen(true)}
         projectId={id}
         reloadTasks={loadWorkspace}
       />
-<InviteMemberModal
-  open={inviteOpen}
-  onClose={() => setInviteOpen(false)}
-  projectId={id}
-  refreshTeam={loadWorkspace}
-/>
-<EditProjectModal
-  open={editProjectOpen}
-  onClose={() => setEditProjectOpen(false)}
-  project={project}
-  refreshProject={loadWorkspace}
-/>
+
+      <InviteMemberModal
+        open={inviteOpen}
+        onClose={() =>
+          setInviteOpen(false)
+        }
+        projectId={id}
+        refreshTeam={loadWorkspace}
+      />
+
+      <EditProjectModal
+        open={editProjectOpen}
+        onClose={() =>
+          setEditProjectOpen(false)
+        }
+        project={project}
+        refreshProject={loadWorkspace}
+      />
+
       <TaskDetailsDrawer
         open={drawerOpen}
         task={selectedTask}
@@ -384,7 +476,7 @@ onEditProject={() => setEditProjectOpen(true)}
           setDrawerOpen(false)
         }
       />
-    </>
+          </>
   );
 }
 

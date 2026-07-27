@@ -3,6 +3,7 @@ import Notification from "../models/Notification.js";
 import Task from "../models/Task.js";
 import Activity from "../models/Activity.js";
 import User from "../models/User.js";
+import axios from "axios";
 export const createProject = async (req, res) => {
   try {
     const {
@@ -964,4 +965,116 @@ export const searchDevelopers = async (req, res) => {
       message: error.message,
     });
   }
+};
+/**
+ * CONNECT GITHUB REPOSITORY
+ */
+export const connectGitHubRepository = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { repositoryUrl } = req.body;
+
+    const project = await Project.findById(projectId);
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: "Project not found",
+      });
+    }
+
+    if (project.creator.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: "Only owner can connect repository",
+      });
+    }
+
+    const clean = repositoryUrl
+      .replace("https://github.com/", "")
+      .replace(".git", "");
+
+    const [owner, repo] = clean.split("/");
+
+    project.githubRepository = {
+      url: repositoryUrl,
+      owner,
+      repo,
+      branch: "main",
+      connectedAt: new Date(),
+    };
+
+    await project.save();
+
+    await Activity.create({
+      project: project._id,
+      user: req.user.id,
+      type: "github_connected",
+      message: `${req.user.name} connected GitHub repository`,
+    });
+
+    return res.json({
+      success: true,
+      githubRepository: project.githubRepository,
+    });
+
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+
+
+/**
+ * FETCH GITHUB REPOSITORY DETAILS
+ */
+export const getGitHubRepositoryDetails = async (req, res) => {
+
+  try {
+
+    const project = await Project.findById(req.params.projectId);
+
+    if (
+      !project ||
+      !project.githubRepository.owner
+    ) {
+      return res.status(404).json({
+        success:false,
+        message:"Repository not connected",
+      });
+    }
+
+    const owner = project.githubRepository.owner;
+    const repo = project.githubRepository.repo;
+
+    const repoRes = await axios.get(
+      `https://api.github.com/repos/${owner}/${repo}`
+    );
+
+    return res.json({
+      success:true,
+      repository:{
+        stars: repoRes.data.stargazers_count,
+        forks: repoRes.data.forks_count,
+        issues: repoRes.data.open_issues_count,
+        watchers: repoRes.data.subscribers_count,
+        language: repoRes.data.language,
+        defaultBranch: repoRes.data.default_branch,
+        updatedAt: repoRes.data.updated_at,
+        htmlUrl: repoRes.data.html_url,
+      }
+    });
+
+  } catch(err){
+
+    return res.status(500).json({
+      success:false,
+      message:err.message,
+    });
+
+  }
+
 };
