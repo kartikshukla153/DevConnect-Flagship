@@ -2,12 +2,12 @@ import axios from "axios";
 
 const API = "http://localhost:5000/api";
 
-export async function connectRepository(projectId, repositoryUrl) {
+export async function connectRepository(projectId, url) {
   const token = localStorage.getItem("token");
 
   const res = await axios.post(
-    `${API}/projects/${projectId}/github/connect`,
-    { repositoryUrl },
+    `${API}/repository/${projectId}/connect`,
+    { url },
     {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -22,7 +22,7 @@ export async function fetchRepository(projectId) {
   const token = localStorage.getItem("token");
 
   const res = await axios.get(
-    `${API}/projects/${projectId}/github`,
+    `${API}/repository/${projectId}`,
     {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -31,4 +31,19 @@ export async function fetchRepository(projectId) {
   );
 
   return res.data.repository;
+}
+
+export async function fetchCommits(projectId) {
+  const token = localStorage.getItem("token");
+
+  const res = await axios.get(
+    `${API}/repository/${projectId}/commits`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  return res.data.commits;
 }

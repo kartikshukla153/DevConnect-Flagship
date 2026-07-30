@@ -1,20 +1,24 @@
 import { useEffect, useState } from "react";
+
 import {
-  Globe,
+  
   Star,
   GitFork,
-  Eye,
   AlertCircle,
-  ExternalLink,
+  Eye,
   Code2,
-  GitBranch,
+  RefreshCw,
+  Link2,
 } from "lucide-react";
-
-import { fetchRepository } from "../../api/github";
+import {
+  fetchRepository,
+  connectRepository,
+} from "../../api/github";
 
 function GitHubRepositoryCard({ projectId }) {
   const [repo, setRepo] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [connecting, setConnecting] = useState(false);
 
   useEffect(() => {
     loadRepository();
@@ -22,7 +26,10 @@ function GitHubRepositoryCard({ projectId }) {
 
   async function loadRepository() {
     try {
+      setLoading(true);
+
       const data = await fetchRepository(projectId);
+
       setRepo(data);
     } catch (err) {
       console.log(err);
@@ -31,11 +38,36 @@ function GitHubRepositoryCard({ projectId }) {
     }
   }
 
+  async function handleConnect() {
+    const url = window.prompt(
+      "Paste GitHub Repository URL"
+    );
+
+    if (!url) return;
+
+    try {
+      setConnecting(true);
+
+      await connectRepository(projectId, url);
+
+      await loadRepository();
+    } catch (err) {
+      console.log(err);
+
+      alert(
+        err.response?.data?.message ||
+          "Unable to connect repository."
+      );
+    } finally {
+      setConnecting(false);
+    }
+  }
+
   if (loading) {
     return (
-      <div className="rounded-3xl border border-[#263243] bg-[#111827] p-6">
-        <p className="text-sm text-gray-400">
-          Loading GitHub repository...
+      <div className="rounded-2xl border border-slate-800 bg-[#111827] p-6">
+        <p className="text-sm text-slate-400">
+          Loading Repository...
         </p>
       </div>
     );
@@ -43,137 +75,161 @@ function GitHubRepositoryCard({ projectId }) {
 
   if (!repo) {
     return (
-      <div className="rounded-3xl border border-[#263243] bg-[#111827] p-6">
+      <div className="rounded-2xl border border-slate-800 bg-[#111827] p-6">
         <div className="flex items-center gap-3">
-           <Globe className="text-cyan-400" />
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-500 text-sm font-bold text-black">
+  GH
+</div>
 
-          <div>
-            <h3 className="font-semibold text-white">
-              GitHub Repository
-            </h3>
-
-            <p className="mt-1 text-sm text-gray-400">
-              No repository connected.
-            </p>
-          </div>
+          <h3 className="font-semibold text-white">
+            GitHub Repository
+          </h3>
         </div>
+
+        <p className="mt-4 text-sm text-slate-400">
+          Connect your repository to unlock
+          repository insights.
+        </p>
+
+        <button
+          onClick={handleConnect}
+          disabled={connecting}
+          className="mt-5 rounded-xl bg-cyan-500 px-5 py-2 text-sm font-semibold text-black transition hover:bg-cyan-400"
+        >
+          {connecting
+            ? "Connecting..."
+            : "Connect Repository"}
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="rounded-3xl border border-[#263243] bg-[#111827] p-6">
+    <div className="rounded-2xl border border-slate-800 bg-[#111827] p-6">
 
-      <div className="mb-6 flex items-center gap-3">
+      <div className="flex items-center justify-between">
 
-        <GitHub className="text-cyan-400" />
+        <div className="flex items-center gap-3">
 
-        <div>
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-500 text-sm font-bold text-black">
+  GH
+</div>
 
-          <h2 className="font-semibold text-white">
-            GitHub Repository
-          </h2>
+          <div>
+            <h3 className="font-semibold text-white">
+              {repo.name}
+            </h3>
 
-          <p className="text-xs text-gray-400">
-            Live repository statistics
+            <p className="text-xs text-slate-400">
+              Connected Repository
+            </p>
+          </div>
+
+        </div>
+
+        <button
+          onClick={loadRepository}
+          className="rounded-lg p-2 hover:bg-slate-800"
+        >
+          <RefreshCw className="h-4 w-4 text-slate-400" />
+        </button>
+
+      </div>
+
+      <p className="mt-5 text-sm text-slate-400">
+        {repo.description || "No description."}
+      </p>
+
+      <div className="mt-6 grid grid-cols-2 gap-4">
+
+        <div className="rounded-xl bg-[#0B1220] p-4">
+          <div className="flex items-center gap-2">
+
+            <Star className="h-4 w-4 text-yellow-400" />
+
+            <span className="text-sm text-slate-300">
+              Stars
+            </span>
+
+          </div>
+
+          <p className="mt-2 text-xl font-bold text-white">
+            {repo.stars}
           </p>
+        </div>
 
+        <div className="rounded-xl bg-[#0B1220] p-4">
+          <div className="flex items-center gap-2">
+
+            <GitFork className="h-4 w-4 text-cyan-400" />
+
+            <span className="text-sm text-slate-300">
+              Forks
+            </span>
+
+          </div>
+
+          <p className="mt-2 text-xl font-bold text-white">
+            {repo.forks}
+          </p>
+        </div>
+
+        <div className="rounded-xl bg-[#0B1220] p-4">
+          <div className="flex items-center gap-2">
+
+            <AlertCircle className="h-4 w-4 text-red-400" />
+
+            <span className="text-sm text-slate-300">
+              Issues
+            </span>
+
+          </div>
+
+          <p className="mt-2 text-xl font-bold text-white">
+            {repo.openIssues}
+          </p>
+        </div>
+
+        <div className="rounded-xl bg-[#0B1220] p-4">
+          <div className="flex items-center gap-2">
+
+            <Eye className="h-4 w-4 text-green-400" />
+
+            <span className="text-sm text-slate-300">
+              Watchers
+            </span>
+
+          </div>
+
+          <p className="mt-2 text-xl font-bold text-white">
+            {repo.watchers}
+          </p>
         </div>
 
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="mt-6 flex items-center justify-between rounded-xl bg-[#0B1220] p-4">
 
-        <Stat
-          icon={<Star size={16} />}
-          label="Stars"
-          value={repo.stars}
-        />
+        <div className="flex items-center gap-2">
 
-        <Stat
-          icon={<GitFork size={16} />}
-          label="Forks"
-          value={repo.forks}
-        />
+          <Code2 className="h-4 w-4 text-cyan-400" />
 
-        <Stat
-          icon={<Eye size={16} />}
-          label="Watchers"
-          value={repo.watchers}
-        />
-
-        <Stat
-          icon={<AlertCircle size={16} />}
-          label="Issues"
-          value={repo.issues}
-        />
-
-      </div>
-
-      <div className="mt-6 space-y-3">
-
-        <div className="flex items-center justify-between">
-
-          <span className="flex items-center gap-2 text-sm text-gray-400">
-
-            <Code2 size={15} />
-
-            Language
-
-          </span>
-
-          <span className="text-white">
-            {repo.language || "-"}
+          <span className="text-sm text-slate-300">
+            {repo.language || "Unknown"}
           </span>
 
         </div>
 
-        <div className="flex items-center justify-between">
+        <a
+          href={repo.htmlUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="flex items-center gap-2 text-cyan-400 hover:text-cyan-300"
+        >
+          <Link2 className="h-4 w-4" />
+          Open
+        </a>
 
-          <span className="flex items-center gap-2 text-sm text-gray-400">
-
-            <GitBranch size={15} />
-
-            Branch
-
-          </span>
-
-          <span className="text-white">
-            {repo.defaultBranch}
-          </span>
-
-        </div>
-
-      </div>
-
-      <a
-        href={repo.htmlUrl}
-        target="_blank"
-        rel="noreferrer"
-        className="mt-6 flex items-center justify-center gap-2 rounded-2xl bg-cyan-500 py-3 font-semibold text-black transition hover:bg-cyan-400"
-      >
-        <ExternalLink size={18} />
-        Open Repository
-      </a>
-
-    </div>
-  );
-}
-
-function Stat({ icon, label, value }) {
-  return (
-    <div className="rounded-2xl bg-[#0B1220] p-4">
-
-      <div className="mb-2 text-cyan-400">
-        {icon}
-      </div>
-
-      <div className="text-xl font-bold text-white">
-        {value}
-      </div>
-
-      <div className="text-xs uppercase tracking-wide text-gray-500">
-        {label}
       </div>
 
     </div>
