@@ -4,6 +4,9 @@ import { useParams } from "react-router-dom";
 import {
   fetchRepository,
   fetchCommits,
+  fetchContributors,
+  fetchAnalytics,
+  fetchLanguages,
 } from "../api/github";
 
 import {
@@ -24,7 +27,9 @@ function RepositoryPage() {
 
   const [repository, setRepository] = useState(null);
   const [commits, setCommits] = useState([]);
-
+const [contributors, setContributors] = useState([]);
+const [analytics, setAnalytics] = useState(null);
+const [languages, setLanguages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
@@ -39,10 +44,18 @@ function RepositoryPage() {
       setError("");
 
       const repo = await fetchRepository(id);
-      const commitList = await fetchCommits(id);
 
-      setRepository(repo);
-      setCommits(commitList);
+const commitList =
+  await fetchCommits(id);
+
+const contributorList =
+  await fetchContributors(id);
+
+setRepository(repo);
+
+setCommits(commitList);
+
+setContributors(contributorList);
     } catch (err) {
       console.log(err);
 
@@ -59,11 +72,33 @@ function RepositoryPage() {
     try {
       setRefreshing(true);
 
-      const repo = await fetchRepository(id);
-      const commitList = await fetchCommits(id);
+    const repo = await fetchRepository(id);
 
-      setRepository(repo);
-      setCommits(commitList);
+const commitList =
+  await fetchCommits(id);
+
+const contributorList =
+  await fetchContributors(id);
+
+const analyticsData =
+  await fetchAnalytics(id);
+
+const languagesData =
+  await fetchLanguages(id);
+
+setRepository(repo);
+
+setCommits(commitList);
+
+setContributors(contributorList);
+
+setAnalytics(analyticsData);
+
+setLanguages(languagesData);
+
+setAnalytics(analyticsData);
+
+setLanguages(languagesData);
     } catch (err) {
       console.log(err);
     } finally {
@@ -263,6 +298,125 @@ function RepositoryPage() {
           </div>
 
         </section>
+        {/* =========================
+Repository Analytics
+========================= */}
+
+{analytics && (
+  <div className="grid grid-cols-2 gap-6 lg:grid-cols-4">
+
+    <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-6">
+      <p className="text-sm text-slate-400">
+        Repository Health
+      </p>
+
+      <h2 className="mt-3 text-4xl font-bold text-emerald-400">
+        {analytics.healthScore}
+      </h2>
+
+      <p className="mt-2 text-xs text-slate-400">
+        Overall Engineering Score
+      </p>
+    </div>
+
+    <div className="rounded-2xl border border-cyan-500/30 bg-cyan-500/10 p-6">
+      <p className="text-sm text-slate-400">
+        Contributors
+      </p>
+
+      <h2 className="mt-3 text-4xl font-bold text-cyan-400">
+        {analytics.contributors}
+      </h2>
+
+      <p className="mt-2 text-xs text-slate-400">
+        Active Developers
+      </p>
+    </div>
+
+    <div className="rounded-2xl border border-purple-500/30 bg-purple-500/10 p-6">
+      <p className="text-sm text-slate-400">
+        Languages
+      </p>
+
+      <h2 className="mt-3 text-4xl font-bold text-purple-400">
+        {analytics.languages}
+      </h2>
+
+      <p className="mt-2 text-xs text-slate-400">
+        Technologies Used
+      </p>
+    </div>
+
+    <div className="rounded-2xl border border-orange-500/30 bg-orange-500/10 p-6">
+      <p className="text-sm text-slate-400">
+        Recent Commits
+      </p>
+
+      <h2 className="mt-3 text-4xl font-bold text-orange-400">
+        {analytics.commits}
+      </h2>
+
+      <p className="mt-2 text-xs text-slate-400">
+        Latest Development Activity
+      </p>
+    </div>
+
+  </div>
+)}
+{/* =========================
+Language Breakdown
+========================= */}
+
+<div className="rounded-3xl border border-slate-800 bg-[#111827] p-8">
+
+  <div className="mb-8">
+
+    <h2 className="text-2xl font-bold">
+      Language Breakdown
+    </h2>
+
+    <p className="text-sm text-slate-400 mt-2">
+      Distribution of technologies used in this repository
+    </p>
+
+  </div>
+
+  <div className="space-y-6">
+
+    {languages.map((lang) => (
+
+      <div key={lang.language}>
+
+        <div className="mb-2 flex items-center justify-between">
+
+          <span className="font-semibold">
+            {lang.language}
+          </span>
+
+          <span className="text-cyan-400">
+            {lang.percentage}%
+          </span>
+
+        </div>
+
+        <div className="h-3 overflow-hidden rounded-full bg-slate-800">
+
+          <div
+            className="h-full rounded-full bg-cyan-500 transition-all duration-700"
+            style={{
+              width: `${lang.percentage}%`,
+            }}
+          />
+
+        </div>
+
+      </div>
+
+    ))}
+
+  </div>
+
+</div>
 
         {/* ============================
             REPOSITORY OVERVIEW
@@ -401,6 +555,134 @@ function RepositoryPage() {
           </div>
 
         </section>
+
+
+        {/* ============================
+    TOP CONTRIBUTORS
+============================ */}
+
+<section className="rounded-3xl border border-slate-800 bg-[#111827] p-8">
+
+  <div className="mb-8 flex items-center justify-between">
+
+    <div>
+
+      <h2 className="text-2xl font-bold">
+        Top Contributors
+      </h2>
+
+      <p className="mt-1 text-sm text-slate-400">
+        Developers actively contributing to this repository
+      </p>
+
+    </div>
+
+    <div className="rounded-full bg-cyan-500/10 px-4 py-2 text-sm font-semibold text-cyan-400">
+      {contributors.length} Contributors
+    </div>
+
+  </div>
+
+  <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+
+    {contributors.map((user) => (
+
+      <div
+        key={user.id}
+        className="rounded-2xl border border-slate-800 bg-[#0B1220] p-6 transition duration-300 hover:border-cyan-500"
+      >
+
+        <div className="flex items-center gap-4">
+
+          <img
+            src={user.avatar}
+            alt=""
+            className="h-16 w-16 rounded-full border border-slate-700"
+          />
+
+          <div>
+
+           <div className="flex items-center gap-2">
+
+  <h3 className="text-lg font-bold">
+    {user.username}
+  </h3>
+
+  {contributors.indexOf(user) === 0 && (
+    <span className="rounded-full bg-yellow-500/20 px-2 py-1 text-xs font-bold text-yellow-400">
+      🏆 TOP
+    </span>
+  )}
+
+</div>
+
+<p className="mt-1 text-sm text-slate-400">
+  {user.type}
+</p>
+
+          </div>
+
+        </div>
+
+        <div className="mt-6">
+
+          <div className="mb-3 flex items-center justify-between">
+
+  <div>
+
+    <p className="text-sm text-slate-400">
+      Contributions
+    </p>
+
+    <h4 className="mt-1 text-2xl font-black text-cyan-400">
+      {user.contributions}
+    </h4>
+
+  </div>
+
+  <div className="rounded-xl bg-cyan-500/10 px-3 py-2 text-xs font-bold text-cyan-400">
+
+    #{contributors.indexOf(user) + 1}
+
+  </div>
+
+</div>
+
+        <div className="h-3 overflow-hidden rounded-full bg-slate-800">
+
+  <div
+    className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all duration-700"
+    style={{
+      width: `${Math.max(
+        12,
+        Math.min(user.contributions, 100)
+      )}%`,
+    }}
+  />
+
+</div>
+
+        </div>
+
+        <a
+          href={user.profile}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-6 inline-flex items-center gap-2 text-cyan-400 hover:text-cyan-300"
+        >
+          View Profile
+
+          <ExternalLink size={16} />
+
+        </a>
+
+      </div>
+
+    ))}
+
+  </div>
+
+</section>
                 {/* ============================
             RECENT COMMITS
         ============================ */}

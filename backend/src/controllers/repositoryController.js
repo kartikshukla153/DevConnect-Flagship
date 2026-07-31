@@ -233,3 +233,124 @@ export const getRepositoryContributors = async (req, res) => {
     });
   }
 };
+  /*
+==========================================
+REPOSITORY LANGUAGES
+==========================================
+*/
+
+export const getRepositoryLanguages = async (req, res) => {
+  try {
+    const { owner, repo } =
+      await getProjectRepository(req.params.projectId);
+
+    const response = await github.get(
+      `/repos/${owner}/${repo}/languages`
+    );
+
+    const languages = response.data;
+
+    const total = Object.values(languages).reduce(
+      (a, b) => a + b,
+      0
+    );
+
+    const result = Object.entries(languages).map(
+      ([language, bytes]) => ({
+        language,
+        bytes,
+        percentage: Number(
+          ((bytes / total) * 100).toFixed(1)
+        ),
+      })
+    );
+
+    res.json({
+      success: true,
+      languages: result,
+    });
+  } catch (err) {
+    console.log(err.response?.data || err.message);
+
+    res.status(500).json({
+      message: "Unable to fetch repository languages",
+    });
+  }
+};
+
+/*
+==========================================
+REPOSITORY ANALYTICS
+==========================================
+*/
+
+export const getRepositoryAnalytics = async (req, res) => {
+  try {
+    const { owner, repo } =
+      await getProjectRepository(req.params.projectId);
+
+    const [
+      repository,
+      contributors,
+      commits,
+      languages,
+    ] = await Promise.all([
+      github.get(`/repos/${owner}/${repo}`),
+      github.get(`/repos/${owner}/${repo}/contributors?per_page=100`),
+      github.get(`/repos/${owner}/${repo}/commits?per_page=100`),
+      github.get(`/repos/${owner}/${repo}/languages`),
+    ]);
+
+    const repoData = repository.data;
+
+    const totalCommits = commits.data.length;
+
+    const totalContributors =
+      contributors.data.length;
+
+    const languageCount =
+      Object.keys(languages.data).length;
+
+    const score =
+      Math.min(
+        100,
+        Math.round(
+          repoData.stargazers_count / 500 +
+          repoData.forks_count / 200 +
+          totalContributors * 2 +
+          languageCount * 4 +
+          totalCommits / 5
+        )
+      );
+
+    res.json({
+      success: true,
+
+      analytics: {
+        healthScore: score,
+
+        commits: totalCommits,
+
+        contributors: totalContributors,
+
+        stars: repoData.stargazers_count,
+
+        forks: repoData.forks_count,
+
+        watchers: repoData.watchers_count,
+
+        openIssues: repoData.open_issues_count,
+
+        languages: Object.keys(
+          languages.data
+        ).length,
+      },
+    });
+  } catch (err) {
+    console.log(err.response?.data || err.message);
+
+    res.status(500).json({
+      message: "Unable to fetch analytics",
+    });
+  }
+};
