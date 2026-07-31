@@ -114,7 +114,6 @@ export const getRepository = async (req, res) => {
 
     return res.json({
       success: true,
-
       repository: {
         id: repository.id,
         name: repository.name,
@@ -127,22 +126,17 @@ export const getRepository = async (req, res) => {
         stars: repository.stargazers_count,
         forks: repository.forks_count,
         watchers: repository.watchers_count,
-
         openIssues: repository.open_issues_count,
 
-        defaultBranch:
-          repository.default_branch,
+        defaultBranch: repository.default_branch,
 
         language: repository.language,
-
         visibility: repository.visibility,
 
         size: repository.size,
 
         createdAt: repository.created_at,
-
         updatedAt: repository.updated_at,
-
         pushedAt: repository.pushed_at,
 
         htmlUrl: repository.html_url,
@@ -156,6 +150,7 @@ export const getRepository = async (req, res) => {
     });
   }
 };
+
 /*
 ==========================================
 RECENT COMMITS
@@ -175,37 +170,66 @@ export const getRepositoryCommits = async (req, res) => {
       sha: commit.sha,
       message: commit.commit.message,
       author:
-        commit.commit.author?.name ||
-        "Unknown",
+        commit.commit.author?.name || "Unknown",
 
       avatar:
-        commit.author?.avatar_url ||
-        null,
+        commit.author?.avatar_url || null,
 
       profile:
-        commit.author?.html_url ||
-        null,
+        commit.author?.html_url || null,
 
       date:
         commit.commit.author?.date,
+
+      url:
+        commit.html_url,
     }));
 
     return res.json({
       success: true,
       commits,
     });
-
   } catch (err) {
-
-    console.log(
-      err.response?.data ||
-      err.message
-    );
+    console.log(err.response?.data || err.message);
 
     return res.status(500).json({
-      message:
-        "Unable to fetch commits.",
+      message: "Unable to fetch commits.",
     });
+  }
+};
+/*
+==========================================
+REPOSITORY CONTRIBUTORS
+==========================================
+*/
 
+export const getRepositoryContributors = async (req, res) => {
+  try {
+    const { owner, repo } =
+      await getProjectRepository(req.params.projectId);
+
+    const response = await github.get(
+      `/repos/${owner}/${repo}/contributors?per_page=30`
+    );
+
+    const contributors = response.data.map((user) => ({
+      id: user.id,
+      username: user.login,
+      avatar: user.avatar_url,
+      profile: user.html_url,
+      contributions: user.contributions,
+      type: user.type,
+    }));
+
+    return res.json({
+      success: true,
+      contributors,
+    });
+  } catch (err) {
+    console.log(err.response?.data || err.message);
+
+    return res.status(500).json({
+      message: "Unable to fetch contributors",
+    });
   }
 };

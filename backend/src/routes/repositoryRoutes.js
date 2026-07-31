@@ -4,6 +4,7 @@ import {
   connectRepository,
   getRepository,
   getRepositoryCommits,
+  getRepositoryContributors,
 } from "../controllers/repositoryController.js";
 
 const router = express.Router();
@@ -23,6 +24,11 @@ router.get(
   "/:projectId/commits",
   authMiddleware,
   getRepositoryCommits
+);
+router.get(
+  "/:projectId/contributors",
+  authMiddleware,
+  getRepositoryContributors
 );
 
 export default router;

@@ -13,7 +13,7 @@ import Profile from "./pages/Profile";
 import CreateProfile from "./pages/CreateProfile";
 import AddExperience from "./pages/AddExperience";
 import AIArchitect from "./pages/AIArchitect";
-import Repository from "./pages/Repository";
+import RepositoryPage from "./pages/RepositoryPage";
 import Projects from "./pages/Projects";
 import ProjectDetails from "./pages/ProjectDetails";
 import ProjectWorkspace from "./pages/ProjectWorkspace";
@@ -123,14 +123,14 @@ function App() {
       />
 
       {/* NEW REPOSITORY PAGE */}
-      <Route
-        path="/projects/:id/repository"
-        element={
-          <ProtectedLayout>
-            <Repository />
-          </ProtectedLayout>
-        }
-      />
+     <Route
+  path="/projects/:id/repository"
+  element={
+    <ProtectedLayout>
+      <RepositoryPage />
+    </ProtectedLayout>
+  }
+/>
 
       <Route
         path="/projects"
@@ -181,7 +181,7 @@ function App() {
   path="/repository/:id"
   element={
     <ProtectedLayout>
-      <Repository />
+      <RepositoryPage />
     </ProtectedLayout>
   }
 />

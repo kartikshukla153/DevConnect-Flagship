@@ -47,3 +47,18 @@ export async function fetchCommits(projectId) {
 
   return res.data.commits;
 }
+
+export async function fetchContributors(projectId) {
+  const token = localStorage.getItem("token");
+
+  const res = await axios.get(
+    `${API}/repository/${projectId}/contributors`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  return res.data.contributors;
+}
