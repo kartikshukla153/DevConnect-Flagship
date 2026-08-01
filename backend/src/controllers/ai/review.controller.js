@@ -11,27 +11,50 @@ export const reviewCode = async (req, res) => {
       });
     }
 
-    const prompt = `
-You are a Google Staff Software Engineer.
+  const prompt = `
+You are a Google Staff Software Engineer performing a production-grade code review.
 
-Review the following production code.
+Review the following ${filename}.
+
+Return ONLY valid JSON.
+
+{
+  "score":0,
+  "summary":"",
+  "strengths":[],
+  "issues":[],
+  "security":[],
+  "performance":[],
+  "readability":[],
+  "bestPractices":[],
+  "improvements":[],
+  "improvedCode":"",
+  "complexity":"",
+  "maintainability":"",
+  "verdict":""
+}
+
+Rules:
+
+- Give score out of 100.
+- Detect security problems.
+- Detect performance problems.
+- Detect readability problems.
+- Detect clean-code violations.
+- Detect maintainability issues.
+- Mention complexity (Low/Medium/High).
+- Give production-ready improved code.
+- Verdict must be one of:
+  "Ready to Merge"
+  "Needs Minor Changes"
+  "Needs Major Changes"
 
 Filename:
 ${filename}
 
 Code:
+
 ${code}
-
-Return ONLY valid JSON.
-
-{
-  "score": 0,
-  "summary": "",
-  "strengths": [],
-  "issues": [],
-  "improvements": [],
-  "improvedCode": ""
-}
 `;
 
     const response = await axios.post(
@@ -64,14 +87,21 @@ Return ONLY valid JSON.
     try {
       parsed = JSON.parse(content);
     } catch {
-      parsed = {
-        score: 0,
-        summary: content,
-        strengths: [],
-        issues: [],
-        improvements: [],
-        improvedCode: "",
-      };
+     parsed = {
+  score: 0,
+  summary: content,
+  strengths: [],
+  issues: [],
+  security: [],
+  performance: [],
+  readability: [],
+  bestPractices: [],
+  improvements: [],
+  improvedCode: "",
+  complexity: "",
+  maintainability: "",
+  verdict: "",
+};
     }
 
     res.json(parsed);

@@ -18,7 +18,7 @@ import Projects from "./pages/Projects";
 import ProjectDetails from "./pages/ProjectDetails";
 import ProjectWorkspace from "./pages/ProjectWorkspace";
 import CreateProject from "./pages/CreateProject";
-
+import AIReview from "./pages/AIReview";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import useAuth from "./hooks/useAuth";
 import AppLayout from "./layout/AppLayout";
@@ -194,6 +194,14 @@ function App() {
           </ProtectedLayout>
         }
       />
+      <Route
+  path="/ai-review"
+  element={
+    <ProtectedLayout>
+      <AIReview />
+    </ProtectedLayout>
+  }
+/>
 
       <Route
         path="*"
