@@ -17,26 +17,28 @@ const notificationSchema = new mongoose.Schema(
     type: {
       type: String,
       enum: [
-  "connection_request",
-  "connection_accepted",
+        "connection_request",
+        "connection_accepted",
+        "connection_rejected",
+        "connection_removed",
 
-  "post_like",
-  "post_comment",
+        "post_like",
+        "post_comment",
 
-  "message",
+        "message",
 
-  "project_invite",
-  "project_join_request",
+        "project_invite",
+        "project_join_request",
 
-  "project_role_updated",
+        "project_role_updated",
 
-  "task_submission",
-  "task_submission_approved",
-  "task_submission_rejected",
+        "task_submission",
+        "task_submission_approved",
+        "task_submission_rejected",
 
-  "task_assigned",
-  "task_completed",
-],
+        "task_assigned",
+        "task_completed",
+      ],
       required: true,
     },
 
@@ -45,7 +47,7 @@ const notificationSchema = new mongoose.Schema(
       required: true,
     },
 
-    Read: {
+    read: {
       type: Boolean,
       default: false,
     },

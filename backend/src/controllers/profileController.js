@@ -148,14 +148,22 @@ export const getAllProfiles = async (req, res) => {
 
 /**
  * SEARCH PROFILES
- * Supports:
- * skill
- * name
- * location
- * availability
- * page
- * limit
- * sort=newest|oldest
+ *
+ * Supports searching across:
+ * - username
+ * - headline
+ * - bio
+ * - skills
+ * - location
+ *
+ * Query params:
+ * - skill
+ * - name
+ * - location
+ * - availability
+ * - page
+ * - limit
+ * - sort=newest|oldest
  */
 export const searchProfilesBySkill = async (req, res) => {
   try {
@@ -167,71 +175,177 @@ export const searchProfilesBySkill = async (req, res) => {
       sort,
     } = req.query;
 
-    const page = Number(req.query.page) || 1;
-    const limit = Number(req.query.limit) || 10;
+    const page = Math.max(Number(req.query.page) || 1, 1);
+    const limit = Math.min(
+      Math.max(Number(req.query.limit) || 10, 1),
+      50
+    );
 
     const filter = {};
 
-    if (skill) {
-      filter.skills = {
-        $regex: skill,
-        $options: "i",
-      };
+    /*
+     * GENERAL DEVELOPER SEARCH
+     *
+     * The frontend currently sends the search text
+     * through the "skill" query parameter.
+     *
+     * Instead of searching ONLY inside skills,
+     * search the complete developer profile.
+     *
+     * Example:
+     *
+     * ?skill=Kartik
+     *
+     * can now match:
+     * - username: KartikShukla
+     * - headline: MERN Stack Developer
+     * - bio: ...
+     * - skills: React, Node.js, MongoDB
+     * - location: ...
+     */
+    if (skill && skill.trim()) {
+      const searchText = skill.trim();
+
+      filter.$or = [
+        {
+          username: {
+            $regex: searchText,
+            $options: "i",
+          },
+        },
+        {
+          headline: {
+            $regex: searchText,
+            $options: "i",
+          },
+        },
+        {
+          bio: {
+            $regex: searchText,
+            $options: "i",
+          },
+        },
+        {
+          skills: {
+            $regex: searchText,
+            $options: "i",
+          },
+        },
+        {
+          location: {
+            $regex: searchText,
+            $options: "i",
+          },
+        },
+      ];
     }
 
-    if (location) {
+    /*
+     * Explicit name search.
+     *
+     * Profile username is searchable here because
+     * the actual User.name field is stored in a
+     * separate referenced User document.
+     */
+    if (name && name.trim()) {
+      const nameRegex = {
+        $regex: name.trim(),
+        $options: "i",
+      };
+
+      if (filter.$or) {
+        filter.$and = [
+          {
+            $or: filter.$or,
+          },
+          {
+            $or: [
+              { username: nameRegex },
+              { headline: nameRegex },
+              { bio: nameRegex },
+            ],
+          },
+        ];
+
+        delete filter.$or;
+      } else {
+        filter.$or = [
+          { username: nameRegex },
+          { headline: nameRegex },
+          { bio: nameRegex },
+        ];
+      }
+    }
+
+    /*
+     * Location filter
+     */
+    if (location && location.trim()) {
       filter.location = {
-        $regex: location,
+        $regex: location.trim(),
         $options: "i",
       };
     }
 
+    /*
+     * Availability filter
+     */
     if (availability) {
       filter.availability = availability;
     }
 
-    let sortOption = { createdAt: -1 };
+    /*
+     * Sorting
+     */
+    let sortOption = {
+      createdAt: -1,
+    };
 
     if (sort === "oldest") {
-      sortOption = { createdAt: 1 };
+      sortOption = {
+        createdAt: 1,
+      };
     }
 
     if (sort === "newest") {
-      sortOption = { createdAt: -1 };
+      sortOption = {
+        createdAt: -1,
+      };
     }
 
-    let profiles = await Profile.find(filter)
+    /*
+     * Count BEFORE pagination
+     */
+    const totalProfiles = await Profile.countDocuments(filter);
+
+    /*
+     * Fetch paginated results
+     */
+    const profiles = await Profile.find(filter)
       .populate("user", "name email")
       .sort(sortOption)
       .skip((page - 1) * limit)
       .limit(limit);
 
-    if (name) {
-      profiles = profiles.filter((profile) =>
-        profile.user.name
-          .toLowerCase()
-          .includes(name.toLowerCase())
-      );
-    }
-
-   const totalProfiles = await Profile.countDocuments(filter);
-
-res.status(200).json({
-  success: true,
-  page,
-  limit,
-  totalProfiles,
-  totalPages: Math.ceil(totalProfiles / limit),
-  count: profiles.length,
-  profiles,
-});
+    res.status(200).json({
+      success: true,
+      page,
+      limit,
+      totalProfiles,
+      totalPages: Math.ceil(totalProfiles / limit),
+      count: profiles.length,
+      profiles,
+    });
   } catch (error) {
+    console.error("SEARCH PROFILES ERROR:", error);
+
     res.status(500).json({
       success: false,
       message: error.message,
     });
   }
 };
+
 /**
  * ADD EXPERIENCE
  */
