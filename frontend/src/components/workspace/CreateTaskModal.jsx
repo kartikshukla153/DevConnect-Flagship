@@ -66,9 +66,12 @@ function CreateTaskModal({
         deadline: "",
       });
 
-      reloadTasks();
+    console.log("✅ TASK CREATED SUCCESSFULLY");
 
-      onClose();
+return;
+
+// reloadTasks();
+// onClose();
     } catch (err) {
       alert(
         err.response?.data?.message ||

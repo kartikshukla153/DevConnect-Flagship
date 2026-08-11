@@ -99,6 +99,10 @@ function KanbanBoard({
       setColumns(previousState);
     }
   }
+  console.log("Todo:", columns.todo.length);
+console.log("In Progress:", columns["in-progress"].length);
+console.log("Review:", columns.review.length);
+console.log("Completed:", columns.completed.length);
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>

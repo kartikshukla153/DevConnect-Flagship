@@ -23,12 +23,7 @@ export const createTask = async (req, res) => {
       priority,
       deadline,
     } = req.body;
-await Activity.create({
-  project: task.project,
-  user: req.user._id,
-  type: "task_assigned",
-  message: `${req.user.name} assigned "${task.title}"`,
-});
+
     const project = await Project.findById(projectId);
 
     if (!project) {
@@ -83,6 +78,14 @@ await Activity.create({
       await Task.findById(task._id)
         .populate("assignedTo", "name email")
         .populate("createdBy", "name email");
+
+        await Activity.create({
+  project: task.project,
+  user: req.user._id,
+  type: "task_created",
+  message: `${req.user.name} created "${task.title}"`,
+});
+
 emitTaskCreated(projectId, populatedTask);
     return res.status(201).json({
       success: true,
