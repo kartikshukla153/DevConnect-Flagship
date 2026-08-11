@@ -1,4 +1,5 @@
 import Profile from "../models/Profile.js";
+import User from "../models/User.js";
 
 /**
  * CREATE OR UPDATE PROFILE
@@ -98,25 +99,63 @@ export const getMyProfile = async (req, res) => {
 
 /**
  * GET PUBLIC PROFILE
+ *
+ * If the developer has a Profile document,
+ * return the complete profile.
+ *
+ * If they don't have one yet, return a basic
+ * public profile using their User document.
  */
 export const getUserProfile = async (req, res) => {
   try {
-    const profile = await Profile.findOne({
-      user: req.params.userId,
-    }).populate("user", "name email");
+    const userId = req.params.userId;
 
-    if (!profile) {
-      return res.status(404).json({
-        success: false,
-        message: "Profile not found",
+    const profile = await Profile.findOne({
+      user: userId,
+    }).populate("user", "name email lastSeen");
+
+    if (profile) {
+      return res.status(200).json({
+        success: true,
+        profile,
       });
     }
 
-    res.status(200).json({
+    /*
+     * Fallback:
+     * User exists but has not created a Profile yet.
+     */
+    const user = await User.findById(userId).select(
+      "name email lastSeen"
+    );
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const fallbackProfile = {
+      user,
+      username: "",
+      headline: "",
+      bio: "",
+      skills: [],
+      location: "",
+      availability: "",
+      experience: [],
+      socialLinks: {},
+    };
+
+    return res.status(200).json({
       success: true,
-      profile,
+      profile: fallbackProfile,
+      isBasicProfile: true,
     });
   } catch (error) {
+    console.error("GET PUBLIC PROFILE ERROR:", error);
+
     res.status(500).json({
       success: false,
       message: error.message,
@@ -176,6 +215,7 @@ export const searchProfilesBySkill = async (req, res) => {
     } = req.query;
 
     const page = Math.max(Number(req.query.page) || 1, 1);
+
     const limit = Math.min(
       Math.max(Number(req.query.limit) || 10, 1),
       50
@@ -183,25 +223,8 @@ export const searchProfilesBySkill = async (req, res) => {
 
     const filter = {};
 
-    /*
+    /**
      * GENERAL DEVELOPER SEARCH
-     *
-     * The frontend currently sends the search text
-     * through the "skill" query parameter.
-     *
-     * Instead of searching ONLY inside skills,
-     * search the complete developer profile.
-     *
-     * Example:
-     *
-     * ?skill=Kartik
-     *
-     * can now match:
-     * - username: KartikShukla
-     * - headline: MERN Stack Developer
-     * - bio: ...
-     * - skills: React, Node.js, MongoDB
-     * - location: ...
      */
     if (skill && skill.trim()) {
       const searchText = skill.trim();
@@ -240,12 +263,8 @@ export const searchProfilesBySkill = async (req, res) => {
       ];
     }
 
-    /*
-     * Explicit name search.
-     *
-     * Profile username is searchable here because
-     * the actual User.name field is stored in a
-     * separate referenced User document.
+    /**
+     * EXPLICIT NAME SEARCH
      */
     if (name && name.trim()) {
       const nameRegex = {
@@ -277,8 +296,8 @@ export const searchProfilesBySkill = async (req, res) => {
       }
     }
 
-    /*
-     * Location filter
+    /**
+     * LOCATION FILTER
      */
     if (location && location.trim()) {
       filter.location = {
@@ -287,15 +306,15 @@ export const searchProfilesBySkill = async (req, res) => {
       };
     }
 
-    /*
-     * Availability filter
+    /**
+     * AVAILABILITY FILTER
      */
     if (availability) {
       filter.availability = availability;
     }
 
-    /*
-     * Sorting
+    /**
+     * SORTING
      */
     let sortOption = {
       createdAt: -1,
@@ -313,13 +332,13 @@ export const searchProfilesBySkill = async (req, res) => {
       };
     }
 
-    /*
-     * Count BEFORE pagination
+    /**
+     * COUNT BEFORE PAGINATION
      */
     const totalProfiles = await Profile.countDocuments(filter);
 
-    /*
-     * Fetch paginated results
+    /**
+     * FETCH PAGINATED RESULTS
      */
     const profiles = await Profile.find(filter)
       .populate("user", "name email")

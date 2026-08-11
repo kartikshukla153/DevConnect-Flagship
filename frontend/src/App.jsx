@@ -22,7 +22,7 @@ import AIReview from "./pages/AIReview";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import useAuth from "./hooks/useAuth";
 import AppLayout from "./layout/AppLayout";
-
+import Connections from "./pages/Connections";
 function ProtectedLayout({ children }) {
   return (
     <ProtectedRoute>
@@ -85,7 +85,14 @@ function App() {
           </ProtectedLayout>
         }
       />
-
+<Route
+  path="/connections"
+  element={
+    <ProtectedLayout>
+      <Connections />
+    </ProtectedLayout>
+  }
+/>
       <Route
         path="/developers/:userId"
         element={

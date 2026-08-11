@@ -1,10 +1,11 @@
-import { Link, useLocation, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   LayoutDashboard,
   Newspaper,
   FolderKanban,
-  Briefcase,
+  BriefcaseBusiness,
   Users,
+  UsersRound,
   MessageSquare,
   Bell,
   User,
@@ -14,134 +15,247 @@ import {
 
 function Sidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { id } = useParams();
 
+  /*
+   * Workspace is available whenever we are inside a project route:
+   *
+   * /projects/:id
+   * /projects/:id/...
+   * /workspace/:id
+   *
+   * Because Sidebar lives inside AppLayout, useParams() gives us the
+   * current route parameter when the current route contains :id.
+   */
   const projectId =
-    location.pathname.startsWith("/workspace")
-      ? id
-      : location.pathname.startsWith("/projects/")
-      ? id
-      : null;
+    id ||
+    (location.pathname.startsWith("/workspace/")
+      ? location.pathname.split("/")[2]
+      : null);
 
-  const navItems = [
+  const isWorkspaceRoute = location.pathname.startsWith("/workspace/");
+
+  const isActive = (path) => {
+    if (path === "/dashboard") {
+      return location.pathname === "/dashboard";
+    }
+
+    if (path === "/feed") {
+      return location.pathname === "/feed";
+    }
+
+    if (path === "/projects") {
+      return (
+        location.pathname === "/projects" ||
+        location.pathname.startsWith("/projects/")
+      );
+    }
+
+    if (path === "/developers") {
+      return (
+        location.pathname === "/developers" ||
+        location.pathname.startsWith("/developers/")
+      );
+    }
+
+    if (path === "/connections") {
+      return location.pathname === "/connections";
+    }
+
+    if (path === "/messages") {
+      return location.pathname === "/messages";
+    }
+
+    if (path === "/notifications") {
+      return location.pathname === "/notifications";
+    }
+
+    if (path === "/profile") {
+      return location.pathname === "/profile";
+    }
+
+    if (path === "/ai") {
+      return (
+        location.pathname === "/ai" ||
+        location.pathname === "/ai-review"
+      );
+    }
+
+    return location.pathname === path;
+  };
+
+  const navItemsBeforeWorkspace = [
     {
       label: "Dashboard",
-      icon: LayoutDashboard,
       path: "/dashboard",
+      icon: LayoutDashboard,
     },
     {
       label: "Feed",
-      icon: Newspaper,
       path: "/feed",
+      icon: Newspaper,
     },
     {
       label: "Projects",
-      icon: FolderKanban,
       path: "/projects",
-    },
-    {
-      label: "Workspace",
-      icon: Briefcase,
-      path: projectId ? `/workspace/${projectId}` : null,
-    },
-    {
-      label: "Developers",
-      icon: Users,
-      path: "/developers",
-    },
-    {
-      label: "Messages",
-      icon: MessageSquare,
-      path: "/messages",
-    },
-    {
-      label: "Notifications",
-      icon: Bell,
-      path: "/notifications",
-    },
-    {
-      label: "Profile",
-      icon: User,
-      path: "/profile",
-    },
-    {
-      label: "AI Architect",
-      icon: Bot,
-      path: "/ai",
+      icon: FolderKanban,
     },
   ];
 
+  const navItemsAfterWorkspace = [
+    {
+      label: "Developers",
+      path: "/developers",
+      icon: Users,
+    },
+    {
+      label: "Connections",
+      path: "/connections",
+      icon: UsersRound,
+    },
+    {
+      label: "Messages",
+      path: "/messages",
+      icon: MessageSquare,
+    },
+    {
+      label: "Notifications",
+      path: "/notifications",
+      icon: Bell,
+    },
+    {
+      label: "Profile",
+      path: "/profile",
+      icon: User,
+    },
+    {
+      label: "AI Architect",
+      path: "/ai",
+      icon: Bot,
+    },
+  ];
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    navigate("/login");
+  };
+
+  const renderNavItem = (item) => {
+    const Icon = item.icon;
+    const active = isActive(item.path);
+
+    return (
+      <Link
+        key={item.path}
+        to={item.path}
+        className={`group flex items-center gap-4 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 ${
+          active
+            ? "bg-cyan-400/10 text-cyan-300"
+            : "text-gray-300 hover:bg-[#111827] hover:text-white"
+        }`}
+      >
+        <Icon
+          size={19}
+          className={`transition-colors ${
+            active
+              ? "text-cyan-400"
+              : "text-gray-400 group-hover:text-cyan-300"
+          }`}
+        />
+
+        <span>{item.label}</span>
+
+        {item.label === "Connections" && active && (
+          <span className="ml-auto h-2 w-2 rounded-full bg-cyan-400" />
+        )}
+      </Link>
+    );
+  };
+
   return (
-    <aside className="fixed left-0 top-0 flex h-screen w-[270px] flex-col border-r border-[#222E3F] bg-[#0F172A]">
+    <aside className="fixed left-0 top-0 z-40 hidden h-screen w-[270px] border-r border-[#263243] bg-[#0B1220] lg:block">
+      <div className="flex h-full flex-col">
+        {/* Brand */}
+        <div className="flex h-[92px] items-center border-b border-[#263243] px-6">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-cyan-400 text-xl font-black text-[#0B1220]">
+              D
+            </div>
 
-      <div className="border-b border-[#222E3F] px-7 py-7">
-        <div className="flex items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-cyan-400 text-2xl font-bold text-black">
-            D
-          </div>
+            <div>
+              <h1 className="text-xl font-bold tracking-tight text-white">
+                DevConnect
+              </h1>
 
-          <div>
-            <h1 className="text-3xl font-bold text-white">
-              DevConnect
-            </h1>
-
-            <p className="text-sm text-slate-400">
-              Developer Workspace
-            </p>
+              <p className="text-xs text-cyan-300">
+                Developer Workspace
+              </p>
+            </div>
           </div>
         </div>
-      </div>
 
-      <nav className="flex-1 space-y-2 overflow-y-auto px-5 py-6">
+        {/* Navigation */}
+        <nav className="flex-1 overflow-y-auto px-4 py-6">
+          <div className="space-y-2">
+            {/* Dashboard / Feed / Projects */}
+            {navItemsBeforeWorkspace.map(renderNavItem)}
 
-        {navItems.map((item) => {
+            {/* ===================================================== */}
+            {/* WORKSPACE                                             */}
+            {/* ===================================================== */}
 
-          const Icon = item.icon;
-
-          const active =
-            location.pathname === item.path ||
-            (item.path === "/projects" &&
-              location.pathname.startsWith("/projects")) ||
-            (item.label === "Workspace" &&
-              location.pathname.startsWith("/workspace"));
-
-          if (!item.path) {
-            return (
-              <div
-                key={item.label}
-                className="flex cursor-not-allowed items-center gap-4 rounded-2xl px-5 py-4 text-[17px] font-medium text-slate-600 opacity-60"
+            {projectId ? (
+              <Link
+                to={`/workspace/${projectId}`}
+                className={`group flex items-center gap-4 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 ${
+                  isWorkspaceRoute
+                    ? "bg-cyan-400/10 text-cyan-300"
+                    : "text-gray-300 hover:bg-[#111827] hover:text-white"
+                }`}
               >
-                <Icon size={22} />
-                <span>{item.label}</span>
+                <BriefcaseBusiness
+                  size={19}
+                  className={
+                    isWorkspaceRoute
+                      ? "text-cyan-400"
+                      : "text-gray-400 group-hover:text-cyan-300"
+                  }
+                />
+
+                <span>Workspace</span>
+              </Link>
+            ) : (
+              <div
+                className="group flex cursor-not-allowed items-center gap-4 rounded-xl px-4 py-3 text-sm font-medium text-gray-500"
+                title="Open a project to access Workspace"
+              >
+                <BriefcaseBusiness
+                  size={19}
+                  className="text-gray-600"
+                />
+
+                <span>Workspace</span>
               </div>
-            );
-          }
+            )}
 
-          return (
-            <Link
-              key={item.label}
-              to={item.path}
-              className={`group flex items-center gap-4 rounded-2xl px-5 py-4 text-[17px] font-medium transition-all duration-300 ${
-                active
-                  ? "bg-cyan-400 text-black shadow-lg shadow-cyan-500/20"
-                  : "text-slate-300 hover:bg-white/5 hover:text-cyan-300"
-              }`}
-            >
-              <Icon size={22} />
-              <span>{item.label}</span>
-            </Link>
-          );
-        })}
+            {/* Developers / Connections / Messages / etc. */}
+            {navItemsAfterWorkspace.map(renderNavItem)}
+          </div>
+        </nav>
 
-      </nav>
-
-      <div className="border-t border-[#222E3F] p-5">
-        <button className="flex w-full items-center gap-4 rounded-2xl bg-red-500/10 px-5 py-4 text-[17px] text-red-300 transition hover:bg-red-500/20">
-          <LogOut size={22} />
-          Logout
-        </button>
+        {/* Logout */}
+        <div className="border-t border-[#263243] p-4">
+          <button
+            onClick={handleLogout}
+            className="flex w-full items-center gap-4 rounded-xl bg-red-500/10 px-4 py-3 text-sm font-medium text-red-300 transition-all duration-200 hover:bg-red-500/15 hover:text-red-200"
+          >
+            <LogOut size={19} />
+            <span>Logout</span>
+          </button>
+        </div>
       </div>
-
     </aside>
   );
 }

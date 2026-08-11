@@ -153,6 +153,9 @@ export const getPendingRequests = async (req, res) => {
   }
 };
 
+/**
+ * REJECT CONNECTION REQUEST
+ */
 export const rejectConnectionRequest = async (req, res) => {
   try {
     const requesterId = req.params.userId;
@@ -257,7 +260,7 @@ export const getMyConnections = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).populate(
       "connections",
-      "name email profilePicture bio skills"
+      "name email profilePicture bio skills location isOnline lastSeen"
     );
 
     return res.status(200).json({
@@ -273,6 +276,9 @@ export const getMyConnections = async (req, res) => {
   }
 };
 
+/**
+ * REMOVE CONNECTION
+ */
 export const removeConnection = async (req, res) => {
   try {
     const connectionId = req.params.userId;
@@ -316,6 +322,7 @@ export const removeConnection = async (req, res) => {
     });
   }
 };
+
 /**
  * GET CONNECTION STATUS
  */
