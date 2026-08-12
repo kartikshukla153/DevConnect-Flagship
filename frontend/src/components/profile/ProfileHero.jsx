@@ -1,40 +1,29 @@
 import {
-  MapPin,
-  Globe,
-  Mail,
   BriefcaseBusiness,
-  CalendarDays,
-  Users,
-  Code2,
-  GitBranch,
-  ExternalLink,
-  Pencil,
-  Sparkles,
   CheckCircle2,
+  Edit3,
+  ExternalLink,
+  Globe,
+  MapPin,
   Plus,
+  Users,
 } from "lucide-react";
 
-function Stat({
-  label,
-  value,
-}) {
+function Stat({ label, value }) {
   return (
-    <div className="flex flex-col">
-      <span className="text-2xl font-bold text-white">
+    <div className="min-w-0">
+      <p className="text-2xl font-bold tracking-tight text-white">
         {value}
-      </span>
+      </p>
 
-      <span className="mt-1 text-sm text-slate-400">
+      <p className="mt-1 text-sm text-slate-500">
         {label}
-      </span>
+      </p>
     </div>
   );
 }
 
-function SocialButton({
-  href,
-  icon: Icon,
-}) {
+function SocialButton({ href, icon: Icon, label }) {
   if (!href) return null;
 
   return (
@@ -42,14 +31,16 @@ function SocialButton({
       href={href}
       target="_blank"
       rel="noreferrer"
+      aria-label={label}
+      title={label}
       className="
         flex h-11 w-11 items-center justify-center
         rounded-xl
         border border-white/10
         bg-[#0B1220]
         text-slate-400
-        transition
-        duration-200
+        transition-all duration-200
+        hover:-translate-y-0.5
         hover:border-cyan-400/40
         hover:bg-cyan-500/10
         hover:text-cyan-300
@@ -60,19 +51,15 @@ function SocialButton({
   );
 }
 
-function Skill({
-  children,
-}) {
+function Skill({ children }) {
   return (
     <span
       className="
         rounded-xl
         border border-cyan-500/20
         bg-cyan-500/10
-        px-3
-        py-1.5
-        text-xs
-        font-medium
+        px-3 py-1.5
+        text-xs font-medium
         text-cyan-300
       "
     >
@@ -81,269 +68,384 @@ function Skill({
   );
 }
 
-export default function ProfileHero({
-  profile,
-}) {
-const skills = profile?.skills?.slice(0, 6) || [];
+function Signal({ label }) {
+  return (
+    <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs font-medium text-slate-400">
+      <span className="h-1.5 w-1.5 rounded-full bg-cyan-400" />
+      {label}
+    </span>
+  );
+}
+
+function calculateProfileStrength(profile) {
+  if (!profile) return 0;
+
+  const user = profile.user || {};
+  const socialLinks = profile.socialLinks || {};
+
+  const checks = [
+    Boolean(user.name),
+    Boolean(profile.username?.trim()),
+    Boolean(profile.headline?.trim()),
+    Boolean(profile.bio?.trim()),
+    Array.isArray(profile.skills) && profile.skills.length > 0,
+    Boolean(profile.location?.trim()),
+    Array.isArray(profile.experience) &&
+      profile.experience.length > 0,
+    Boolean(socialLinks.github),
+    Boolean(socialLinks.linkedin),
+    Boolean(socialLinks.portfolio),
+  ];
+
+  const completed = checks.filter(Boolean).length;
+
+  return Math.round((completed / checks.length) * 100);
+}
+
+export default function ProfileHero({ profile }) {
+  const user = profile?.user || {};
+
+  const skills = Array.isArray(profile?.skills)
+    ? profile.skills
+    : [];
+
+  const experience = Array.isArray(profile?.experience)
+    ? profile.experience
+    : [];
+
+  const projects = Array.isArray(profile?.projects)
+    ? profile.projects
+    : [];
+
+  const socialLinks = profile?.socialLinks || {};
+
+  const name = user.name || "Developer";
+
+  const username =
+    profile?.username?.trim() ||
+    name.toLowerCase().replace(/\s+/g, "");
+
+  const headline =
+    profile?.headline?.trim() ||
+    "Full Stack Developer building practical, scalable software.";
+
+  const location = profile?.location?.trim();
+
+  const availability =
+    profile?.availability?.trim() ||
+    "Open to opportunities";
+
+  const projectCount = projects.length;
+
+  const connectionCount = Array.isArray(user.connections)
+    ? user.connections.length
+    : 0;
+
+  const profileInitial = name.charAt(0).toUpperCase();
+
+  const profileStrength = calculateProfileStrength(profile);
 
   return (
-    <section className="overflow-hidden rounded-3xl border border-white/10 bg-[#111827]">
+    <section className="overflow-hidden rounded-3xl border border-white/10 bg-[#111827] shadow-2xl">
 
-      {/* Cover */}
+      {/* COVER */}
 
-      <div className="relative h-56 overflow-hidden">
+      <div className="relative h-48 overflow-hidden sm:h-56">
+        <div className="absolute inset-0 bg-gradient-to-r from-cyan-700 via-blue-700 to-indigo-700" />
 
-        <div className="absolute inset-0 bg-gradient-to-r from-[#0891B2] via-[#2563EB] to-[#4F46E5]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_20%,rgba(255,255,255,0.14),transparent_30%),radial-gradient(circle_at_85%_20%,rgba(255,255,255,0.12),transparent_35%)]" />
 
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.18),transparent_45%)]" />
-
-        <div className="absolute bottom-5 right-6 rounded-full border border-white/15 bg-white/10 px-4 py-2 backdrop-blur">
-          <div className="flex items-center gap-2">
-
-            <Sparkles
-              size={16}
-              className="text-cyan-200"
-            />
-
-            <span className="text-xs font-medium tracking-wide text-white">
-              DevConnect Profile
-            </span>
-
-          </div>
+        <div className="absolute inset-0 opacity-30">
+          <div className="absolute -right-20 -top-32 h-80 w-80 rounded-full border border-white/20" />
+          <div className="absolute -right-8 -top-20 h-64 w-64 rounded-full border border-white/10" />
         </div>
 
+        <div className="absolute bottom-5 right-5 sm:right-6">
+          <div className="flex items-center gap-2 rounded-full border border-white/15 bg-black/20 px-4 py-2 backdrop-blur-xl">
+            <span className="h-2 w-2 rounded-full bg-cyan-300 shadow-[0_0_10px_rgba(103,232,249,0.8)]" />
+
+            <span className="text-xs font-medium tracking-wide text-white/90">
+              Developer Profile
+            </span>
+          </div>
+        </div>
       </div>
 
-      {/* Content */}
+      {/* CONTENT */}
 
-      <div className="px-8 pb-8">
+      <div className="px-5 pb-7 sm:px-8 sm:pb-8">
 
-        <div className="-mt-16 flex flex-col justify-between gap-8 xl:flex-row">
+        <div className="-mt-16 flex flex-col gap-7 xl:flex-row xl:justify-between">
 
-          {/* Left */}
+          {/* IDENTITY */}
 
-          <div className="flex flex-col gap-6 lg:flex-row">
+          <div className="flex min-w-0 flex-col gap-5 sm:flex-row">
 
-            {/* Avatar */}
+            {/* AVATAR */}
 
             <div
               className="
-                flex
-                h-32
-                w-32
-                items-center
-                justify-center
+                relative flex h-32 w-32 shrink-0
+                items-center justify-center
                 rounded-full
-                border-4
-                border-[#111827]
-                bg-cyan-400
-                text-5xl
-                font-black
-                text-black
-                shadow-xl
+                border-4 border-[#111827]
+                bg-gradient-to-br from-cyan-300 to-cyan-500
+                text-5xl font-black text-slate-950
+                shadow-2xl
               "
             >
-              {profile.user?.name?.charAt(0)}
+              {user.profilePicture ? (
+                <img
+                  src={user.profilePicture}
+                  alt={`${name} profile`}
+                  className="h-full w-full rounded-full object-cover"
+                />
+              ) : (
+                profileInitial
+              )}
+
+              <div
+                className="
+                  absolute bottom-1 right-1
+                  flex h-7 w-7 items-center justify-center
+                  rounded-full
+                  border-4 border-[#111827]
+                  bg-emerald-400
+                "
+                title="Active developer"
+              >
+                <span className="h-2 w-2 rounded-full bg-emerald-950" />
+              </div>
             </div>
 
-            {/* Info */}
+            {/* INFO */}
 
-            <div className="pt-2">
+            <div className="min-w-0 pt-1 sm:pt-16">
 
               <div className="flex flex-wrap items-center gap-3">
-
-                <h1 className="text-4xl font-bold tracking-tight text-white">
-                  {profile.user?.name}
+                <h1 className="break-words text-3xl font-bold tracking-tight text-white sm:text-4xl">
+                  {name}
                 </h1>
 
-                <span className="flex items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-400">
-
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-400">
                   <CheckCircle2 size={14} />
-
-                  Available for Internship
-
+                  {availability}
                 </span>
-
               </div>
 
-              <p className="mt-2 text-lg font-medium text-cyan-400">
-                @{profile.username || profile.user?.name}
+              <p className="mt-2 text-base font-medium text-cyan-400">
+                @{username}
               </p>
 
-              {profile.headline && (
-                <p className="mt-4 max-w-3xl text-base leading-7 text-slate-300">
-                  {profile.headline}
-                </p>
-              )}
-                            <div className="mt-5 flex flex-wrap items-center gap-5 text-sm text-slate-400">
+              <p className="mt-4 max-w-3xl text-base leading-7 text-slate-300">
+                {headline}
+              </p>
 
-                {profile.location && (
+              {/* METADATA */}
+
+              <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-3 text-sm text-slate-400">
+
+                {location && (
                   <div className="flex items-center gap-2">
                     <MapPin
                       size={16}
-                      className="text-cyan-400"
+                      className="shrink-0 text-cyan-400"
                     />
-                    <span>{profile.location}</span>
+
+                    <span>{location}</span>
                   </div>
                 )}
 
-                {profile.company && (
+                {profile?.experience?.[0]?.company && (
                   <div className="flex items-center gap-2">
                     <BriefcaseBusiness
                       size={16}
-                      className="text-cyan-400"
+                      className="shrink-0 text-cyan-400"
                     />
-                    <span>{profile.company}</span>
+
+                    <span>
+                      {profile.experience[0].company}
+                    </span>
+                  </div>
+                )}
+
+                {user.email && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-slate-600">
+                      •
+                    </span>
+
+                    <span className="truncate">
+                      {user.email}
+                    </span>
                   </div>
                 )}
 
               </div>
 
+              {/* SKILLS */}
+
               {skills.length > 0 && (
-                <div className="mt-6 flex flex-wrap gap-2">
-                  {skills.map((skill) => (
-                    <Skill key={skill}>
+                <div className="mt-6 flex max-w-3xl flex-wrap gap-2">
+                  {skills.slice(0, 8).map((skill, index) => (
+                    <Skill key={`${skill}-${index}`}>
                       {skill}
                     </Skill>
                   ))}
+
+                  {skills.length > 8 && (
+                    <span className="rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-400">
+                      +{skills.length - 8} more
+                    </span>
+                  )}
                 </div>
               )}
 
-              <div className="mt-7 flex flex-wrap gap-3">
+              {/* SOCIAL LINKS */}
+
+              <div className="mt-6 flex flex-wrap gap-3">
 
                 <SocialButton
-  href={profile.socialLinks?.github}
-  icon={GitBranch}
-/>
+                  href={socialLinks.github}
+                  icon={ExternalLink}
+                  label="GitHub"
+                />
 
-<SocialButton
-  href={profile.socialLinks?.linkedin}
-  icon={BriefcaseBusiness}
-/>
+                <SocialButton
+                  href={socialLinks.linkedin}
+                  icon={BriefcaseBusiness}
+                  label="LinkedIn"
+                />
 
-<SocialButton
-  href={profile.socialLinks?.portfolio}
-  icon={Globe}
-/>
+                <SocialButton
+                  href={socialLinks.portfolio}
+                  icon={Globe}
+                  label="Portfolio"
+                />
 
-<SocialButton
-  href={profile.socialLinks?.twitter}
-  icon={Users}
-/>
+                {socialLinks.twitter && (
+                  <SocialButton
+                    href={socialLinks.twitter}
+                    icon={Users}
+                    label="Twitter / X"
+                  />
+                )}
 
               </div>
-
             </div>
-
           </div>
 
-          {/* Right */}
+          {/* ACTIONS */}
 
-          <div className="flex flex-col gap-4">
+          <div className="flex shrink-0 flex-col gap-3 xl:pt-16">
 
             <button
-              onClick={() =>
-                (window.location.href =
-                  "/create-profile")
-              }
+              onClick={() => {
+                window.location.href =
+                  "/create-profile";
+              }}
               className="
-                flex
-                items-center
-                justify-center
-                gap-2
+                inline-flex items-center justify-center gap-2
                 rounded-2xl
                 bg-cyan-400
-                px-6
-                py-3
-                font-semibold
-                text-black
-                transition
+                px-6 py-3
+                text-sm font-semibold text-slate-950
+                shadow-lg shadow-cyan-500/10
+                transition-all duration-200
+                hover:-translate-y-0.5
                 hover:bg-cyan-300
               "
             >
-              <Pencil size={18} />
+              <Edit3 size={17} />
               Edit Profile
             </button>
 
             <button
-              onClick={() =>
-                (window.location.href =
-                  "/add-experience")
-              }
+              onClick={() => {
+                window.location.href =
+                  "/add-experience";
+              }}
               className="
-                flex
-                items-center
-                justify-center
-                gap-2
+                inline-flex items-center justify-center gap-2
                 rounded-2xl
-                border
-                border-white/10
+                border border-white/10
                 bg-[#0B1220]
-                px-6
-                py-3
-                font-medium
-                text-white
-                transition
-                hover:border-cyan-400/40
+                px-6 py-3
+                text-sm font-medium text-white
+                transition-all duration-200
+                hover:-translate-y-0.5
+                hover:border-cyan-400/30
                 hover:bg-cyan-500/10
               "
             >
-              <Plus size={18} />
+              <Plus size={17} />
               Add Experience
             </button>
 
           </div>
+        </div>
+
+        {/* STATS */}
+
+        <div className="mt-8 grid grid-cols-2 divide-x divide-white/10 rounded-2xl border border-white/10 bg-[#0B1220] p-5 md:grid-cols-4">
+
+          <div className="px-3 first:pl-0 md:px-5">
+            <Stat
+              label="Projects"
+              value={projectCount}
+            />
+          </div>
+
+          <div className="px-3 md:px-5">
+            <Stat
+              label="Connections"
+              value={connectionCount}
+            />
+          </div>
+
+          <div className="px-3 md:px-5">
+            <Stat
+              label="Skills"
+              value={skills.length}
+            />
+          </div>
+
+          <div className="px-3 last:pr-0 md:px-5">
+            <Stat
+              label="Experience"
+              value={experience.length}
+            />
+          </div>
 
         </div>
 
-        {/* Bottom Stats */}
-
-        <div className="mt-8 grid grid-cols-2 gap-6 rounded-2xl border border-white/10 bg-[#0B1220] p-6 md:grid-cols-4">
-
-          <Stat
-            label="Projects"
-            value="12"
-          />
-
-          <Stat
-            label="Connections"
-            value="154"
-          />
-
-          <Stat
-            label="Skills"
-            value={profile.skills?.length || 0}
-          />
-
-          <Stat
-            label="Experience"
-            value={profile.experience?.length || 0}
-          />
-
-        </div>
-                {/* Highlights */}
+        {/* HIGHLIGHTS */}
 
         <div className="mt-8 grid gap-5 lg:grid-cols-3">
 
-          <div className="rounded-2xl border border-white/10 bg-[#0F172A] p-5">
+          {/* CURRENT FOCUS */}
+
+          <div className="rounded-2xl border border-white/10 bg-[#0F172A] p-5 transition-colors hover:border-white/15">
 
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
               Current Focus
             </p>
 
             <h3 className="mt-3 text-lg font-semibold text-white">
-              Building DevConnect
+              {headline}
             </h3>
 
             <p className="mt-2 text-sm leading-7 text-slate-400">
-              Developing a real-time collaboration platform
-              with AI-powered developer workflows, project
-              management and team communication.
+              {profile?.bio?.trim()
+                ? profile.bio
+                : "Building software, collaborating with developers and growing through real-world engineering work."}
             </p>
 
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-[#0F172A] p-5">
+          {/* AVAILABILITY */}
+
+          <div className="rounded-2xl border border-white/10 bg-[#0F172A] p-5 transition-colors hover:border-white/15">
 
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
               Availability
@@ -351,23 +453,29 @@ const skills = profile?.skills?.slice(0, 6) || [];
 
             <div className="mt-4 flex items-center gap-3">
 
-              <div className="h-3 w-3 rounded-full bg-emerald-400" />
+              <div className="relative flex h-3 w-3">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-40" />
+
+                <span className="relative inline-flex h-3 w-3 rounded-full bg-emerald-400" />
+              </div>
 
               <span className="font-medium text-white">
-                Open for Internship
+                {availability}
               </span>
 
             </div>
 
             <p className="mt-3 text-sm leading-7 text-slate-400">
-              Looking for Full Stack, Backend and MERN
-              opportunities. Available for Remote,
-              Hybrid and On-site roles.
+              Open to connecting with developers,
+              teams, recruiters and companies through
+              DevConnect.
             </p>
 
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-[#0F172A] p-5">
+          {/* PROFILE STRENGTH */}
+
+          <div className="rounded-2xl border border-white/10 bg-[#0F172A] p-5 transition-colors hover:border-white/15">
 
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
               Profile Strength
@@ -381,8 +489,8 @@ const skills = profile?.skills?.slice(0, 6) || [];
                   Completion
                 </span>
 
-                <span className="font-semibold text-white">
-                  82%
+                <span className="font-semibold text-cyan-300">
+                  {profileStrength}%
                 </span>
 
               </div>
@@ -390,25 +498,76 @@ const skills = profile?.skills?.slice(0, 6) || [];
               <div className="h-2 overflow-hidden rounded-full bg-white/5">
 
                 <div
-                  className="h-full rounded-full bg-cyan-400"
+                  className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-sky-500 transition-all duration-700"
                   style={{
-                    width: "82%",
+                    width: `${profileStrength}%`,
                   }}
                 />
 
               </div>
-
             </div>
 
             <p className="mt-4 text-sm leading-7 text-slate-400">
-              Complete your portfolio, social links and
-              experience to improve discoverability.
+              Keep your bio, skills, experience and
+              professional links updated to make your
+              profile more useful.
             </p>
 
           </div>
+        </div>
+
+        {/* PROFILE SIGNALS */}
+
+        <div className="mt-5 flex flex-wrap items-center gap-3">
+
+          {profile?.bio?.trim() && (
+            <Signal label="Bio added" />
+          )}
+
+          {skills.length > 0 && (
+            <Signal
+              label={`${skills.length} skills`}
+            />
+          )}
+
+          {experience.length > 0 && (
+            <Signal
+              label={`${experience.length} experience ${
+                experience.length === 1
+                  ? "entry"
+                  : "entries"
+              }`}
+            />
+          )}
+
+          {socialLinks.github ||
+          socialLinks.linkedin ||
+          socialLinks.portfolio ? (
+            <Signal label="Professional links" />
+          ) : null}
+
+          {projectCount > 0 && (
+            <Signal
+              label={`${projectCount} ${
+                projectCount === 1
+                  ? "project"
+                  : "projects"
+              }`}
+            />
+          )}
+
+          {connectionCount > 0 && (
+            <Signal
+              label={`${connectionCount} ${
+                connectionCount === 1
+                  ? "connection"
+                  : "connections"
+              }`}
+            />
+          )}
 
         </div>
-              </div>
+      </div>
     </section>
   );
 }

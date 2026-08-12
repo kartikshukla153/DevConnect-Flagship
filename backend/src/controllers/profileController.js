@@ -1,3 +1,5 @@
+import mongoose from "mongoose";
+
 import Profile from "../models/Profile.js";
 import User from "../models/User.js";
 
@@ -19,26 +21,25 @@ export const createOrUpdateProfile = async (req, res) => {
       availability,
     } = req.body;
 
-    let profile = await Profile.findOne({
-      user: req.user.id,
-    });
-
     const profileData = {
-      user: req.user.id,
-      username,
-      headline,
-      bio,
-      skills,
-      location,
-      availability,
-
+      user: req.user._id,
+      username: username?.trim() || "",
+      headline: headline?.trim() || "",
+      bio: bio?.trim() || "",
+      skills: Array.isArray(skills) ? skills : [],
+      location: location?.trim() || "",
+      availability: availability || "",
       socialLinks: {
-        github,
-        linkedin,
-        portfolio,
-        twitter,
+        github: github?.trim() || "",
+        linkedin: linkedin?.trim() || "",
+        portfolio: portfolio?.trim() || "",
+        twitter: twitter?.trim() || "",
       },
     };
+
+    let profile = await Profile.findOne({
+      user: req.user._id,
+    });
 
     if (!profile) {
       profile = await Profile.create(profileData);
@@ -51,82 +52,72 @@ export const createOrUpdateProfile = async (req, res) => {
     }
 
     profile = await Profile.findOneAndUpdate(
-      { user: req.user.id },
+      { user: req.user._id },
       profileData,
-      { new: true }
+      {
+        new: true,
+        runValidators: true,
+      }
     );
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Profile updated successfully",
       profile,
     });
   } catch (error) {
-    res.status(500).json({
+    console.error("CREATE/UPDATE PROFILE ERROR:", error);
+
+    return res.status(500).json({
       success: false,
-      message: error.message,
+      message: "Unable to save profile",
+      error:
+        process.env.NODE_ENV === "development"
+          ? error.message
+          : undefined,
     });
   }
 };
 
 /**
  * GET MY PROFILE
+ *
+ * Important:
+ * If the user has not created a Profile document yet,
+ * return a basic profile constructed from their User document.
+ *
+ * This prevents the /profile page from unnecessarily
+ * showing "Profile not found".
  */
 export const getMyProfile = async (req, res) => {
   try {
-    const profile = await Profile.findOne({
-      user: req.user._id,
-    }).populate("user", "name email");
+    const userId = req.user?._id;
 
-    if (!profile) {
-      return res.status(404).json({
+    if (!userId) {
+      return res.status(401).json({
         success: false,
-        message: "Profile not found",
+        message: "Authenticated user not found",
       });
     }
 
-    res.status(200).json({
-      success: true,
-      profile,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-};
-
-/**
- * GET PUBLIC PROFILE
- *
- * If the developer has a Profile document,
- * return the complete profile.
- *
- * If they don't have one yet, return a basic
- * public profile using their User document.
- */
-export const getUserProfile = async (req, res) => {
-  try {
-    const userId = req.params.userId;
-
     const profile = await Profile.findOne({
       user: userId,
-    }).populate("user", "name email lastSeen");
+    }).populate("user", "name email profilePicture lastSeen isOnline");
 
     if (profile) {
       return res.status(200).json({
         success: true,
         profile,
+        isBasicProfile: false,
       });
     }
 
-    /*
-     * Fallback:
-     * User exists but has not created a Profile yet.
+    /**
+     * No Profile document yet.
+     * Build a safe fallback from the User document.
      */
     const user = await User.findById(userId).select(
-      "name email lastSeen"
+      "name email profilePicture bio skills github linkedin location experience lastSeen isOnline createdAt"
     );
 
     if (!user) {
@@ -140,12 +131,98 @@ export const getUserProfile = async (req, res) => {
       user,
       username: "",
       headline: "",
-      bio: "",
-      skills: [],
-      location: "",
+      bio: user.bio || "",
+      skills: Array.isArray(user.skills) ? user.skills : [],
+      location: user.location || "",
       availability: "",
       experience: [],
-      socialLinks: {},
+      projects: [],
+      socialLinks: {
+        github: user.github || "",
+        linkedin: user.linkedin || "",
+        portfolio: "",
+        twitter: "",
+      },
+    };
+
+    return res.status(200).json({
+      success: true,
+      profile: fallbackProfile,
+      isBasicProfile: true,
+    });
+  } catch (error) {
+    console.error("GET MY PROFILE ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to load profile",
+      error:
+        process.env.NODE_ENV === "development"
+          ? error.message
+          : undefined,
+    });
+  }
+};
+
+/**
+ * GET PUBLIC PROFILE
+ *
+ * If a Profile document exists, return it.
+ * Otherwise return a safe public profile based on User.
+ */
+export const getUserProfile = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid user ID",
+      });
+    }
+
+    const profile = await Profile.findOne({
+      user: userId,
+    }).populate(
+      "user",
+      "name email profilePicture lastSeen isOnline"
+    );
+
+    if (profile) {
+      return res.status(200).json({
+        success: true,
+        profile,
+        isBasicProfile: false,
+      });
+    }
+
+    const user = await User.findById(userId).select(
+      "name email profilePicture bio skills github linkedin location experience lastSeen isOnline createdAt"
+    );
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const fallbackProfile = {
+      user,
+      username: "",
+      headline: "",
+      bio: user.bio || "",
+      skills: Array.isArray(user.skills) ? user.skills : [],
+      location: user.location || "",
+      availability: "",
+      experience: [],
+      projects: [],
+      socialLinks: {
+        github: user.github || "",
+        linkedin: user.linkedin || "",
+        portfolio: "",
+        twitter: "",
+      },
     };
 
     return res.status(200).json({
@@ -156,9 +233,13 @@ export const getUserProfile = async (req, res) => {
   } catch (error) {
     console.error("GET PUBLIC PROFILE ERROR:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      message: error.message,
+      message: "Unable to load public profile",
+      error:
+        process.env.NODE_ENV === "development"
+          ? error.message
+          : undefined,
     });
   }
 };
@@ -169,18 +250,27 @@ export const getUserProfile = async (req, res) => {
 export const getAllProfiles = async (req, res) => {
   try {
     const profiles = await Profile.find()
-      .populate("user", "name email")
+      .populate(
+        "user",
+        "name email profilePicture lastSeen isOnline"
+      )
       .sort({ createdAt: -1 });
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       count: profiles.length,
       profiles,
     });
   } catch (error) {
-    res.status(500).json({
+    console.error("GET ALL PROFILES ERROR:", error);
+
+    return res.status(500).json({
       success: false,
-      message: error.message,
+      message: "Unable to load profiles",
+      error:
+        process.env.NODE_ENV === "development"
+          ? error.message
+          : undefined,
     });
   }
 };
@@ -188,14 +278,7 @@ export const getAllProfiles = async (req, res) => {
 /**
  * SEARCH PROFILES
  *
- * Supports searching across:
- * - username
- * - headline
- * - bio
- * - skills
- * - location
- *
- * Query params:
+ * Supports:
  * - skill
  * - name
  * - location
@@ -214,7 +297,10 @@ export const searchProfilesBySkill = async (req, res) => {
       sort,
     } = req.query;
 
-    const page = Math.max(Number(req.query.page) || 1, 1);
+    const page = Math.max(
+      Number(req.query.page) || 1,
+      1
+    );
 
     const limit = Math.min(
       Math.max(Number(req.query.limit) || 10, 1),
@@ -224,9 +310,9 @@ export const searchProfilesBySkill = async (req, res) => {
     const filter = {};
 
     /**
-     * GENERAL DEVELOPER SEARCH
+     * General developer search
      */
-    if (skill && skill.trim()) {
+    if (skill?.trim()) {
       const searchText = skill.trim();
 
       filter.$or = [
@@ -264,13 +350,19 @@ export const searchProfilesBySkill = async (req, res) => {
     }
 
     /**
-     * EXPLICIT NAME SEARCH
+     * Explicit name search
      */
-    if (name && name.trim()) {
+    if (name?.trim()) {
       const nameRegex = {
         $regex: name.trim(),
         $options: "i",
       };
+
+      const nameConditions = [
+        { username: nameRegex },
+        { headline: nameRegex },
+        { bio: nameRegex },
+      ];
 
       if (filter.$or) {
         filter.$and = [
@@ -278,28 +370,20 @@ export const searchProfilesBySkill = async (req, res) => {
             $or: filter.$or,
           },
           {
-            $or: [
-              { username: nameRegex },
-              { headline: nameRegex },
-              { bio: nameRegex },
-            ],
+            $or: nameConditions,
           },
         ];
 
         delete filter.$or;
       } else {
-        filter.$or = [
-          { username: nameRegex },
-          { headline: nameRegex },
-          { bio: nameRegex },
-        ];
+        filter.$or = nameConditions;
       }
     }
 
     /**
-     * LOCATION FILTER
+     * Location filter
      */
-    if (location && location.trim()) {
+    if (location?.trim()) {
       filter.location = {
         $regex: location.trim(),
         $options: "i",
@@ -307,60 +391,59 @@ export const searchProfilesBySkill = async (req, res) => {
     }
 
     /**
-     * AVAILABILITY FILTER
+     * Availability filter
      */
-    if (availability) {
-      filter.availability = availability;
+    if (availability?.trim()) {
+      filter.availability = availability.trim();
     }
 
     /**
-     * SORTING
+     * Sorting
      */
-    let sortOption = {
-      createdAt: -1,
-    };
-
-    if (sort === "oldest") {
-      sortOption = {
-        createdAt: 1,
-      };
-    }
-
-    if (sort === "newest") {
-      sortOption = {
-        createdAt: -1,
-      };
-    }
+    const sortOption =
+      sort === "oldest"
+        ? { createdAt: 1 }
+        : { createdAt: -1 };
 
     /**
-     * COUNT BEFORE PAGINATION
+     * Count
      */
-    const totalProfiles = await Profile.countDocuments(filter);
+    const totalProfiles =
+      await Profile.countDocuments(filter);
 
     /**
-     * FETCH PAGINATED RESULTS
+     * Paginated results
      */
     const profiles = await Profile.find(filter)
-      .populate("user", "name email")
+      .populate(
+        "user",
+        "name email profilePicture lastSeen isOnline"
+      )
       .sort(sortOption)
       .skip((page - 1) * limit)
       .limit(limit);
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       page,
       limit,
       totalProfiles,
-      totalPages: Math.ceil(totalProfiles / limit),
+      totalPages: Math.ceil(
+        totalProfiles / limit
+      ),
       count: profiles.length,
       profiles,
     });
   } catch (error) {
     console.error("SEARCH PROFILES ERROR:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      message: error.message,
+      message: "Unable to search profiles",
+      error:
+        process.env.NODE_ENV === "development"
+          ? error.message
+          : undefined,
     });
   }
 };
@@ -380,40 +463,55 @@ export const addExperience = async (req, res) => {
       description,
     } = req.body;
 
+    if (!title?.trim() || !company?.trim()) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Experience title and company are required",
+      });
+    }
+
     const profile = await Profile.findOne({
-      user: req.user.id,
+      user: req.user._id,
     });
 
     if (!profile) {
       return res.status(404).json({
         success: false,
-        message: "Profile not found",
+        message:
+          "Create your developer profile before adding experience",
       });
     }
 
     const newExperience = {
-      title,
-      company,
-      location,
+      title: title.trim(),
+      company: company.trim(),
+      location: location?.trim() || "",
       startDate,
       endDate,
-      current,
-      description,
+      current: Boolean(current),
+      description: description?.trim() || "",
     };
 
     profile.experience.unshift(newExperience);
 
     await profile.save();
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Experience added successfully",
       profile,
     });
   } catch (error) {
-    res.status(500).json({
+    console.error("ADD EXPERIENCE ERROR:", error);
+
+    return res.status(500).json({
       success: false,
-      message: error.message,
+      message: "Unable to add experience",
+      error:
+        process.env.NODE_ENV === "development"
+          ? error.message
+          : undefined,
     });
   }
 };
@@ -423,8 +521,24 @@ export const addExperience = async (req, res) => {
  */
 export const deleteExperience = async (req, res) => {
   try {
+    const { expId } = req.params;
+
+    if (!expId) {
+      return res.status(400).json({
+        success: false,
+        message: "Experience ID is required",
+      });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(expId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid experience ID",
+      });
+    }
+
     const profile = await Profile.findOne({
-      user: req.user.id,
+      user: req.user._id,
     });
 
     if (!profile) {
@@ -434,22 +548,18 @@ export const deleteExperience = async (req, res) => {
       });
     }
 
-    const expId = req.params.expId;
+    const originalLength =
+      profile.experience.length;
 
-    if (!expId) {
-      return res.status(400).json({
-        success: false,
-        message: "Experience ID is required",
-      });
-    }
+    profile.experience =
+      profile.experience.filter(
+        (experience) =>
+          experience._id.toString() !== expId
+      );
 
-    const originalLength = profile.experience.length;
-
-    profile.experience = profile.experience.filter(
-      (exp) => exp._id.toString() !== expId
-    );
-
-    if (profile.experience.length === originalLength) {
+    if (
+      profile.experience.length === originalLength
+    ) {
       return res.status(404).json({
         success: false,
         message: "Experience not found",
@@ -464,9 +574,15 @@ export const deleteExperience = async (req, res) => {
       profile,
     });
   } catch (error) {
+    console.error("DELETE EXPERIENCE ERROR:", error);
+
     return res.status(500).json({
       success: false,
-      message: error.message,
+      message: "Unable to delete experience",
+      error:
+        process.env.NODE_ENV === "development"
+          ? error.message
+          : undefined,
     });
   }
 };

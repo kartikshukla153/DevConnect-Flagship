@@ -25,6 +25,11 @@ import invitationRoutes from "./routes/invitation.routes.js";
 import activityRoutes from "./routes/activityRoutes.js";
 import taskCommentRoutes from "./routes/taskComment.routes.js";
 import repositoryRoutes from "./routes/repositoryRoutes.js";
+import { notFound, errorHandler } from "./middleware/errorHandler.js";
+import { generalRateLimiter } from "./middleware/rateLimiter.js";
+
+
+
 const app = express();
 
 // ==========================================
@@ -41,6 +46,7 @@ const __dirname = path.dirname(__filename);
 app.use(cors());
 
 app.use(express.json());
+app.use(generalRateLimiter);
 app.use("/api/ai-docs", aiDocsRoutes);
 app.use("/api/ai-code", aiCodeRoutes);
 app.use("/api/ai-chat", aiChatRoutes);
@@ -91,5 +97,7 @@ app.use("/api/ai", aiRoutes);
 app.get("/", (req, res) => {
   res.send("DevConnect API running...");
 });
+app.use(notFound);
+app.use(errorHandler);
 
 export default app;

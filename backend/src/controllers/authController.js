@@ -2,53 +2,117 @@ import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import generateToken from "../utils/generateToken.js";
 
+const SALT_ROUNDS = 12;
+
+const normalizeEmail = (email) => {
+  return String(email || "").trim().toLowerCase();
+};
+
+const sanitizeUser = (user) => ({
+  id: user._id,
+  name: user.name,
+  email: user.email,
+  role: user.role,
+  profilePicture: user.profilePicture,
+});
+
 /**
  * REGISTER USER
  */
 export const registerUser = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password } = req.body || {};
 
-    if (!name || !email || !password) {
+    const normalizedName = String(name || "").trim();
+    const normalizedEmail = normalizeEmail(email);
+
+    if (!normalizedName || !normalizedEmail || !password) {
       return res.status(400).json({
-        message: "All fields are required",
+        success: false,
+        message: "Name, email and password are required",
       });
     }
 
-    const existingUser = await User.findOne({ email });
+    if (normalizedName.length < 2 || normalizedName.length > 80) {
+      return res.status(400).json({
+        success: false,
+        message: "Name must be between 2 and 80 characters",
+      });
+    }
+
+    if (normalizedEmail.length > 254) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid email address",
+      });
+    }
+
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailPattern.test(normalizedEmail)) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide a valid email address",
+      });
+    }
+
+    if (typeof password !== "string" || password.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must be at least 8 characters",
+      });
+    }
+
+    if (password.length > 128) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must not exceed 128 characters",
+      });
+    }
+
+    const existingUser = await User.findOne({
+      email: normalizedEmail,
+    }).lean();
 
     if (existingUser) {
-      return res.status(400).json({
-        message: "User already exists",
+      return res.status(409).json({
+        success: false,
+        message: "An account with this email already exists",
       });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(
+      password,
+      SALT_ROUNDS
+    );
 
     const user = await User.create({
-      name,
-      email,
+      name: normalizedName,
+      email: normalizedEmail,
       password: hashedPassword,
     });
 
     const token = generateToken(user._id);
 
-    res.status(201).json({
+    return res.status(201).json({
+      success: true,
       message: "User registered successfully",
       token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        profilePicture: user.profilePicture,
-      },
+      user: sanitizeUser(user),
     });
   } catch (error) {
-    console.log("REGISTER ERROR:", error);
+    console.error("REGISTER ERROR:", error);
 
-    res.status(500).json({
-      message: error.message,
+    if (error?.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: "An account with this email already exists",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to create account",
     });
   }
 };
@@ -58,48 +122,64 @@ export const registerUser = async (req, res) => {
  */
 export const loginUser = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password } = req.body || {};
 
-    if (!email || !password) {
+    const normalizedEmail = normalizeEmail(email);
+
+    if (!normalizedEmail || !password) {
       return res.status(400).json({
-        message: "All fields are required",
+        success: false,
+        message: "Email and password are required",
       });
     }
 
-    const user = await User.findOne({ email });
+    if (
+      normalizedEmail.length > 254 ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide valid login credentials",
+      });
+    }
+
+   const user = await User.findOne({
+  email: normalizedEmail,
+}).select("+password");
 
     if (!user) {
-      return res.status(400).json({
-        message: "User not found",
+      return res.status(401).json({
+        success: false,
+        message: "Invalid email or password",
       });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
+    const isMatch = await bcrypt.compare(
+      password,
+      user.password
+    );
 
     if (!isMatch) {
-      return res.status(400).json({
-        message: "Invalid credentials",
+      return res.status(401).json({
+        success: false,
+        message: "Invalid email or password",
       });
     }
 
     const token = generateToken(user._id);
 
-    res.status(200).json({
+    return res.status(200).json({
+      success: true,
       message: "Login successful",
       token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        profilePicture: user.profilePicture,
-      },
+      user: sanitizeUser(user),
     });
   } catch (error) {
-    console.log("LOGIN ERROR:", error);
+    console.error("LOGIN ERROR:", error);
 
-    res.status(500).json({
-      message: error.message,
+    return res.status(500).json({
+      success: false,
+      message: "Unable to complete login",
     });
   }
 };
