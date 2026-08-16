@@ -6,6 +6,7 @@ import {
   createTask,
   getProjectTasks,
   assignTask,
+  updateTask,
   updateTaskStatus,
   deleteTask,
   getSingleTask,
@@ -43,6 +44,21 @@ router.get(
 );
 
 /**
+ * UPDATE TASK
+ *
+ * Updates core task information:
+ * - title
+ * - description
+ * - priority
+ * - deadline
+ */
+router.put(
+  "/:taskId",
+  authMiddleware,
+  updateTask
+);
+
+/**
  * SUBMIT TASK
  */
 router.post(
@@ -50,11 +66,16 @@ router.post(
   authMiddleware,
   submitTask
 );
+
+/**
+ * REVIEW TASK SUBMISSION
+ */
 router.put(
   "/review/:taskId",
   authMiddleware,
   reviewTaskSubmission
 );
+
 /**
  * ASSIGN TASK
  */

@@ -2,15 +2,17 @@ import Task from "../models/Task.js";
 import Project from "../models/project.js";
 import Activity from "../models/Activity.js";
 import Notification from "../models/Notification.js";
+
 import {
   emitTaskCreated,
   emitTaskUpdated,
   emitTaskDeleted,
   emitProjectActivity,
 } from "../socket/projectEvents.js";
+
 import { getIO } from "../socket/socket.js";
+
 /**
- * 
  * CREATE TASK
  */
 export const createTask = async (req, res) => {
@@ -79,14 +81,18 @@ export const createTask = async (req, res) => {
         .populate("assignedTo", "name email")
         .populate("createdBy", "name email");
 
-        await Activity.create({
-  project: task.project,
-  user: req.user._id,
-  type: "task_created",
-  message: `${req.user.name} created "${task.title}"`,
-});
+    await Activity.create({
+      project: task.project,
+      user: req.user._id,
+      type: "task_created",
+      message: `${req.user.name} created "${task.title}"`,
+    });
 
-emitTaskCreated(projectId, populatedTask);
+    emitTaskCreated(
+      projectId,
+      populatedTask
+    );
+
     return res.status(201).json({
       success: true,
       task: populatedTask,
@@ -101,14 +107,17 @@ emitTaskCreated(projectId, populatedTask);
 /**
  * GET PROJECT TASKS
  */
-
-export const getProjectTasks = async ( req,res)  =>{
+export const getProjectTasks = async (
+  req,
+  res
+) => {
   console.log("🔥 getProjectTasks reached");
- 
+
   try {
     const { projectId } = req.params;
 
-    const project = await Project.findById(projectId);
+    const project =
+      await Project.findById(projectId);
 
     if (!project) {
       return res.status(404).json({
@@ -148,7 +157,8 @@ export const assignTask = async (
     const { taskId } = req.params;
     const { assignedTo } = req.body;
 
-    const task = await Task.findById(taskId);
+    const task =
+      await Task.findById(taskId);
 
     if (!task) {
       return res.status(404).json({
@@ -156,9 +166,14 @@ export const assignTask = async (
       });
     }
 
-    const project = await Project.findById(
-      task.project
-    );
+    const project =
+      await Project.findById(task.project);
+
+    if (!project) {
+      return res.status(404).json({
+        message: "Project not found",
+      });
+    }
 
     const currentMember =
       project.members.find(
@@ -196,17 +211,23 @@ export const assignTask = async (
     task.assignedTo = assignedTo;
 
     await task.save();
+
     await Activity.create({
-  project: task.project,
-  user: req.user._id,
-  type: "task_assigned",
-  message: `${req.user.name} assigned task`,
-});
+      project: task.project,
+      user: req.user._id,
+      type: "task_assigned",
+      message: `${req.user.name} assigned "${task.title}"`,
+    });
 
     const updatedTask =
       await Task.findById(task._id)
         .populate("assignedTo", "name email")
         .populate("createdBy", "name email");
+
+    emitTaskUpdated(
+      task.project.toString(),
+      updatedTask
+    );
 
     return res.status(200).json({
       success: true,
@@ -219,6 +240,137 @@ export const assignTask = async (
     });
   }
 };
+
+/**
+ * UPDATE TASK
+ *
+ * Updates the core editable task information.
+ */
+export const updateTask = async (
+  req,
+  res
+) => {
+  try {
+    const { taskId } = req.params;
+
+    const {
+      title,
+      description,
+      priority,
+      deadline,
+    } = req.body;
+
+    const task =
+      await Task.findById(taskId);
+
+    if (!task) {
+      return res.status(404).json({
+        message: "Task not found",
+      });
+    }
+
+    const project =
+      await Project.findById(task.project);
+
+    if (!project) {
+      return res.status(404).json({
+        message: "Project not found",
+      });
+    }
+
+    const member =
+      project.members.find(
+        (member) =>
+          member.user.toString() ===
+          req.user._id.toString()
+      );
+
+    if (
+      !member ||
+      !["owner", "admin"].includes(
+        member.role
+      )
+    ) {
+      return res.status(403).json({
+        message:
+          "Only owner or admin can update task details",
+      });
+    }
+
+    if (
+      typeof title === "string" &&
+      title.trim()
+    ) {
+      task.title = title.trim();
+    }
+
+    if (
+      typeof description === "string"
+    ) {
+      task.description = description;
+    }
+
+    if (
+      priority &&
+      ["low", "medium", "high"].includes(
+        priority
+      )
+    ) {
+      task.priority = priority;
+    }
+
+    if (
+      deadline === null ||
+      deadline === ""
+    ) {
+      task.deadline = null;
+    } else if (deadline) {
+      task.deadline = deadline;
+    }
+
+    await task.save();
+
+    const updatedTask =
+      await Task.findById(task._id)
+        .populate(
+          "assignedTo",
+          "name email"
+        )
+        .populate(
+          "createdBy",
+          "name email"
+        );
+
+    await Activity.create({
+      project: task.project,
+      user: req.user._id,
+      type: "task_updated",
+      message: `${req.user.name} updated "${task.title}"`,
+    });
+
+    emitTaskUpdated(
+      task.project.toString(),
+      updatedTask
+    );
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "Task updated successfully",
+      task: updatedTask,
+    });
+  } catch (error) {
+    console.error(
+      "UPDATE TASK ERROR:",
+      error
+    );
+
+    return res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
 /**
  * UPDATE TASK STATUS
  */
@@ -245,7 +397,8 @@ export const updateTaskStatus = async (
       });
     }
 
-    const task = await Task.findById(taskId);
+    const task =
+      await Task.findById(taskId);
 
     if (!task) {
       return res.status(404).json({
@@ -253,15 +406,21 @@ export const updateTaskStatus = async (
       });
     }
 
-    const project = await Project.findById(
-      task.project
-    );
+    const project =
+      await Project.findById(task.project);
 
-    const member = project.members.find(
-      (member) =>
-        member.user.toString() ===
-        req.user._id.toString()
-    );
+    if (!project) {
+      return res.status(404).json({
+        message: "Project not found",
+      });
+    }
+
+    const member =
+      project.members.find(
+        (member) =>
+          member.user.toString() ===
+          req.user._id.toString()
+      );
 
     if (!member) {
       return res.status(403).json({
@@ -273,13 +432,13 @@ export const updateTaskStatus = async (
     task.status = status;
 
     await task.save();
-    
+
     await Activity.create({
-  project: task.project,
-  user: req.user._id,
-  type: "task_status_updated",
-  message: `${req.user.name} moved "${task.title}" to ${status}`,
-});
+      project: task.project,
+      user: req.user._id,
+      type: "task_status_updated",
+      message: `${req.user.name} moved "${task.title}" to ${status}`,
+    });
 
     const updatedTask =
       await Task.findById(task._id)
@@ -291,17 +450,43 @@ export const updateTaskStatus = async (
           "createdBy",
           "name email"
         );
-console.log("========== EMITTING ==========");
-console.log("Project:", task.project.toString());
-console.log("Socket rooms:");
 
-const io = getIO();
+    console.log(
+      "========== EMITTING =========="
+    );
 
-console.log(io.sockets.adapter.rooms);
-console.log("CONTROLLER EMITTING");
-console.log(task.project.toString());
-console.log(updatedTask.title);
-emitTaskUpdated(task.project.toString(), updatedTask);
+    console.log(
+      "Project:",
+      task.project.toString()
+    );
+
+    console.log(
+      "Socket rooms:"
+    );
+
+    const io = getIO();
+
+    console.log(
+      io.sockets.adapter.rooms
+    );
+
+    console.log(
+      "CONTROLLER EMITTING"
+    );
+
+    console.log(
+      task.project.toString()
+    );
+
+    console.log(
+      updatedTask.title
+    );
+
+    emitTaskUpdated(
+      task.project.toString(),
+      updatedTask
+    );
+
     return res.status(200).json({
       success: true,
       message:
@@ -313,7 +498,8 @@ emitTaskUpdated(task.project.toString(), updatedTask);
       message: error.message,
     });
   }
-}; 
+};
+
 /**
  * DELETE TASK
  */
@@ -324,7 +510,8 @@ export const deleteTask = async (
   try {
     const { taskId } = req.params;
 
-    const task = await Task.findById(taskId);
+    const task =
+      await Task.findById(taskId);
 
     if (!task) {
       return res.status(404).json({
@@ -332,19 +519,27 @@ export const deleteTask = async (
       });
     }
 
-    const project = await Project.findById(
-      task.project
-    );
+    const project =
+      await Project.findById(task.project);
 
-    const member = project.members.find(
-      (member) =>
-        member.user.toString() ===
-        req.user._id.toString()
-    );
+    if (!project) {
+      return res.status(404).json({
+        message: "Project not found",
+      });
+    }
+
+    const member =
+      project.members.find(
+        (member) =>
+          member.user.toString() ===
+          req.user._id.toString()
+      );
 
     if (
       !member ||
-      !["owner", "admin"].includes(member.role)
+      !["owner", "admin"].includes(
+        member.role
+      )
     ) {
       return res.status(403).json({
         message:
@@ -353,29 +548,38 @@ export const deleteTask = async (
     }
 
     await Activity.create({
-  project: task.project,
-  user: req.user._id,
-  type: "task_deleted",
-  message: `${req.user.name} created "${title}"`,
-});
+      project: task.project,
+      user: req.user._id,
+      type: "task_deleted",
+      message: `${req.user.name} deleted "${task.title}"`,
+    });
 
-    await Task.findByIdAndDelete(taskId);
+    await Task.findByIdAndDelete(
+      taskId
+    );
+
     emitTaskDeleted(
-  task.project.toString(),
-  taskId
-);
+      task.project.toString(),
+      taskId
+    );
 
     return res.status(200).json({
       success: true,
-      message: "Task deleted successfully",
+      message:
+        "Task deleted successfully",
     });
   } catch (error) {
+    console.error(
+      "DELETE TASK ERROR:",
+      error
+    );
+
     return res.status(500).json({
       message: error.message,
     });
-
-} 
+  }
 };
+
 /**
  * GET SINGLE TASK
  */
@@ -386,15 +590,16 @@ export const getSingleTask = async (
   try {
     const { taskId } = req.params;
 
-    const task = await Task.findById(taskId)
-      .populate(
-        "assignedTo",
-        "name email"
-      )
-      .populate(
-        "createdBy",
-        "name email"
-      );
+    const task =
+      await Task.findById(taskId)
+        .populate(
+          "assignedTo",
+          "name email"
+        )
+        .populate(
+          "createdBy",
+          "name email"
+        );
 
     if (!task) {
       return res.status(404).json({
@@ -402,15 +607,21 @@ export const getSingleTask = async (
       });
     }
 
-    const project = await Project.findById(
-      task.project
-    );
+    const project =
+      await Project.findById(task.project);
 
-    const member = project.members.find(
-      (member) =>
-        member.user.toString() ===
-        req.user._id.toString()
-    );
+    if (!project) {
+      return res.status(404).json({
+        message: "Project not found",
+      });
+    }
+
+    const member =
+      project.members.find(
+        (member) =>
+          member.user.toString() ===
+          req.user._id.toString()
+      );
 
     if (!member) {
       return res.status(403).json({
@@ -429,10 +640,14 @@ export const getSingleTask = async (
     });
   }
 };
+
 /**
  * SUBMIT TASK
  */
-export const submitTask = async (req, res) => {
+export const submitTask = async (
+  req,
+  res
+) => {
   try {
     const { taskId } = req.params;
 
@@ -443,7 +658,8 @@ export const submitTask = async (req, res) => {
       notes,
     } = req.body;
 
-    const task = await Task.findById(taskId);
+    const task =
+      await Task.findById(taskId);
 
     if (!task) {
       return res.status(404).json({
@@ -454,7 +670,8 @@ export const submitTask = async (req, res) => {
 
     if (
       !task.assignedTo ||
-      task.assignedTo.toString() !== req.user._id.toString()
+      task.assignedTo.toString() !==
+        req.user._id.toString()
     ) {
       return res.status(403).json({
         success: false,
@@ -462,21 +679,36 @@ export const submitTask = async (req, res) => {
           "Only the assigned developer can submit this task",
       });
     }
-task.submission.githubPR = githubPR;
-task.submission.githubCommit = githubCommit;
-task.submission.liveLink = liveLink;
-task.submission.notes = notes;
 
-task.submission.submittedBy = req.user._id;
-task.submission.submittedAt = new Date();
-task.submission.status = "pending";
+    task.submission.githubPR =
+      githubPR;
+
+    task.submission.githubCommit =
+      githubCommit;
+
+    task.submission.liveLink =
+      liveLink;
+
+    task.submission.notes =
+      notes;
+
+    task.submission.submittedBy =
+      req.user._id;
+
+    task.submission.submittedAt =
+      new Date();
+
+    task.submission.status =
+      "pending";
 
     task.status = "review";
-task.submission.history.push({
-  action: "submitted",
-  user: req.user._id,
-  comment: notes || "",
-});
+
+    task.submission.history.push({
+      action: "submitted",
+      user: req.user._id,
+      comment: notes || "",
+    });
+
     await task.save();
 
     await Activity.create({
@@ -486,13 +718,15 @@ task.submission.history.push({
       message: `${req.user.name} submitted "${task.title}"`,
     });
 
-    const project = await Project.findById(task.project);
+    const project =
+      await Project.findById(task.project);
 
-    const ownersAndAdmins = project.members.filter(
-      (member) =>
-        member.role === "owner" ||
-        member.role === "admin"
-    );
+    const ownersAndAdmins =
+      project.members.filter(
+        (member) =>
+          member.role === "owner" ||
+          member.role === "admin"
+      );
 
     for (const member of ownersAndAdmins) {
       await Notification.create({
@@ -504,9 +738,15 @@ task.submission.history.push({
       });
     }
 
+    emitTaskUpdated(
+      project._id.toString(),
+      task
+    );
+
     return res.status(200).json({
       success: true,
-      message: "Task submitted successfully",
+      message:
+        "Task submitted successfully",
       submission: task.submission,
     });
   } catch (error) {
@@ -516,108 +756,149 @@ task.submission.history.push({
     });
   }
 };
+
 /**
  * REVIEW TASK SUBMISSION
  */
-export const reviewTaskSubmission = async (req, res) => {
-  try {
-    const { taskId } = req.params;
-    const { status, reviewComment } = req.body;
+export const reviewTaskSubmission =
+  async (req, res) => {
+    try {
+      const { taskId } = req.params;
 
-    if (!["approved", "rejected"].includes(status)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid review status",
+      const {
+        status,
+        reviewComment,
+      } = req.body;
+
+      if (
+        !["approved", "rejected"].includes(
+          status
+        )
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Invalid review status",
+        });
+      }
+
+      const task =
+        await Task.findById(taskId);
+
+      if (!task) {
+        return res.status(404).json({
+          success: false,
+          message: "Task not found",
+        });
+      }
+
+      const project =
+        await Project.findById(
+          task.project
+        );
+
+      if (!project) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Project not found",
+        });
+      }
+
+      const reviewer =
+        project.members.find(
+          (member) =>
+            member.user.toString() ===
+            req.user._id.toString()
+        );
+
+      if (
+        !reviewer ||
+        !["owner", "admin"].includes(
+          reviewer.role
+        )
+      ) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "Only owner/admin can review submissions",
+        });
+      }
+
+      task.submission.status =
+        status;
+
+      task.submission.reviewComment =
+        reviewComment || "";
+
+      task.submission.reviewedBy =
+        req.user._id;
+
+      task.submission.reviewedAt =
+        new Date();
+
+      if (status === "approved") {
+        task.status = "completed";
+        task.completedAt =
+          new Date();
+      } else {
+        task.status = "in-progress";
+      }
+
+      task.submission.history.push({
+        action: status,
+        user: req.user._id,
+        comment:
+          reviewComment || "",
       });
-    }
 
-    const task = await Task.findById(taskId);
+      await task.save();
 
-    if (!task) {
-      return res.status(404).json({
-        success: false,
-        message: "Task not found",
-      });
-    }
-
-    const project = await Project.findById(task.project);
-
-    const reviewer = project.members.find(
-      (member) =>
-        member.user.toString() === req.user._id.toString()
-    );
-
-    if (
-      !reviewer ||
-      !["owner", "admin"].includes(reviewer.role)
-    ) {
-      return res.status(403).json({
-        success: false,
+      await Activity.create({
+        project: task.project,
+        user: req.user._id,
+        type:
+          status === "approved"
+            ? "task_submission_approved"
+            : "task_submission_rejected",
         message:
-          "Only owner/admin can review submissions",
+          status === "approved"
+            ? `${req.user.name} approved "${task.title}"`
+            : `${req.user.name} requested changes on "${task.title}"`,
+      });
+
+      if (task.assignedTo) {
+        await Notification.create({
+          recipient:
+            task.assignedTo,
+          sender: req.user._id,
+          type:
+            status === "approved"
+              ? "task_submission_approved"
+              : "task_submission_rejected",
+          message:
+            status === "approved"
+              ? `Your submission for "${task.title}" was approved`
+              : `Your submission for "${task.title}" was rejected`,
+          relatedProject:
+            project._id,
+        });
+      }
+
+      emitTaskUpdated(
+        project._id.toString(),
+        task
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: `Submission ${status}`,
+        task,
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: error.message,
       });
     }
-
-    task.submission.status = status;
-    task.submission.reviewComment =
-      reviewComment || "";
-    task.submission.reviewedBy = req.user._id;
-    task.submission.reviewedAt = new Date();
-
-    if (status === "approved") {
-      task.status = "completed";
-      task.completedAt = new Date();
-    } else {
-      task.status = "in-progress";
-    }
-task.submission.history.push({
-  action: status,
-  user: req.user._id,
-  comment: reviewComment || "",
-});
-    await task.save();
-
-    await Activity.create({
-      project: task.project,
-      user: req.user._id,
-      type:
-        status === "approved"
-          ? "task_submission_approved"
-          : "task_submission_rejected",
-      message:
-  status === "approved"
-    ? `${req.user.name} approved "${task.title}"`
-    : `${req.user.name} requested changes on "${task.title}"`,
-    });
-
-    await Notification.create({
-      recipient: task.assignedTo,
-      sender: req.user._id,
-      type:
-        status === "approved"
-          ? "task_submission_approved"
-          : "task_submission_rejected",
-      message:
-        status === "approved"
-          ? `Your submission for "${task.title}" was approved`
-          : `Your submission for "${task.title}" was rejected`,
-      relatedProject: project._id,
-    });
-
-    emitTaskUpdated(
-      project._id.toString(),
-      task
-    );
-
-    return res.status(200).json({
-      success: true,
-      message: `Submission ${status}`,
-      task,
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-};
+  };
