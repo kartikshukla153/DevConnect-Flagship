@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import useAuth from "../hooks/useAuth";
@@ -21,9 +21,7 @@ import ProjectMembersCard from "../components/workspace/ProjectMembersCard";
 import ActivityFeed from "../components/workspace/ActivityFeed";
 import GitHubRepositoryCard from "../components/workspace/GitHubRepositoryCard";
 
-import {
-  connectProjectSocket,
-} from "../socket/projectSocket";
+import { connectProjectSocket } from "../socket/projectSocket";
 
 const API = "http://localhost:5000/api";
 
@@ -39,7 +37,6 @@ function ProjectWorkspace() {
   const [tasks, setTasks] = useState([]);
 
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
 
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
@@ -63,119 +60,178 @@ function ProjectWorkspace() {
   const [deleting, setDeleting] =
     useState(false);
 
-  const [refreshing, setRefreshing] =
-    useState(false);
-
   /*
-   * ============================
-   * LOAD WORKSPACE
-   * ============================
-   */
+  ============================================================
+  LOAD TASKS ONLY
+  ============================================================
+  */
 
-  const loadWorkspace = useCallback(
-    async ({ initial = false } = {}) => {
-      if (!id || !token) return;
+  async function loadTasks() {
+    try {
+      const response = await axios.get(
+        `${API}/tasks/project/${id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
-      try {
-        if (initial) {
-          setLoading(true);
-        } else {
-          setRefreshing(true);
+      const latestTasks = response.data?.tasks || [];
+
+      console.log(
+        "✅ TASKS REFRESHED:",
+        latestTasks
+      );
+
+      setTasks(latestTasks);
+
+      /*
+      Keep the currently opened drawer synchronized
+      with the latest backend task.
+      */
+
+      setSelectedTask((currentTask) => {
+        if (!currentTask) {
+          return null;
         }
 
-        setError("");
-
-        const headers = {
-          Authorization: `Bearer ${token}`,
-        };
-
-        const [projectRes, taskRes] =
-          await Promise.all([
-            axios.get(
-              `${API}/projects/${id}`,
-              {
-                headers,
-              }
-            ),
-
-            axios.get(
-              `${API}/tasks/project/${id}`,
-              {
-                headers,
-              }
-            ),
-          ]);
-
-        setProject(projectRes.data);
-
-        setTasks(
-          Array.isArray(taskRes.data?.tasks)
-            ? taskRes.data.tasks
-            : []
-        );
-      } catch (err) {
-        console.error(
-          "Failed to load workspace:",
-          err
+        const updatedTask = latestTasks.find(
+          (task) =>
+            String(task._id) ===
+            String(currentTask._id)
         );
 
-        const status =
-          err.response?.status;
+        /*
+        Task was deleted.
+        */
 
-        if (
-          status === 401 ||
-          status === 403
-        ) {
-          setError(
-            "Your session has expired. Please log in again."
-          );
-        } else if (status === 404) {
-          setError(
-            "This project could not be found."
-          );
-        } else {
-          setError(
-            err.response?.data?.message ||
-              "Unable to load the workspace. Please try again."
-          );
+        if (!updatedTask) {
+          setDrawerOpen(false);
+          return null;
         }
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    },
-    [id, token]
-  );
+
+        /*
+        Task still exists.
+        Replace stale task object with
+        the freshly fetched backend object.
+        */
+
+        return updatedTask;
+      });
+
+      return latestTasks;
+    } catch (err) {
+      console.error(
+        "LOAD TASKS ERROR:",
+        err
+      );
+
+      return [];
+    }
+  }
 
   /*
-   * ============================
-   * INITIAL LOAD
-   * ============================
-   */
+  ============================================================
+  LOAD COMPLETE WORKSPACE
+  ============================================================
+  */
+
+  async function loadWorkspace() {
+    try {
+      setLoading(true);
+
+      const headers = {
+        Authorization: `Bearer ${token}`,
+      };
+
+      const [projectRes, taskRes] =
+        await Promise.all([
+          axios.get(
+            `${API}/projects/${id}`,
+            {
+              headers,
+            }
+          ),
+
+          axios.get(
+            `${API}/tasks/project/${id}`,
+            {
+              headers,
+            }
+          ),
+        ]);
+
+      console.log(
+        "✅ PROJECT LOADED:",
+        projectRes.data
+      );
+
+      console.log(
+        "✅ TASKS LOADED:",
+        taskRes.data
+      );
+
+      const latestTasks =
+        taskRes.data?.tasks || [];
+
+      setProject(projectRes.data);
+
+      setTasks(latestTasks);
+
+      /*
+      If a task drawer was already open,
+      synchronize it with the fresh backend task.
+      */
+
+      setSelectedTask((currentTask) => {
+        if (!currentTask) {
+          return null;
+        }
+
+        const updatedTask =
+          latestTasks.find(
+            (task) =>
+              String(task._id) ===
+              String(currentTask._id)
+          );
+
+        if (!updatedTask) {
+          setDrawerOpen(false);
+          return null;
+        }
+
+        return updatedTask;
+      });
+    } catch (err) {
+      console.error(
+        "LOAD WORKSPACE ERROR:",
+        err
+      );
+
+      setProject(null);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  /*
+  ============================================================
+  INITIAL WORKSPACE LOAD
+  ============================================================
+  */
 
   useEffect(() => {
-    let cancelled = false;
+    if (!id) return;
 
-    const load = async () => {
-      if (cancelled) return;
-
-      await loadWorkspace({
-        initial: true,
-      });
-    };
-
-    load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [loadWorkspace]);
+    loadWorkspace();
+  }, [id]);
 
   /*
-   * ============================
-   * REAL-TIME PROJECT SOCKET
-   * ============================
-   */
+  ============================================================
+  PROJECT SOCKET
+  ============================================================
+  */
 
   useEffect(() => {
     if (!user?.id || !id) return;
@@ -188,18 +244,11 @@ function ProjectWorkspace() {
         "join_project",
         id
       );
-    };
 
-    const handleTaskCreated = () => {
-      loadWorkspace();
-    };
-
-    const handleTaskUpdated = () => {
-      loadWorkspace();
-    };
-
-    const handleTaskDeleted = () => {
-      loadWorkspace();
+      console.log(
+        "📁 Joined Project Room:",
+        id
+      );
     };
 
     if (socket.connected) {
@@ -210,6 +259,42 @@ function ProjectWorkspace() {
         joinRoom
       );
     }
+
+    /*
+    Task created by another client/member
+    */
+
+    const handleTaskCreated = () => {
+      console.log(
+        "🟢 SOCKET: task_created"
+      );
+
+      loadTasks();
+    };
+
+    /*
+    Task updated by another client/member
+    */
+
+    const handleTaskUpdated = () => {
+      console.log(
+        "🟡 SOCKET: task_updated"
+      );
+
+      loadTasks();
+    };
+
+    /*
+    Task deleted by another client/member
+    */
+
+    const handleTaskDeleted = () => {
+      console.log(
+        "🔴 SOCKET: task_deleted"
+      );
+
+      loadTasks();
+    };
 
     socket.on(
       "task_created",
@@ -252,18 +337,18 @@ function ProjectWorkspace() {
         joinRoom
       );
     };
-  }, [id, user?.id, loadWorkspace]);
+  }, [id, user?.id]);
 
   /*
-   * ============================
-   * DELETE PROJECT
-   * ============================
-   */
+  ============================================================
+  DELETE PROJECT
+  ============================================================
+  */
 
   async function deleteProject() {
     const confirmed =
       window.confirm(
-        "Delete this project permanently?\n\nAll project tasks, activities and related workspace data may be removed. This action cannot be undone."
+        "Delete this project permanently?\n\nThis will delete every task, activity and cannot be undone."
       );
 
     if (!confirmed) return;
@@ -280,12 +365,14 @@ function ProjectWorkspace() {
         }
       );
 
-      navigate("/projects", {
-        replace: true,
-      });
+      alert(
+        "Project deleted successfully."
+      );
+
+      navigate("/projects");
     } catch (err) {
       console.error(
-        "Failed to delete project:",
+        "DELETE PROJECT ERROR:",
         err
       );
 
@@ -299,54 +386,36 @@ function ProjectWorkspace() {
   }
 
   /*
-   * ============================
-   * FILTER / SEARCH / SORT
-   * ============================
-   */
+  ============================================================
+  FILTER + SEARCH + SORT
+  ============================================================
+  */
 
   const filteredTasks = useMemo(() => {
     let list = [...tasks];
 
-    const normalizedSearch =
-      search.trim().toLowerCase();
+    /*
+    SEARCH
+    */
 
-    if (normalizedSearch) {
+    if (search.trim()) {
+      const query =
+        search.toLowerCase();
+
       list = list.filter(
-        (task) => {
-          const title =
-            task.title?.toLowerCase() || "";
-
-          const description =
-            task.description?.toLowerCase() ||
-            "";
-
-          const labels = Array.isArray(
-            task.labels
-          )
-            ? task.labels.join(" ").toLowerCase()
-            : "";
-
-          const assignee =
-            task.assignedTo?.name
-              ?.toLowerCase() || "";
-
-          return (
-            title.includes(
-              normalizedSearch
-            ) ||
-            description.includes(
-              normalizedSearch
-            ) ||
-            labels.includes(
-              normalizedSearch
-            ) ||
-            assignee.includes(
-              normalizedSearch
-            )
-          );
-        }
+        (task) =>
+          task.title
+            ?.toLowerCase()
+            .includes(query) ||
+          task.description
+            ?.toLowerCase()
+            .includes(query)
       );
     }
+
+    /*
+    FILTER
+    */
 
     if (filter === "high") {
       list = list.filter(
@@ -359,6 +428,10 @@ function ProjectWorkspace() {
           task.status === filter
       );
     }
+
+    /*
+    SORT
+    */
 
     switch (sort) {
       case "oldest":
@@ -387,34 +460,22 @@ function ProjectWorkspace() {
 
       case "deadline":
         list.sort(
-          (a, b) => {
-            const first =
-              a.deadline
-                ? new Date(
-                    a.deadline
-                  ).getTime()
-                : Infinity;
-
-            const second =
-              b.deadline
-                ? new Date(
-                    b.deadline
-                  ).getTime()
-                : Infinity;
-
-            return first - second;
-          }
+          (a, b) =>
+            new Date(
+              a.deadline || 0
+            ) -
+            new Date(
+              b.deadline || 0
+            )
         );
         break;
 
-      case "newest":
       default:
         list.sort(
           (a, b) =>
             new Date(b.createdAt) -
             new Date(a.createdAt)
         );
-        break;
     }
 
     return list;
@@ -426,10 +487,10 @@ function ProjectWorkspace() {
   ]);
 
   /*
-   * ============================
-   * TASK DRAWER
-   * ============================
-   */
+  ============================================================
+  OPEN TASK
+  ============================================================
+  */
 
   function openTask(task) {
     setSelectedTask(task);
@@ -437,108 +498,38 @@ function ProjectWorkspace() {
   }
 
   /*
-   * ============================
-   * LOADING STATE
-   * ============================
-   */
+  ============================================================
+  LOADING
+  ============================================================
+  */
 
   if (loading) {
     return (
-      <div className="flex min-h-[70vh] items-center justify-center">
-        <div className="text-center">
-          <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-white/10 border-t-cyan-400" />
-
-          <p className="mt-4 text-sm font-medium text-slate-300">
-            Loading workspace
-          </p>
-
-          <p className="mt-1 text-xs text-slate-500">
-            Preparing your project environment...
-          </p>
-        </div>
+      <div className="flex h-[70vh] items-center justify-center text-gray-400">
+        Loading Workspace...
       </div>
     );
   }
 
   /*
-   * ============================
-   * ERROR STATE
-   * ============================
-   */
-
-  if (error && !project) {
-    return (
-      <div className="flex min-h-[70vh] items-center justify-center">
-        <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#111827] p-8 text-center shadow-2xl">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-red-500/10 text-red-400">
-            !
-          </div>
-
-          <h2 className="mt-5 text-xl font-semibold text-white">
-            Unable to open workspace
-          </h2>
-
-          <p className="mt-3 text-sm leading-6 text-slate-400">
-            {error}
-          </p>
-
-          <div className="mt-6 flex justify-center gap-3">
-            <button
-              onClick={() =>
-                loadWorkspace({
-                  initial: true,
-                })
-              }
-              className="rounded-xl bg-cyan-400 px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300"
-            >
-              Try again
-            </button>
-
-            <button
-              onClick={() =>
-                navigate("/projects")
-              }
-              className="rounded-xl border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-semibold text-slate-200 transition hover:bg-white/10"
-            >
-              Back to projects
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  ============================================================
+  PROJECT NOT FOUND
+  ============================================================
+  */
 
   if (!project) {
     return (
-      <div className="flex min-h-[70vh] items-center justify-center">
-        <div className="rounded-3xl border border-white/10 bg-[#111827] px-8 py-10 text-center">
-          <h2 className="text-xl font-semibold text-white">
-            Project not found
-          </h2>
-
-          <p className="mt-2 text-sm text-slate-500">
-            The workspace may have been removed or
-            you may no longer have access.
-          </p>
-
-          <button
-            onClick={() =>
-              navigate("/projects")
-            }
-            className="mt-6 rounded-xl bg-cyan-400 px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300"
-          >
-            Back to projects
-          </button>
-        </div>
+      <div className="flex h-[70vh] items-center justify-center text-red-400">
+        Project not found
       </div>
     );
   }
 
   /*
-   * ============================
-   * WORKSPACE
-   * ============================
-   */
+  ============================================================
+  UI
+  ============================================================
+  */
 
   return (
     <>
@@ -563,56 +554,25 @@ function ProjectWorkspace() {
           }
           onShare={async () => {
             try {
-              if (
-                navigator.share
-              ) {
-                await navigator.share({
-                  title:
-                    project.title ||
-                    "DevConnect Project",
-                  text:
-                    project.description ||
-                    "DevConnect project workspace",
-                  url:
-                    window.location.href,
-                });
-
-                return;
-              }
-
               await navigator.clipboard.writeText(
                 window.location.href
               );
 
               alert(
-                "Workspace link copied."
+                "✅ Workspace link copied."
               );
             } catch (err) {
-              if (
-                err?.name ===
-                "AbortError"
-              ) {
-                return;
-              }
-
-              try {
-                await navigator.clipboard.writeText(
-                  window.location.href
-                );
-
-                alert(
-                  "Workspace link copied."
-                );
-              } catch {
-                alert(
-                  "Unable to share this workspace right now."
-                );
-              }
+              console.error(
+                "SHARE ERROR:",
+                err
+              );
             }
           }}
-          onOpenAI={() =>
-            navigate("/ai")
-          }
+          onOpenAI={() => {
+            alert(
+              "AI Workspace coming soon"
+            );
+          }}
           onDelete={
             project.creator?._id ===
             user?.id
@@ -622,28 +582,14 @@ function ProjectWorkspace() {
           deleting={deleting}
         />
 
-        <div className="relative">
-          <WorkspaceToolbar
-            search={search}
-            setSearch={setSearch}
-            filter={filter}
-            setFilter={setFilter}
-            sort={sort}
-            setSort={setSort}
-          />
-
-          {refreshing && (
-            <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2">
-              <div className="h-4 w-4 animate-spin rounded-full border border-white/10 border-t-cyan-400" />
-            </div>
-          )}
-        </div>
-
-        {error && (
-          <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/5 px-4 py-3 text-sm text-yellow-300">
-            {error}
-          </div>
-        )}
+        <WorkspaceToolbar
+          search={search}
+          setSearch={setSearch}
+          filter={filter}
+          setFilter={setFilter}
+          sort={sort}
+          setSort={setSort}
+        />
 
         <WorkspaceStats
           tasks={tasks}
@@ -665,7 +611,7 @@ function ProjectWorkspace() {
           <div className="col-span-12 xl:col-span-7">
             <KanbanBoard
               tasks={filteredTasks}
-              reloadTasks={loadWorkspace}
+              reloadTasks={loadTasks}
               onTaskClick={openTask}
             />
           </div>
@@ -701,7 +647,6 @@ function ProjectWorkspace() {
           </div>
 
         </div>
-
       </div>
 
       {/* CREATE TASK */}
@@ -712,10 +657,10 @@ function ProjectWorkspace() {
           setOpenCreateModal(false)
         }
         projectId={id}
-        reloadTasks={loadWorkspace}
+        reloadTasks={loadTasks}
       />
 
-      {/* INVITE MEMBER */}
+      {/* INVITE */}
 
       <InviteMemberModal
         open={inviteOpen}
@@ -734,7 +679,9 @@ function ProjectWorkspace() {
           setEditProjectOpen(false)
         }
         project={project}
-        refreshProject={loadWorkspace}
+        refreshProject={
+          loadWorkspace
+        }
       />
 
       {/* TASK DETAILS */}
@@ -742,7 +689,7 @@ function ProjectWorkspace() {
       <TaskDetailsDrawer
         open={drawerOpen}
         task={selectedTask}
-        reloadTasks={loadWorkspace}
+        reloadTasks={loadTasks}
         onClose={() =>
           setDrawerOpen(false)
         }

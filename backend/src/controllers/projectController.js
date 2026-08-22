@@ -4,61 +4,93 @@ import Task from "../models/Task.js";
 import Activity from "../models/Activity.js";
 import User from "../models/User.js";
 import axios from "axios";
+
+/* =========================================================
+   ACTIVITY HELPER
+========================================================= */
+
+async function createActivity({
+  project,
+  user,
+  type,
+  message,
+}) {
+  try {
+    await Activity.create({
+      project,
+      user,
+      type,
+      message,
+    });
+  } catch (error) {
+    console.error(
+      "Activity creation failed:",
+      error.message
+    );
+  }
+}
+
+/* =========================================================
+   CREATE PROJECT
+========================================================= */
+
 export const createProject = async (req, res) => {
   try {
     const {
-  title,
-  description,
-  overview,
-  techStack,
-  rolesNeeded,
-  status,
-  githubRepo,
-  liveLink,
-  difficulty,
-  estimatedWeeks,
-} = req.body;
-console.log(req.body);
+      title,
+      description,
+      overview,
+      techStack,
+      rolesNeeded,
+      status,
+      githubRepo,
+      liveLink,
+      difficulty,
+      estimatedWeeks,
+    } = req.body;
+
+    console.log(req.body);
+
     const newProject = new Project({
+      creator: req.user.id,
 
-  creator: req.user.id,
+      title,
+      description,
+      overview,
 
-  title,
-  description,
-  overview,
+      techStack,
 
-  techStack,
+      rolesNeeded,
 
-  rolesNeeded,
+      status,
 
-  status,
+      githubRepo,
 
-  githubRepo,
+      liveLink,
 
-  liveLink,
+      difficulty,
 
-  difficulty,
+      estimatedWeeks,
 
-  estimatedWeeks,
+      members: [
+        {
+          user: req.user.id,
+          role: "owner",
+        },
+      ],
+    });
 
-  members: [
-    {
+    const savedProject =
+      await newProject.save();
+
+    await createActivity({
+      project: savedProject._id,
       user: req.user.id,
-      role: "owner",
-    },
-  ],
-});
+      type: "project_created",
+      message: `${req.user.name} created the project "${savedProject.title}"`,
+    });
 
-   const savedProject = await newProject.save();
-
-await Activity.create({
-  project: savedProject._id,
-  user: req.user.id,
-  type: "project_created",
-  message: `${req.user.name} created the project "${savedProject.title}"`,
-});
-
-res.status(201).json(savedProject);
+    res.status(201).json(savedProject);
   } catch (error) {
     res.status(500).json({
       message: "Server Error",
@@ -67,10 +99,14 @@ res.status(201).json(savedProject);
   }
 };
 
-/**
- * GET ALL PROJECTS
- */
-export const getAllProjects = async (req, res) => {
+/* =========================================================
+   GET ALL PROJECTS
+========================================================= */
+
+export const getAllProjects = async (
+  req,
+  res
+) => {
   try {
     const projects = await Project.find()
       .populate("creator", "name email")
@@ -85,14 +121,25 @@ export const getAllProjects = async (req, res) => {
   }
 };
 
-/**
- * GET SINGLE PROJECT
- */
-export const getSingleProject = async (req, res) => {
+/* =========================================================
+   GET SINGLE PROJECT
+========================================================= */
+
+export const getSingleProject = async (
+  req,
+  res
+) => {
   try {
-    const project = await Project.findById(req.params.id)
-      .populate("creator", "name email")
-      .populate("members.user", "name email");
+    const project =
+      await Project.findById(req.params.id)
+        .populate(
+          "creator",
+          "name email"
+        )
+        .populate(
+          "members.user",
+          "name email"
+        );
 
     if (!project) {
       return res.status(404).json({
@@ -109,17 +156,17 @@ export const getSingleProject = async (req, res) => {
   }
 };
 
-/**
- * REQUEST TO JOIN PROJECT
- */
+/* =========================================================
+   REQUEST TO JOIN PROJECT
+========================================================= */
+
 export const requestToJoinProject = async (
   req,
   res
 ) => {
   try {
-    const project = await Project.findById(
-      req.params.id
-    );
+    const project =
+      await Project.findById(req.params.id);
 
     if (!project) {
       return res.status(404).json({
@@ -177,6 +224,13 @@ export const requestToJoinProject = async (
       relatedProject: project._id,
     });
 
+    await createActivity({
+      project: project._id,
+      user: userId,
+      type: "join_request_sent",
+      message: `${req.user.name} requested to join the project`,
+    });
+
     res.status(200).json({
       success: true,
       message:
@@ -190,9 +244,10 @@ export const requestToJoinProject = async (
   }
 };
 
-/**
- * INVITE DEVELOPER TO PROJECT
- */
+/* =========================================================
+   INVITE DEVELOPER TO PROJECT
+========================================================= */
+
 export const inviteDeveloperToProject =
   async (req, res) => {
     try {
@@ -207,6 +262,7 @@ export const inviteDeveloperToProject =
           message: "Project not found",
         });
       }
+
       const alreadyMember =
         project.members.some(
           (member) =>
@@ -248,6 +304,13 @@ export const inviteDeveloperToProject =
         relatedProject: project._id,
       });
 
+      await createActivity({
+        project: project._id,
+        user: req.user.id,
+        type: "invite_sent",
+        message: `${req.user.name} invited a developer to the project`,
+      });
+
       return res.status(200).json({
         success: true,
         message:
@@ -259,9 +322,11 @@ export const inviteDeveloperToProject =
       });
     }
   };
-/**
- * ACCEPT PROJECT INVITE
- */
+
+/* =========================================================
+   ACCEPT PROJECT INVITE
+========================================================= */
+
 export const acceptProjectInvite = async (
   req,
   res
@@ -269,9 +334,8 @@ export const acceptProjectInvite = async (
   try {
     const { projectId } = req.params;
 
-    const project = await Project.findById(
-      projectId
-    );
+    const project =
+      await Project.findById(projectId);
 
     if (!project) {
       return res.status(404).json({
@@ -328,6 +392,20 @@ export const acceptProjectInvite = async (
       relatedProject: project._id,
     });
 
+    await createActivity({
+      project: project._id,
+      user: userId,
+      type: "invite_accepted",
+      message: `${req.user.name} accepted the project invitation and joined the team`,
+    });
+
+    await createActivity({
+      project: project._id,
+      user: userId,
+      type: "member_joined",
+      message: `${req.user.name} joined the project`,
+    });
+
     return res.status(200).json({
       success: true,
       message:
@@ -340,9 +418,10 @@ export const acceptProjectInvite = async (
   }
 };
 
-/**
- * REJECT PROJECT INVITE
- */
+/* =========================================================
+   REJECT PROJECT INVITE
+========================================================= */
+
 export const rejectProjectInvite = async (
   req,
   res
@@ -350,9 +429,8 @@ export const rejectProjectInvite = async (
   try {
     const { projectId } = req.params;
 
-    const project = await Project.findById(
-      projectId
-    );
+    const project =
+      await Project.findById(projectId);
 
     if (!project) {
       return res.status(404).json({
@@ -382,6 +460,13 @@ export const rejectProjectInvite = async (
 
     await project.save();
 
+    await createActivity({
+      project: project._id,
+      user: userId,
+      type: "invite_rejected",
+      message: `${req.user.name} rejected the project invitation`,
+    });
+
     return res.status(200).json({
       success: true,
       message:
@@ -393,25 +478,28 @@ export const rejectProjectInvite = async (
     });
   }
 };
-/**
- * APPROVE JOIN REQUEST
- */
+
+/* =========================================================
+   APPROVE JOIN REQUEST
+========================================================= */
+
 export const approveJoinRequest = async (
   req,
   res
 ) => {
   try {
-    const { projectId, userId } = req.params;
+    const { projectId, userId } =
+      req.params;
 
-    const project = await Project.findById(
-      projectId
-    );
+    const project =
+      await Project.findById(projectId);
 
     if (!project) {
       return res.status(404).json({
         message: "Project not found",
       });
     }
+
     const requestExists =
       project.joinRequests.some(
         (id) => id.toString() === userId
@@ -444,6 +532,20 @@ export const approveJoinRequest = async (
       relatedProject: project._id,
     });
 
+    await createActivity({
+      project: project._id,
+      user: req.user.id,
+      type: "join_request_approved",
+      message: `${req.user.name} approved a developer's join request`,
+    });
+
+    await createActivity({
+      project: project._id,
+      user: userId,
+      type: "member_joined",
+      message: `A new developer joined the project after their join request was approved`,
+    });
+
     return res.status(200).json({
       success: true,
       message:
@@ -456,23 +558,35 @@ export const approveJoinRequest = async (
   }
 };
 
-/**
- * REJECT JOIN REQUEST
- */
+/* =========================================================
+   REJECT JOIN REQUEST
+========================================================= */
+
 export const rejectJoinRequest = async (
   req,
   res
 ) => {
   try {
-    const { projectId, userId } = req.params;
+    const { projectId, userId } =
+      req.params;
 
-    const project = await Project.findById(
-      projectId
-    );
+    const project =
+      await Project.findById(projectId);
 
     if (!project) {
       return res.status(404).json({
         message: "Project not found",
+      });
+    }
+
+    const requestExists =
+      project.joinRequests.some(
+        (id) => id.toString() === userId
+      );
+
+    if (!requestExists) {
+      return res.status(404).json({
+        message: "Join request not found",
       });
     }
 
@@ -482,6 +596,13 @@ export const rejectJoinRequest = async (
       );
 
     await project.save();
+
+    await createActivity({
+      project: project._id,
+      user: req.user.id,
+      type: "join_request_rejected",
+      message: `${req.user.name} rejected a developer's join request`,
+    });
 
     return res.status(200).json({
       success: true,
@@ -495,14 +616,19 @@ export const rejectJoinRequest = async (
   }
 };
 
-/**
- * DELETE PROJECT
- */
-export const deleteProject = async (req, res) => {
+/* =========================================================
+   DELETE PROJECT
+========================================================= */
+
+export const deleteProject = async (
+  req,
+  res
+) => {
   try {
     const { id } = req.params;
 
-    const project = await Project.findById(id);
+    const project =
+      await Project.findById(id);
 
     if (!project) {
       return res.status(404).json({
@@ -511,36 +637,36 @@ export const deleteProject = async (req, res) => {
       });
     }
 
-    // Only owner can delete
-    if (project.creator.toString() !== req.user.id) {
+    if (
+      project.creator.toString() !==
+      req.user.id
+    ) {
       return res.status(403).json({
         success: false,
-        message: "Only the project owner can delete this project.",
+        message:
+          "Only the project owner can delete this project.",
       });
     }
 
-    // Delete all project tasks
     await Task.deleteMany({
       project: id,
     });
-    // Delete project notifications
+
     await Notification.deleteMany({
       relatedProject: id,
     });
 
-    // Delete project activities
     await Activity.deleteMany({
       project: id,
     });
 
-    // Delete project itself
     await Project.findByIdAndDelete(id);
 
     return res.status(200).json({
       success: true,
-      message: "Project deleted successfully.",
+      message:
+        "Project deleted successfully.",
     });
-
   } catch (error) {
     console.error(error);
 
@@ -550,7 +676,15 @@ export const deleteProject = async (req, res) => {
     });
   }
 };
-export const updateProject = async (req, res) => {
+
+/* =========================================================
+   UPDATE PROJECT
+========================================================= */
+
+export const updateProject = async (
+  req,
+  res
+) => {
   try {
     const { id } = req.params;
 
@@ -564,7 +698,8 @@ export const updateProject = async (req, res) => {
       liveLink,
     } = req.body;
 
-    const project = await Project.findById(id);
+    const project =
+      await Project.findById(id);
 
     if (!project) {
       return res.status(404).json({
@@ -577,11 +712,19 @@ export const updateProject = async (req, res) => {
     project.description = description;
     project.overview = overview;
     project.difficulty = difficulty;
-    project.estimatedWeeks = estimatedWeeks;
+    project.estimatedWeeks =
+      estimatedWeeks;
     project.githubRepo = githubRepo;
     project.liveLink = liveLink;
 
     await project.save();
+
+    await createActivity({
+      project: project._id,
+      user: req.user.id,
+      type: "project_created",
+      message: `${req.user.name} updated the project details`,
+    });
 
     return res.status(200).json({
       success: true,
@@ -594,9 +737,11 @@ export const updateProject = async (req, res) => {
     });
   }
 };
-/**
- * PROJECT DASHBOARD ANALYTICS
- */
+
+/* =========================================================
+   PROJECT DASHBOARD ANALYTICS
+========================================================= */
+
 export const getProjectDashboard =
   async (req, res) => {
     try {
@@ -615,11 +760,14 @@ export const getProjectDashboard =
         project: projectId,
       });
 
-      const totalTasks = tasks.length;
+      const totalTasks =
+        tasks.length;
 
-      const todoTasks = tasks.filter(
-        (task) => task.status === "todo"
-      ).length;
+      const todoTasks =
+        tasks.filter(
+          (task) =>
+            task.status === "todo"
+        ).length;
 
       const inProgressTasks =
         tasks.filter(
@@ -627,9 +775,11 @@ export const getProjectDashboard =
             task.status === "in-progress"
         ).length;
 
-      const reviewTasks = tasks.filter(
-        (task) => task.status === "review"
-      ).length;
+      const reviewTasks =
+        tasks.filter(
+          (task) =>
+            task.status === "review"
+        ).length;
 
       const completedTasks =
         tasks.filter(
@@ -649,7 +799,8 @@ export const getProjectDashboard =
       return res.status(200).json({
         success: true,
 
-        projectTitle: project.title,
+        projectTitle:
+          project.title,
 
         totalMembers:
           project.members.length,
@@ -672,59 +823,219 @@ export const getProjectDashboard =
       });
     }
   };
-  /**
- * GET PROJECT ACTIVITY
- */
-export const getProjectActivity = async (req, res) => {
-  try {
-    const { projectId } = req.params;
 
-    const project = await Project.findById(projectId);
+/* =========================================================
+   GET PROJECT ACTIVITY
+========================================================= */
 
-    if (!project) {
-      return res.status(404).json({
-        message: "Project not found",
+export const getProjectActivity =
+  async (req, res) => {
+    try {
+      const { projectId } = req.params;
+
+      const project =
+        await Project.findById(
+          projectId
+        );
+
+      if (!project) {
+        return res.status(404).json({
+          message: "Project not found",
+        });
+      }
+
+      const activities =
+        await Activity.find({
+          project: projectId,
+        })
+          .populate(
+            "user",
+            "name email"
+          )
+          .sort({
+            createdAt: -1,
+          });
+
+      return res.status(200).json({
+        success: true,
+        count: activities.length,
+        activities,
+      });
+    } catch (error) {
+      return res.status(500).json({
+        message: error.message,
       });
     }
+  };
 
-    const activities = await Activity.find({
-      project: projectId,
-    })
-      .populate("user", "name email")
-      .sort({
-        createdAt: -1,
+/* =========================================================
+   GET PROJECT MEMBERS
+========================================================= */
+
+export const getProjectMembers =
+  async (req, res) => {
+    try {
+      const { projectId } = req.params;
+
+      const project =
+        await Project.findById(
+          projectId
+        )
+          .populate(
+            "members.user",
+            "name email profilePicture headline"
+          )
+          .populate(
+            "pendingInvites.user",
+            "name email profilePicture headline"
+          )
+          .populate(
+            "joinRequests",
+            "name email profilePicture headline"
+          );
+
+      if (!project) {
+        return res.status(404).json({
+          success: false,
+          message: "Project not found",
+        });
+      }
+
+      console.log(
+        project.joinRequests
+      );
+
+      return res.status(200).json({
+        success: true,
+        members: project.members,
+        pendingInvites:
+          project.pendingInvites,
+        joinRequests:
+          project.joinRequests,
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  };
+
+/* =========================================================
+   CHANGE MEMBER ROLE
+========================================================= */
+
+export const changeMemberRole =
+  async (req, res) => {
+    try {
+      const { projectId, userId } =
+        req.params;
+
+      const { role } = req.body;
+
+      if (
+        !["admin", "member"].includes(
+          role
+        )
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid role",
+        });
+      }
+
+      const project =
+        await Project.findById(
+          projectId
+        );
+
+      if (!project) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Project not found",
+        });
+      }
+
+      const member =
+        project.members.find(
+          (member) =>
+            member.user.toString() ===
+            userId
+        );
+
+      if (!member) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Member not found",
+        });
+      }
+
+      if (
+        member.role === "owner"
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Owner role cannot be changed",
+        });
+      }
+
+      const previousRole =
+        member.role;
+
+      member.role = role;
+
+      await project.save();
+
+      await createActivity({
+        project: project._id,
+        user: req.user.id,
+        type:
+          role === "admin"
+            ? "member_promoted"
+            : "member_demoted",
+        message: `${req.user.name} changed a member role from ${previousRole} to ${role}`,
       });
 
-    return res.status(200).json({
-      success: true,
-      count: activities.length,
-      activities,
-    });
-  } catch (error) {
-    return res.status(500).json({
-      message: error.message,
-    });
-  }
-};
-/**
- * GET PROJECT MEMBERS
- */
-export const getProjectMembers = async (req, res) => {
-  try {
-    const { projectId } = req.params;
+      await Notification.create({
+        recipient: userId,
+        sender: req.user.id,
+        type: "project_role_updated",
+        message: `Your role has been changed to ${role}`,
+        relatedProject:
+          project._id,
+      });
 
-    const project = await Project.findById(projectId)
-      .populate(
-        "members.user",
-        "name email profilePicture headline"
-      )
-      .populate(
-        "pendingInvites.user",
-        "name email profilePicture headline"
-      )
-      .populate(
-        "joinRequests",
-        "name email profilePicture headline"
+      return res.status(200).json({
+        success: true,
+        message:
+          "Member role updated successfully",
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  };
+
+/* =========================================================
+   REMOVE MEMBER
+========================================================= */
+
+export const removeMember = async (
+  req,
+  res
+) => {
+  try {
+    const { projectId, userId } =
+      req.params;
+
+    const project =
+      await Project.findById(
+        projectId
       );
 
     if (!project) {
@@ -733,47 +1044,13 @@ export const getProjectMembers = async (req, res) => {
         message: "Project not found",
       });
     }
-console.log(project.joinRequests);
-    return res.status(200).json({
-      success: true,
-      members: project.members,
-      pendingInvites: project.pendingInvites,
-      joinRequests: project.joinRequests,
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-};
-/**
- * CHANGE MEMBER ROLE
- */
-export const changeMemberRole = async (req, res) => {
-  try {
-    const { projectId, userId } = req.params;
-    const { role } = req.body;
 
-    if (!["admin", "member"].includes(role)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid role",
-      });
-    }
-
-    const project = await Project.findById(projectId);
-
-    if (!project) {
-      return res.status(404).json({
-        success: false,
-        message: "Project not found",
-      });
-    }
-
-    const member = project.members.find(
-      (member) => member.user.toString() === userId
-    );
+    const member =
+      project.members.find(
+        (m) =>
+          m.user.toString() ===
+          userId
+      );
 
     if (!member) {
       return res.status(404).json({
@@ -785,82 +1062,21 @@ export const changeMemberRole = async (req, res) => {
     if (member.role === "owner") {
       return res.status(400).json({
         success: false,
-        message: "Owner role cannot be changed",
+        message:
+          "Owner cannot be removed",
       });
     }
 
-    member.role = role;
+    project.members =
+      project.members.filter(
+        (m) =>
+          m.user.toString() !==
+          userId
+      );
 
     await project.save();
 
-    await Activity.create({
-      project: project._id,
-      user: req.user.id,
-      type:
-        role === "admin"
-          ? "member_promoted"
-          : "member_demoted",
-      message: `${req.user.name} changed a member role to ${role}`,
-    });
-
-    await Notification.create({
-      recipient: userId,
-      sender: req.user.id,
-      type: "project_role_updated",
-      message: `Your role has been changed to ${role}`,
-      relatedProject: project._id,
-    });
-
-    return res.status(200).json({
-      success: true,
-      message: "Member role updated successfully",
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-};
-
-export const removeMember = async (req, res) => {
-  try {
-    const { projectId, userId } = req.params;
-
-    const project = await Project.findById(projectId);
-
-    if (!project) {
-      return res.status(404).json({
-        success: false,
-        message: "Project not found",
-      });
-    }
-
-    const member = project.members.find(
-      (m) => m.user.toString() === userId
-    );
-
-    if (!member) {
-      return res.status(404).json({
-        success: false,
-        message: "Member not found",
-      });
-    }
-
-    if (member.role === "owner") {
-      return res.status(400).json({
-        success: false,
-        message: "Owner cannot be removed",
-      });
-    }
-
-    project.members = project.members.filter(
-      (m) => m.user.toString() !== userId
-    );
-
-    await project.save();
-
-    await Activity.create({
+    await createActivity({
       project: project._id,
       user: req.user.id,
       type: "member_removed",
@@ -872,12 +1088,14 @@ export const removeMember = async (req, res) => {
       sender: req.user.id,
       type: "project_member_removed",
       message: `You have been removed from "${project.title}"`,
-      relatedProject: project._id,
+      relatedProject:
+        project._id,
     });
 
     return res.status(200).json({
       success: true,
-      message: "Member removed successfully",
+      message:
+        "Member removed successfully",
     });
   } catch (error) {
     return res.status(500).json({
@@ -886,11 +1104,22 @@ export const removeMember = async (req, res) => {
     });
   }
 };
-export const leaveProject = async (req, res) => {
+
+/* =========================================================
+   LEAVE PROJECT
+========================================================= */
+
+export const leaveProject = async (
+  req,
+  res
+) => {
   try {
     const { projectId } = req.params;
 
-    const project = await Project.findById(projectId);
+    const project =
+      await Project.findById(
+        projectId
+      );
 
     if (!project) {
       return res.status(404).json({
@@ -899,14 +1128,18 @@ export const leaveProject = async (req, res) => {
       });
     }
 
-    const member = project.members.find(
-      (m) => m.user.toString() === req.user.id
-    );
+    const member =
+      project.members.find(
+        (m) =>
+          m.user.toString() ===
+          req.user.id
+      );
 
     if (!member) {
       return res.status(404).json({
         success: false,
-        message: "You are not a member",
+        message:
+          "You are not a member",
       });
     }
 
@@ -918,13 +1151,16 @@ export const leaveProject = async (req, res) => {
       });
     }
 
-    project.members = project.members.filter(
-      (m) => m.user.toString() !== req.user.id
-    );
+    project.members =
+      project.members.filter(
+        (m) =>
+          m.user.toString() !==
+          req.user.id
+      );
 
     await project.save();
 
-    await Activity.create({
+    await createActivity({
       project: project._id,
       user: req.user.id,
       type: "member_removed",
@@ -933,7 +1169,8 @@ export const leaveProject = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "You left the project successfully",
+      message:
+        "You left the project successfully",
     });
   } catch (error) {
     return res.status(500).json({
@@ -942,9 +1179,18 @@ export const leaveProject = async (req, res) => {
     });
   }
 };
-export const searchDevelopers = async (req, res) => {
+
+/* =========================================================
+   SEARCH DEVELOPERS
+========================================================= */
+
+export const searchDevelopers = async (
+  req,
+  res
+) => {
   try {
-    const keyword = req.query.search || "";
+    const keyword =
+      req.query.search || "";
 
     const users = await User.find({
       name: {
@@ -952,7 +1198,9 @@ export const searchDevelopers = async (req, res) => {
         $options: "i",
       },
     })
-      .select("name email profilePicture headline")
+      .select(
+        "name email profilePicture headline"
+      )
       .limit(20);
 
     return res.status(200).json({
@@ -966,115 +1214,163 @@ export const searchDevelopers = async (req, res) => {
     });
   }
 };
-/**
- * CONNECT GITHUB REPOSITORY
- */
-export const connectGitHubRepository = async (req, res) => {
-  try {
-    const { projectId } = req.params;
-    const { repositoryUrl } = req.body;
 
-    const project = await Project.findById(projectId);
+/* =========================================================
+   CONNECT GITHUB REPOSITORY
+========================================================= */
 
-    if (!project) {
-      return res.status(404).json({
-        success: false,
-        message: "Project not found",
-      });
-    }
+export const connectGitHubRepository =
+  async (req, res) => {
+    try {
+      const { projectId } =
+        req.params;
 
-    if (project.creator.toString() !== req.user.id) {
-      return res.status(403).json({
-        success: false,
-        message: "Only owner can connect repository",
-      });
-    }
+      const { repositoryUrl } =
+        req.body;
 
-    const clean = repositoryUrl
-      .replace("https://github.com/", "")
-      .replace(".git", "");
+      const project =
+        await Project.findById(
+          projectId
+        );
 
-    const [owner, repo] = clean.split("/");
-
-    project.githubRepository = {
-      url: repositoryUrl,
-      owner,
-      repo,
-      branch: "main",
-      connectedAt: new Date(),
-    };
-
-    await project.save();
-
-    await Activity.create({
-      project: project._id,
-      user: req.user.id,
-      type: "github_connected",
-      message: `${req.user.name} connected GitHub repository`,
-    });
-
-    return res.json({
-      success: true,
-      githubRepository: project.githubRepository,
-    });
-
-  } catch (err) {
-    return res.status(500).json({
-      success: false,
-      message: err.message,
-    });
-  }
-};
-
-
-
-/**
- * FETCH GITHUB REPOSITORY DETAILS
- */
-export const getGitHubRepositoryDetails = async (req, res) => {
-
-  try {
-
-    const project = await Project.findById(req.params.projectId);
-
-    if (
-      !project ||
-      !project.githubRepository.owner
-    ) {
-      return res.status(404).json({
-        success:false,
-        message:"Repository not connected",
-      });
-    }
-
-    const owner = project.githubRepository.owner;
-    const repo = project.githubRepository.repo;
-
-    const repoRes = await axios.get(
-      `https://api.github.com/repos/${owner}/${repo}`
-    );
-
-    return res.json({
-      success:true,
-      repository:{
-        stars: repoRes.data.stargazers_count,
-        forks: repoRes.data.forks_count,
-        issues: repoRes.data.open_issues_count,
-        watchers: repoRes.data.subscribers_count,
-        language: repoRes.data.language,
-        defaultBranch: repoRes.data.default_branch,
-        updatedAt: repoRes.data.updated_at,
-        htmlUrl: repoRes.data.html_url,
+      if (!project) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Project not found",
+        });
       }
-    });
 
-  } catch(err){
+      if (
+        project.creator.toString() !==
+        req.user.id
+      ) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "Only owner can connect repository",
+        });
+      }
 
-    return res.status(500).json({
-      success:false,
-      message:err.message,
-    });
+      const clean =
+        repositoryUrl
+          .replace(
+            "https://github.com/",
+            ""
+          )
+          .replace(".git", "");
 
-  }
+      const [owner, repo] =
+        clean.split("/");
 
-};
+      if (!owner || !repo) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Invalid GitHub repository URL",
+        });
+      }
+
+      project.githubRepository = {
+        url: repositoryUrl,
+        owner,
+        repo,
+        branch: "main",
+        connectedAt: new Date(),
+      };
+
+      await project.save();
+
+      await createActivity({
+        project: project._id,
+        user: req.user.id,
+        type: "github_connected",
+        message: `${req.user.name} connected GitHub repository`,
+      });
+
+      return res.json({
+        success: true,
+        githubRepository:
+          project.githubRepository,
+      });
+    } catch (err) {
+      return res.status(500).json({
+        success: false,
+        message: err.message,
+      });
+    }
+  };
+
+/* =========================================================
+   FETCH GITHUB REPOSITORY DETAILS
+========================================================= */
+
+export const getGitHubRepositoryDetails =
+  async (req, res) => {
+    try {
+      const project =
+        await Project.findById(
+          req.params.projectId
+        );
+
+      if (
+        !project ||
+        !project.githubRepository?.owner
+      ) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Repository not connected",
+        });
+      }
+
+      const owner =
+        project.githubRepository.owner;
+
+      const repo =
+        project.githubRepository.repo;
+
+      const repoRes =
+        await axios.get(
+          `https://api.github.com/repos/${owner}/${repo}`
+        );
+
+      return res.json({
+        success: true,
+        repository: {
+          stars:
+            repoRes.data
+              .stargazers_count,
+
+          forks:
+            repoRes.data.forks_count,
+
+          issues:
+            repoRes.data
+              .open_issues_count,
+
+          watchers:
+            repoRes.data
+              .subscribers_count,
+
+          language:
+            repoRes.data.language,
+
+          defaultBranch:
+            repoRes.data
+              .default_branch,
+
+          updatedAt:
+            repoRes.data.updated_at,
+
+          htmlUrl:
+            repoRes.data.html_url,
+        },
+      });
+    } catch (err) {
+      return res.status(500).json({
+        success: false,
+        message: err.message,
+      });
+    }
+  };
