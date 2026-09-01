@@ -46,7 +46,7 @@ const __dirname = path.dirname(__filename);
 app.use(cors());
 
 app.use(express.json());
-app.use(generalRateLimiter);
+
 app.use("/api/ai-docs", aiDocsRoutes);
 app.use("/api/ai-code", aiCodeRoutes);
 app.use("/api/ai-chat", aiChatRoutes);

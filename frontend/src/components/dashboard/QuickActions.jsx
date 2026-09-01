@@ -1,12 +1,10 @@
 import {
+  ArrowUpRight,
   FolderKanban,
-  SquarePen,
-  Users,
   MessageSquare,
   Sparkles,
-  ArrowUpRight,
-  Plus,
-  Command,
+  SquarePen,
+  Users,
 } from "lucide-react";
 
 import { Link } from "react-router-dom";
@@ -14,123 +12,138 @@ import { Link } from "react-router-dom";
 const actions = [
   {
     title: "New Project",
-    description: "Create a collaborative workspace",
+    description:
+      "Create a collaborative workspace",
     icon: FolderKanban,
     to: "/projects/create",
     shortcut: "P",
+    badge: "New",
   },
   {
     title: "Write Post",
-    description: "Share updates with developers",
+    description:
+      "Share an update with developers",
     icon: SquarePen,
     to: "/feed",
     shortcut: "N",
   },
   {
     title: "Find Developers",
-    description: "Discover engineers to collaborate",
+    description:
+      "Discover engineers to collaborate with",
     icon: Users,
     to: "/developers",
     shortcut: "D",
   },
   {
     title: "Messages",
-    description: "Continue recent conversations",
+    description:
+      "Continue your conversations",
     icon: MessageSquare,
     to: "/messages",
     shortcut: "M",
   },
   {
     title: "AI Architect",
-    description: "Design scalable systems with AI",
+    description:
+      "Design and reason about systems with AI",
     icon: Sparkles,
     to: "/ai",
     shortcut: "AI",
   },
 ];
 
-function QuickActions() {
+export default function QuickActions() {
   return (
-    <section className="rounded-3xl border border-white/10 bg-[#111827] p-8">
-      <div className="mb-8 flex items-start justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-white">
-            Command Center
+    <section className="overflow-hidden rounded-[28px] border border-white/[0.08] bg-[#111827] p-6 shadow-[0_16px_60px_rgba(0,0,0,0.14)] sm:p-8">
+      {/* HEADER */}
+      <div className="mb-7">
+        <div className="flex items-center gap-2.5">
+          <span className="h-2 w-2 rounded-full bg-cyan-400 shadow-[0_0_12px_rgba(34,211,238,.6)]" />
+
+          <h2 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
+            Command center
           </h2>
-
-          <p className="mt-2 text-sm leading-6 text-slate-400">
-            Launch your most-used workflows without leaving the dashboard.
-          </p>
         </div>
 
-        <div className="hidden items-center gap-2 rounded-xl border border-white/10 bg-[#0B1220] px-3 py-2 text-xs text-slate-400 xl:flex">
-          <Command size={14} />
-          <span>K</span>
-        </div>
+        <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">
+          Launch the workflows you use most without leaving the dashboard.
+        </p>
       </div>
 
-      <div className="space-y-4">
-        {actions.map((action) => {
-          const Icon = action.icon;
+      {/* ACTIONS */}
+      <div className="space-y-3">
+        {actions.map(
+          (action) => {
+            const Icon =
+              action.icon;
 
-          return (
-            <Link
-              key={action.title}
-              to={action.to}
-              className="group relative block overflow-hidden rounded-2xl border border-white/10 bg-[#0B1220] transition-all duration-300 hover:-translate-y-1 hover:border-cyan-400/30 hover:shadow-[0_16px_45px_rgba(34,211,238,0.08)]"
-            >
-              <div className="absolute -right-10 -top-10 h-28 w-28 rounded-full bg-cyan-500/10 blur-3xl opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+            return (
+              <Link
+                key={action.title}
+                to={action.to}
+                className="group relative block overflow-hidden rounded-2xl border border-white/[0.07] bg-[#0B1220] transition-all duration-300 hover:-translate-y-0.5 hover:border-cyan-400/25 hover:bg-[#0d1727] hover:shadow-[0_16px_45px_rgba(34,211,238,0.07)]"
+              >
+                {/* AMBIENT GLOW */}
+                <div className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full bg-cyan-400/[0.07] blur-3xl opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
 
-              <div className="relative flex items-center justify-between p-5">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-500/10 bg-cyan-500/10 transition-all duration-300 group-hover:scale-105 group-hover:rotate-6 group-hover:bg-cyan-500/20">
-                    <Icon
-                      size={24}
-                      className="text-cyan-400"
-                    />
-                  </div>
-
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-semibold text-white">
-                        {action.title}
-                      </h3>
-
-                      {action.title === "New Project" && (
-                        <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-400">
-                          New
-                        </span>
-                      )}
+                <div className="relative flex items-center justify-between gap-4 p-4 sm:p-5">
+                  {/* LEFT */}
+                  <div className="flex min-w-0 items-center gap-4">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-cyan-400/10 bg-cyan-400/[0.06] transition-all duration-300 group-hover:scale-105 group-hover:border-cyan-400/20 group-hover:bg-cyan-400/[0.1]">
+                      <Icon
+                        size={21}
+                        className="text-cyan-300"
+                      />
                     </div>
 
-                    <p className="mt-1 text-sm text-slate-400">
-                      {action.description}
-                    </p>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="truncate text-sm font-bold text-white">
+                          {action.title}
+                        </p>
+
+                        {action.badge && (
+                          <span className="rounded-full border border-emerald-400/10 bg-emerald-400/[0.06] px-2 py-0.5 text-[8px] font-bold uppercase tracking-[0.12em] text-emerald-300">
+                            {action.badge}
+                          </span>
+                        )}
+                      </div>
+
+                      <p className="mt-0.5 truncate text-xs text-slate-600">
+                        {action.description}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* RIGHT */}
+                  <div className="flex shrink-0 flex-col items-end gap-2.5">
+                    <span className="rounded-lg border border-white/[0.08] bg-white/[0.03] px-2 py-1 text-[10px] font-bold text-slate-600 transition group-hover:border-white/10 group-hover:text-slate-400">
+                      {action.shortcut}
+                    </span>
+
+                    <ArrowUpRight
+                      size={16}
+                      className="text-slate-700 transition-all duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-cyan-400"
+                    />
                   </div>
                 </div>
-
-                <div className="flex flex-col items-end gap-3">
-                  <div className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-semibold text-slate-400">
-                    {action.shortcut}
-                  </div>
-
-                  <ArrowUpRight
-                    size={18}
-                    className="text-slate-500 transition-all duration-300 group-hover:-translate-y-1 group-hover:translate-x-1 group-hover:text-cyan-400"
-                  />
-                </div>
-              </div>
-            </Link>
-          );
-        })}
+              </Link>
+            );
+          }
+        )}
       </div>
 
-      <button className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-cyan-500/20 bg-cyan-500/5 py-4 font-semibold text-cyan-300 transition-all duration-300 hover:border-cyan-400 hover:bg-cyan-500/10">
-        <Plus size={18} />
-        Customize Shortcuts
-      </button>
+      {/* FOOTER */}
+      <div className="mt-6 flex items-center justify-between border-t border-white/[0.06] pt-5">
+        <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-slate-700">
+          Workspace shortcuts
+        </p>
+
+        <p className="text-[10px] font-medium text-slate-700">
+          Use the command palette for more actions
+        </p>
+      </div>
     </section>
   );
 }
-
-export default QuickActions;
