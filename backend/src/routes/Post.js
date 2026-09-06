@@ -7,26 +7,89 @@ import {
   unlikePost,
   addComment,
   deleteComment,
+  deletePost,
 } from "../controllers/postController.js";
 
 import authMiddleware from "../middleware/authMiddleware.js";
+import upload from "../middleware/uploadMiddleware.js";
 
 const router = express.Router();
 
-router.post("/", authMiddleware, createPost);
+/*
+ * ============================================================
+ * CREATE POST
+ *
+ * multipart/form-data
+ * content -> text
+ * image   -> optional image
+ * ============================================================
+ */
 
-router.get("/", authMiddleware, getPosts);
+router.post(
+  "/",
+  authMiddleware,
+  upload.single("image"),
+  createPost
+);
 
-router.put("/like/:id", authMiddleware, likePost);
+/*
+ * ============================================================
+ * GET POSTS
+ * ============================================================
+ */
 
-router.put("/unlike/:id", authMiddleware, unlikePost);
+router.get(
+  "/",
+  authMiddleware,
+  getPosts
+);
 
-router.post("/comment/:id", authMiddleware, addComment);
+/*
+ * ============================================================
+ * LIKE / UNLIKE
+ * ============================================================
+ */
+
+router.put(
+  "/like/:id",
+  authMiddleware,
+  likePost
+);
+
+router.put(
+  "/unlike/:id",
+  authMiddleware,
+  unlikePost
+);
+
+/*
+ * ============================================================
+ * COMMENTS
+ * ============================================================
+ */
+
+router.post(
+  "/comment/:id",
+  authMiddleware,
+  addComment
+);
 
 router.delete(
   "/comment/:postId/:commentId",
   authMiddleware,
   deleteComment
+);
+
+/*
+ * ============================================================
+ * DELETE POST
+ * ============================================================
+ */
+
+router.delete(
+  "/:id",
+  authMiddleware,
+  deletePost
 );
 
 export default router;
