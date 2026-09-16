@@ -1,5 +1,5 @@
 import express from "express";
-import { searchDevelopers } from "../controllers/projectController.js";
+
 import {
   createProject,
   getAllProjects,
@@ -14,12 +14,13 @@ import {
   getProjectDashboard,
   getProjectActivity,
   getProjectMembers,
-    updateProject,
+  updateProject,
   changeMemberRole,
   removeMember,
   leaveProject,
   connectGitHubRepository,
-getGitHubRepositoryDetails,
+  getGitHubRepositoryDetails,
+  searchDevelopers,
 } from "../controllers/projectController.js";
 
 import authMiddleware from "../middleware/authMiddleware.js";
@@ -27,34 +28,40 @@ import checkProjectRole from "../middleware/projectPermissionMiddleware.js";
 
 const router = express.Router();
 
-/* -------------------- PROJECTS -------------------- */
+/*
+|--------------------------------------------------------------------------
+| Public Project Routes
+|--------------------------------------------------------------------------
+*/
 
 router.post("/", authMiddleware, createProject);
 
 router.get("/", getAllProjects);
+
+/*
+|--------------------------------------------------------------------------
+| Developer Search
+|--------------------------------------------------------------------------
+*/
+
 router.get(
   "/developers/search",
   authMiddleware,
   searchDevelopers
 );
-router.get("/:id", getSingleProject);
 
-router.put(
-  "/:id",
-  authMiddleware,
-  checkProjectRole("owner"),
-  updateProject
-);
-
-
-router.delete(
-  "/:id",
-  authMiddleware,
-  checkProjectRole("owner"),
-  deleteProject
-);
-
-/* -------------------- DASHBOARD -------------------- */
+/*
+|--------------------------------------------------------------------------
+| Project Workspace Routes
+|--------------------------------------------------------------------------
+|
+| IMPORTANT:
+| These routes MUST appear before /:id.
+| Otherwise Express can interpret "dashboard", "activity", or "members"
+| as a project ID.
+|
+|--------------------------------------------------------------------------
+*/
 
 router.get(
   "/dashboard/:projectId",
@@ -70,14 +77,18 @@ router.get(
   getProjectActivity
 );
 
-/* -------------------- MEMBERS -------------------- */
-
 router.get(
   "/members/:projectId",
   authMiddleware,
   checkProjectRole("owner", "admin", "member"),
   getProjectMembers
 );
+
+/*
+|--------------------------------------------------------------------------
+| Project Member Management
+|--------------------------------------------------------------------------
+*/
 
 router.put(
   "/member-role/:projectId/:userId",
@@ -93,7 +104,18 @@ router.delete(
   removeMember
 );
 
-/* -------------------- JOIN REQUESTS -------------------- */
+router.put(
+  "/leave/:projectId",
+  authMiddleware,
+  checkProjectRole("owner", "admin", "member"),
+  leaveProject
+);
+
+/*
+|--------------------------------------------------------------------------
+| Project Join / Invitation Routes
+|--------------------------------------------------------------------------
+*/
 
 router.put(
   "/join-request/:id",
@@ -115,8 +137,6 @@ router.put(
   rejectJoinRequest
 );
 
-/* -------------------- INVITES -------------------- */
-
 router.put(
   "/invite/:projectId/:userId",
   authMiddleware,
@@ -136,12 +156,12 @@ router.put(
   rejectProjectInvite
 );
 
-router.put(
-  "/leave/:projectId",
-  authMiddleware,
-  checkProjectRole("owner", "admin", "member"),
-  leaveProject
-);
+/*
+|--------------------------------------------------------------------------
+| GitHub Integration
+|--------------------------------------------------------------------------
+*/
+
 router.post(
   "/:projectId/github/connect",
   authMiddleware,
@@ -153,4 +173,40 @@ router.get(
   authMiddleware,
   getGitHubRepositoryDetails
 );
+
+/*
+|--------------------------------------------------------------------------
+| Project Update / Delete
+|--------------------------------------------------------------------------
+*/
+
+router.put(
+  "/:id",
+  authMiddleware,
+  checkProjectRole("owner"),
+  updateProject
+);
+
+router.delete(
+  "/:id",
+  authMiddleware,
+  checkProjectRole("owner"),
+  deleteProject
+);
+
+/*
+|--------------------------------------------------------------------------
+| Single Project
+|--------------------------------------------------------------------------
+|
+| Keep this AFTER all named routes above.
+|
+|--------------------------------------------------------------------------
+*/
+
+router.get(
+  "/:id",
+  getSingleProject
+);
+
 export default router;
