@@ -34,6 +34,7 @@ const activitySchema = new mongoose.Schema(
 
         "task_created",
         "task_assigned",
+        "task_updated",
         "task_status_updated",
         "task_completed",
         "task_deleted",

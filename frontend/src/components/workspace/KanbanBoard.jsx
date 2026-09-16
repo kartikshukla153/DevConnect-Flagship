@@ -1,143 +1,48 @@
 import { DragDropContext } from "@hello-pangea/dnd";
-import axios from "axios";
-import { useEffect, useState } from "react";
-
+import { useMemo, useState } from "react";
 import TaskColumn from "./TaskColumn";
 
-const API = "http://localhost:5000/api";
+const STATUSES = ["todo", "in-progress", "review", "completed"];
 
-function KanbanBoard({
-  tasks = [],
-  reloadTasks,
-  onTaskClick,
-}) {
-  const token = localStorage.getItem("token");
+function buildColumns(tasks) {
+  return STATUSES.reduce((acc, status) => {
+    acc[status] = tasks.filter((task) => task.status === status);
+    return acc;
+  }, {});
+}
 
-  const [columns, setColumns] = useState({
-    todo: [],
-    "in-progress": [],
-    review: [],
-    completed: [],
-  });
+function KanbanBoard({ tasks = [], onTaskClick, onTaskStatusChange, onAddTask }) {
+  const columns = useMemo(() => buildColumns(tasks), [tasks]);
+  const [busyTaskId, setBusyTaskId] = useState(null);
 
-  useEffect(() => {
-    setColumns({
-      todo: tasks.filter((task) => task.status === "todo"),
-      "in-progress": tasks.filter(
-        (task) => task.status === "in-progress"
-      ),
-      review: tasks.filter(
-        (task) => task.status === "review"
-      ),
-      completed: tasks.filter(
-        (task) => task.status === "completed"
-      ),
-    });
-  }, [tasks]);
-
-  async function onDragEnd(result) {
-    const { source, destination } = result;
-
+  const onDragEnd = async ({ source, destination, draggableId }) => {
     if (!destination) return;
+    if (source.droppableId === destination.droppableId) return;
 
-    if (
-      source.droppableId === destination.droppableId &&
-      source.index === destination.index
-    ) {
-      return;
-    }
-
-    const previousState = structuredClone(columns);
-
-    const sourceColumn = [
-      ...columns[source.droppableId],
-    ];
-
-    const destinationColumn = [
-      ...columns[destination.droppableId],
-    ];
-
-    const [movedTask] = sourceColumn.splice(
-      source.index,
-      1
-    );
-
-    movedTask.status = destination.droppableId;
-
-    destinationColumn.splice(
-      destination.index,
-      0,
-      movedTask
-    );
-
-    setColumns({
-      ...columns,
-      [source.droppableId]: sourceColumn,
-      [destination.droppableId]:
-        destinationColumn,
-    });
-
+    const nextStatus = destination.droppableId;
+    setBusyTaskId(draggableId);
     try {
-      await axios.put(
-        `${API}/tasks/status/${movedTask._id}`,
-        {
-          status: destination.droppableId,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      if (reloadTasks) {
-        reloadTasks();
-      }
-    } catch (err) {
-      console.error(err);
-
-      setColumns(previousState);
+      await onTaskStatusChange?.(draggableId, nextStatus);
+    } finally {
+      setBusyTaskId(null);
     }
-  }
-  console.log("Todo:", columns.todo.length);
-console.log("In Progress:", columns["in-progress"].length);
-console.log("Review:", columns.review.length);
-console.log("Completed:", columns.completed.length);
+  };
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
-      <div className="grid gap-6 xl:grid-cols-4">
-        <TaskColumn
-          id="todo"
-          title="Todo"
-          tasks={columns.todo}
-          totalTasks={tasks.length}
-          onTaskClick={onTaskClick}
-        />
+      <div className="mb-3 flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-white">Task board</h2>
+          <p className="mt-1 text-xs text-slate-500">Move work through the delivery pipeline.</p>
+        </div>
+        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-400">{tasks.length} visible</span>
+      </div>
 
-        <TaskColumn
-          id="in-progress"
-          title="In Progress"
-          tasks={columns["in-progress"]}
-          totalTasks={tasks.length}
-          onTaskClick={onTaskClick}
-        />
-
-        <TaskColumn
-          id="review"
-          title="Review"
-          tasks={columns.review}
-          totalTasks={tasks.length}
-          onTaskClick={onTaskClick}
-        />
-
-        <TaskColumn
-          id="completed"
-          title="Completed"
-          tasks={columns.completed}
-          totalTasks={tasks.length}
-          onTaskClick={onTaskClick}
-        />
+      <div className="grid gap-4 2xl:grid-cols-4 xl:grid-cols-2">
+        <TaskColumn id="todo" title="Todo" tasks={columns.todo} totalTasks={tasks.length} onTaskClick={onTaskClick} onAddTask={onAddTask} busyTaskId={busyTaskId} />
+        <TaskColumn id="in-progress" title="In progress" tasks={columns["in-progress"]} totalTasks={tasks.length} onTaskClick={onTaskClick} onAddTask={onAddTask} busyTaskId={busyTaskId} />
+        <TaskColumn id="review" title="Review" tasks={columns.review} totalTasks={tasks.length} onTaskClick={onTaskClick} onAddTask={onAddTask} busyTaskId={busyTaskId} />
+        <TaskColumn id="completed" title="Completed" tasks={columns.completed} totalTasks={tasks.length} onTaskClick={onTaskClick} onAddTask={onAddTask} busyTaskId={busyTaskId} />
       </div>
     </DragDropContext>
   );

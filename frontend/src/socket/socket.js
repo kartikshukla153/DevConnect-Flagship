@@ -2,36 +2,46 @@ import { io } from "socket.io-client";
 
 let socket = null;
 
+function getSocketUrl() {
+  const configured = import.meta.env.VITE_SOCKET_URL;
+
+  if (configured) {
+    return configured.replace(/\/$/, "");
+  }
+
+  const apiUrl = (
+    import.meta.env.VITE_API_URL || "http://localhost:5000/api"
+  ).replace(/\/$/, "");
+
+  return apiUrl.replace(/\/api$/, "");
+}
+
 export const connectSocket = (userId) => {
   if (!userId) return null;
 
-if (socket?.connected) {
-  return socket;
-}
+  if (socket) {
+    const existingUserId = socket.io?.opts?.query?.userId;
 
-if (socket) {
-  socket.disconnect();
-  socket = null;
-}
+    if (
+      socket.connected &&
+      String(existingUserId) === String(userId)
+    ) {
+      return socket;
+    }
 
-  socket = io("http://localhost:5000", {
+    socket.disconnect();
+    socket = null;
+  }
+
+  socket = io(getSocketUrl(), {
     transports: ["websocket"],
-    query: {
-      userId,
-    },
+    query: { userId },
     reconnection: true,
     reconnectionAttempts: Infinity,
     reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
+    timeout: 10000,
     autoConnect: true,
-  });
-
-  socket.on("connect", () => {
-    console.log("🟢 SOCKET CONNECTED");
-    console.log("Socket ID:", socket.id);
-  });
-
-  socket.on("disconnect", () => {
-    console.log("🔴 SOCKET DISCONNECTED");
   });
 
   return socket;
@@ -46,14 +56,8 @@ export const disconnectSocket = () => {
   socket = null;
 };
 
-/* ===========================
-   CHAT HELPERS
-=========================== */
-
 export const emitTyping = (senderId, receiverId, conversationId) => {
-  if (!socket) return;
-
-  socket.emit("typing", {
+  socket?.emit("typing", {
     senderId,
     receiverId,
     conversationId,
@@ -65,22 +69,15 @@ export const emitStopTyping = (
   receiverId,
   conversationId
 ) => {
-  if (!socket) return;
-
-  socket.emit("stopTyping", {
+  socket?.emit("stopTyping", {
     senderId,
     receiverId,
     conversationId,
   });
 };
 
-export const emitMessageRead = (
-  receiverId,
-  conversationId
-) => {
-  if (!socket) return;
-
-  socket.emit("messageRead", {
+export const emitMessageRead = (receiverId, conversationId) => {
+  socket?.emit("messageRead", {
     receiverId,
     conversationId,
   });

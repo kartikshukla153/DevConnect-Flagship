@@ -1,238 +1,45 @@
 import { useEffect, useState } from "react";
-
-import {
-  
-  Star,
-  GitFork,
-  AlertCircle,
-  Eye,
-  Code2,
-  RefreshCw,
-  Link2,
-} from "lucide-react";
-import {
-  fetchRepository,
-  connectRepository,
-} from "../../api/github";
+import { AlertCircle, Eye, GitFork, Link2, RefreshCw, Star } from "lucide-react";
+import { connectRepository, fetchRepository } from "../../api/github";
 
 function GitHubRepositoryCard({ projectId }) {
   const [repo, setRepo] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [connecting, setConnecting] = useState(false);
+  const [url, setUrl] = useState("");
+  const [error, setError] = useState("");
 
-  useEffect(() => {
-    loadRepository();
-  }, [projectId]);
-
-  async function loadRepository() {
+  const load = async ({ silent = false } = {}) => {
     try {
-      setLoading(true);
-
-      const data = await fetchRepository(projectId);
-
-      setRepo(data);
+      if (silent) setRefreshing(true); else setLoading(true);
+      setError("");
+      setRepo(await fetchRepository(projectId));
     } catch (err) {
-      console.log(err);
-    } finally {
-      setLoading(false);
-    }
-  }
+      if (err.response?.status === 404) setRepo(null);
+      else setError(err.response?.data?.message || "Repository unavailable");
+    } finally { setLoading(false); setRefreshing(false); }
+  };
 
-  async function handleConnect() {
-    const url = window.prompt(
-      "Paste GitHub Repository URL"
-    );
+  useEffect(() => { load(); }, [projectId]);
 
-    if (!url) return;
+  const connect = async () => {
+    if (!url.trim()) { setError("Enter a GitHub repository URL."); return; }
+    try { setConnecting(true); setError(""); await connectRepository(projectId, url.trim()); setUrl(""); await load({ silent: true }); }
+    catch (err) { setError(err.response?.data?.message || "Unable to connect repository."); }
+    finally { setConnecting(false); }
+  };
 
-    try {
-      setConnecting(true);
-
-      await connectRepository(projectId, url);
-
-      await loadRepository();
-    } catch (err) {
-      console.log(err);
-
-      alert(
-        err.response?.data?.message ||
-          "Unable to connect repository."
-      );
-    } finally {
-      setConnecting(false);
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className="rounded-2xl border border-slate-800 bg-[#111827] p-6">
-        <p className="text-sm text-slate-400">
-          Loading Repository...
-        </p>
-      </div>
-    );
-  }
-
-  if (!repo) {
-    return (
-      <div className="rounded-2xl border border-slate-800 bg-[#111827] p-6">
-        <div className="flex items-center gap-3">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-500 text-sm font-bold text-black">
-  GH
-</div>
-
-          <h3 className="font-semibold text-white">
-            GitHub Repository
-          </h3>
-        </div>
-
-        <p className="mt-4 text-sm text-slate-400">
-          Connect your repository to unlock
-          repository insights.
-        </p>
-
-        <button
-          onClick={handleConnect}
-          disabled={connecting}
-          className="mt-5 rounded-xl bg-cyan-500 px-5 py-2 text-sm font-semibold text-black transition hover:bg-cyan-400"
-        >
-          {connecting
-            ? "Connecting..."
-            : "Connect Repository"}
-        </button>
-      </div>
-    );
-  }
+  if (loading) return <section className="rounded-2xl border border-white/10 bg-[#111827] p-5"><div className="h-5 w-36 animate-pulse rounded bg-white/5" /><div className="mt-4 h-10 animate-pulse rounded bg-white/5" /></section>;
 
   return (
-    <div className="rounded-2xl border border-slate-800 bg-[#111827] p-6">
+    <section className="rounded-2xl border border-white/10 bg-[#111827] p-5">
+      <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-[.16em] text-cyan-400">Repository</p><h2 className="mt-1 text-lg font-semibold text-white">GitHub</h2></div>{repo && <button onClick={() => load({ silent: true })} disabled={refreshing} className="rounded-lg border border-white/10 p-2 text-slate-500 hover:bg-white/5 hover:text-white disabled:opacity-50"><RefreshCw size={14} className={refreshing ? "animate-spin" : ""} /></button>}</div>
 
-      <div className="flex items-center justify-between">
+      {error && <div className="mt-4 rounded-xl border border-amber-500/10 bg-amber-500/5 p-3 text-xs text-amber-200">{error}</div>}
 
-        <div className="flex items-center gap-3">
-
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-500 text-sm font-bold text-black">
-  GH
-</div>
-
-          <div>
-            <h3 className="font-semibold text-white">
-              {repo.name}
-            </h3>
-
-            <p className="text-xs text-slate-400">
-              Connected Repository
-            </p>
-          </div>
-
-        </div>
-
-        <button
-          onClick={loadRepository}
-          className="rounded-lg p-2 hover:bg-slate-800"
-        >
-          <RefreshCw className="h-4 w-4 text-slate-400" />
-        </button>
-
-      </div>
-
-      <p className="mt-5 text-sm text-slate-400">
-        {repo.description || "No description."}
-      </p>
-
-      <div className="mt-6 grid grid-cols-2 gap-4">
-
-        <div className="rounded-xl bg-[#0B1220] p-4">
-          <div className="flex items-center gap-2">
-
-            <Star className="h-4 w-4 text-yellow-400" />
-
-            <span className="text-sm text-slate-300">
-              Stars
-            </span>
-
-          </div>
-
-          <p className="mt-2 text-xl font-bold text-white">
-            {repo.stars}
-          </p>
-        </div>
-
-        <div className="rounded-xl bg-[#0B1220] p-4">
-          <div className="flex items-center gap-2">
-
-            <GitFork className="h-4 w-4 text-cyan-400" />
-
-            <span className="text-sm text-slate-300">
-              Forks
-            </span>
-
-          </div>
-
-          <p className="mt-2 text-xl font-bold text-white">
-            {repo.forks}
-          </p>
-        </div>
-
-        <div className="rounded-xl bg-[#0B1220] p-4">
-          <div className="flex items-center gap-2">
-
-            <AlertCircle className="h-4 w-4 text-red-400" />
-
-            <span className="text-sm text-slate-300">
-              Issues
-            </span>
-
-          </div>
-
-          <p className="mt-2 text-xl font-bold text-white">
-            {repo.openIssues}
-          </p>
-        </div>
-
-        <div className="rounded-xl bg-[#0B1220] p-4">
-          <div className="flex items-center gap-2">
-
-            <Eye className="h-4 w-4 text-green-400" />
-
-            <span className="text-sm text-slate-300">
-              Watchers
-            </span>
-
-          </div>
-
-          <p className="mt-2 text-xl font-bold text-white">
-            {repo.watchers}
-          </p>
-        </div>
-
-      </div>
-
-      <div className="mt-6 flex items-center justify-between rounded-xl bg-[#0B1220] p-4">
-
-        <div className="flex items-center gap-2">
-
-          <Code2 className="h-4 w-4 text-cyan-400" />
-
-          <span className="text-sm text-slate-300">
-            {repo.language || "Unknown"}
-          </span>
-
-        </div>
-
-        <a
-          href={repo.htmlUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="flex items-center gap-2 text-cyan-400 hover:text-cyan-300"
-        >
-          <Link2 className="h-4 w-4" />
-          Open
-        </a>
-
-      </div>
-
-    </div>
+      {!repo ? <div className="mt-4"><p className="text-xs leading-5 text-slate-500">Connect the repository to surface live engineering signals inside the workspace.</p><input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://github.com/owner/repository" className="mt-4 w-full rounded-xl border border-white/10 bg-[#0B1220] px-3 py-3 text-xs text-white outline-none placeholder:text-slate-600 focus:border-cyan-400/30" /><button onClick={connect} disabled={connecting} className="mt-2 w-full rounded-xl bg-cyan-400 px-3 py-3 text-xs font-semibold text-slate-950 hover:bg-cyan-300 disabled:opacity-50">{connecting ? "Connecting…" : "Connect repository"}</button></div> : <><div className="mt-4 flex items-center justify-between gap-3 rounded-xl bg-[#0B1220] p-3"><div className="min-w-0"><p className="truncate text-sm font-semibold text-white">{repo.name}</p><p className="mt-1 text-[10px] text-emerald-300">Live repository data</p></div><Link2 size={15} className="shrink-0 text-slate-500" /></div><p className="mt-3 line-clamp-2 text-xs leading-5 text-slate-500">{repo.description || "No repository description."}</p><div className="mt-4 grid grid-cols-2 gap-2">{[[Star,"Stars",repo.stars],[GitFork,"Forks",repo.forks],[AlertCircle,"Issues",repo.openIssues],[Eye,"Watchers",repo.watchers]].map(([Icon,label,value]) => <div key={label} className="rounded-xl border border-white/5 bg-[#0B1220] p-3"><Icon size={14} className="text-slate-500" /><p className="mt-2 text-lg font-semibold text-white">{value ?? "—"}</p><p className="text-[10px] text-slate-600">{label}</p></div>)}</div></>}
+    </section>
   );
 }
 

@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import axios from "axios";
+import api from "../api/axios";
 import useAuth from "../hooks/useAuth";
 
 import WorkspaceHeader from "../components/workspace/WorkspaceHeader";
@@ -8,532 +8,856 @@ import WorkspaceToolbar from "../components/workspace/WorkspaceToolbar";
 import WorkspaceSidebar from "../components/workspace/WorkspaceSidebar";
 import WorkspaceRightSidebar from "../components/workspace/WorkspaceRightSidebar";
 import WorkspaceStats from "../components/workspace/WorkspaceStats";
-
 import KanbanBoard from "../components/workspace/KanbanBoard";
-
 import CreateTaskModal from "../components/workspace/CreateTaskModal";
 import TaskDetailsDrawer from "../components/workspace/TaskDetailsDrawer";
-
 import InviteMemberModal from "../components/workspace/InviteMemberModal";
 import EditProjectModal from "../components/workspace/EditProjectModal";
-
-import ProjectMembersCard from "../components/workspace/ProjectMembersCard";
 import ActivityFeed from "../components/workspace/ActivityFeed";
 import GitHubRepositoryCard from "../components/workspace/GitHubRepositoryCard";
-
 import { connectProjectSocket } from "../socket/projectSocket";
-
-const API = "http://localhost:5000/api";
 
 function ProjectWorkspace() {
   const { id } = useParams();
   const navigate = useNavigate();
-
   const { user } = useAuth();
-
-  const token = localStorage.getItem("token");
 
   const [project, setProject] = useState(null);
   const [tasks, setTasks] = useState([]);
-
   const [loading, setLoading] = useState(true);
-
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [sort, setSort] = useState("newest");
-
-  const [openCreateModal, setOpenCreateModal] =
-    useState(false);
-
-  const [selectedTask, setSelectedTask] =
-    useState(null);
-
-  const [drawerOpen, setDrawerOpen] =
-    useState(false);
-
-  const [inviteOpen, setInviteOpen] =
-    useState(false);
-
-  const [editProjectOpen, setEditProjectOpen] =
-    useState(false);
-
-  const [deleting, setDeleting] =
-    useState(false);
+  const [openCreateModal, setOpenCreateModal] = useState(false);
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [editProjectOpen, setEditProjectOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [shareState, setShareState] = useState("");
+  const [activityVersion, setActivityVersion] = useState(0);
+  const [lastSyncedAt, setLastSyncedAt] = useState(null);
 
   /*
-  ============================================================
-  LOAD TASKS ONLY
-  ============================================================
-  */
+   * -------------------------------------------------------
+   * REQUEST / SYNCHRONIZATION REFS
+   * -------------------------------------------------------
+   *
+   * requestIdRef prevents an older workspace request from
+   * overwriting data returned by a newer request.
+   *
+   * tasksRef gives mutation handlers access to the latest
+   * task state without depending on a stale render snapshot.
+   *
+   * statusMutationRef tracks the latest status mutation for
+   * each task so an older API response cannot overwrite a
+   * newer user action.
+   *
+   * taskEventVersionRef helps prevent a failed optimistic
+   * mutation from rolling back over a newer realtime event.
+   *
+   * shareTimerRef keeps the temporary share message lifecycle
+   * controlled.
+   */
+  const requestIdRef = useRef(0);
+  const tasksRef = useRef([]);
+  const statusMutationRef = useRef(new Map());
+  const taskEventVersionRef = useRef(new Map());
+  const shareTimerRef = useRef(null);
 
-  async function loadTasks() {
+  useEffect(() => {
+    tasksRef.current = tasks;
+  }, [tasks]);
+
+  /*
+   * -------------------------------------------------------
+   * SELECTED TASK SYNCHRONIZATION
+   * -------------------------------------------------------
+   */
+  const syncSelectedTask = useCallback((latestTasks) => {
+    setSelectedTask((current) => {
+      if (!current) return null;
+
+      const updated = latestTasks.find(
+        (task) => String(task._id) === String(current._id)
+      );
+
+      if (!updated) {
+        setDrawerOpen(false);
+        return null;
+      }
+
+      return updated;
+    });
+  }, []);
+
+  /*
+   * -------------------------------------------------------
+   * TASK LOADING
+   * -------------------------------------------------------
+   */
+  const loadTasks = useCallback(async () => {
+    if (!id) return [];
+
     try {
-      const response = await axios.get(
-        `${API}/tasks/project/${id}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const response = await api.get(`/tasks/project/${id}`);
 
-      const latestTasks = response.data?.tasks || [];
-
-      console.log(
-        "✅ TASKS REFRESHED:",
-        latestTasks
-      );
+      const latestTasks = Array.isArray(response.data?.tasks)
+        ? response.data.tasks
+        : [];
 
       setTasks(latestTasks);
+      tasksRef.current = latestTasks;
 
-      /*
-      Keep the currently opened drawer synchronized
-      with the latest backend task.
-      */
-
-      setSelectedTask((currentTask) => {
-        if (!currentTask) {
-          return null;
-        }
-
-        const updatedTask = latestTasks.find(
-          (task) =>
-            String(task._id) ===
-            String(currentTask._id)
-        );
-
-        /*
-        Task was deleted.
-        */
-
-        if (!updatedTask) {
-          setDrawerOpen(false);
-          return null;
-        }
-
-        /*
-        Task still exists.
-        Replace stale task object with
-        the freshly fetched backend object.
-        */
-
-        return updatedTask;
-      });
+      syncSelectedTask(latestTasks);
+      setLastSyncedAt(new Date());
 
       return latestTasks;
     } catch (err) {
-      console.error(
-        "LOAD TASKS ERROR:",
-        err
-      );
+      const message =
+        err.response?.data?.message ||
+        "Tasks could not be loaded. Please try again.";
 
-      return [];
+      setError(message);
+
+      throw err;
     }
-  }
+  }, [id, syncSelectedTask]);
 
   /*
-  ============================================================
-  LOAD COMPLETE WORKSPACE
-  ============================================================
-  */
+   * -------------------------------------------------------
+   * FULL WORKSPACE LOAD
+   * -------------------------------------------------------
+   */
+  const loadWorkspace = useCallback(
+    async ({ silent = false } = {}) => {
+      if (!id) return;
 
-  async function loadWorkspace() {
-    try {
-      setLoading(true);
+      const requestId = ++requestIdRef.current;
 
-      const headers = {
-        Authorization: `Bearer ${token}`,
-      };
+      try {
+        if (silent) {
+          setRefreshing(true);
+        } else {
+          setLoading(true);
+        }
 
-      const [projectRes, taskRes] =
-        await Promise.all([
-          axios.get(
-            `${API}/projects/${id}`,
-            {
-              headers,
-            }
-          ),
+        setError("");
 
-          axios.get(
-            `${API}/tasks/project/${id}`,
-            {
-              headers,
-            }
-          ),
+        const [projectRes, taskRes] = await Promise.all([
+          api.get(`/projects/${id}`),
+          api.get(`/tasks/project/${id}`),
         ]);
 
-      console.log(
-        "✅ PROJECT LOADED:",
-        projectRes.data
-      );
+        /*
+         * If another request started while this one was
+         * running, discard this response.
+         */
+        if (requestId !== requestIdRef.current) return;
 
-      console.log(
-        "✅ TASKS LOADED:",
-        taskRes.data
-      );
+        const latestTasks = Array.isArray(taskRes.data?.tasks)
+          ? taskRes.data.tasks
+          : [];
 
-      const latestTasks =
-        taskRes.data?.tasks || [];
+        const latestProject = projectRes.data?.project || null;
 
-      setProject(projectRes.data);
+        setProject(latestProject);
+        setTasks(latestTasks);
 
-      setTasks(latestTasks);
+        tasksRef.current = latestTasks;
 
-      /*
-      If a task drawer was already open,
-      synchronize it with the fresh backend task.
-      */
+        syncSelectedTask(latestTasks);
+        setLastSyncedAt(new Date());
+      } catch (err) {
+        if (requestId !== requestIdRef.current) return;
 
-      setSelectedTask((currentTask) => {
-        if (!currentTask) {
-          return null;
-        }
+        const status = err.response?.status;
 
-        const updatedTask =
-          latestTasks.find(
-            (task) =>
-              String(task._id) ===
-              String(currentTask._id)
+        if (status === 401) {
+          setError("Your session has expired. Please sign in again.");
+        } else if (status === 403) {
+          setError("You do not have access to this workspace.");
+        } else if (status === 404) {
+          setError("This project could not be found.");
+        } else {
+          setError(
+            err.response?.data?.message ||
+              "Workspace could not be loaded. Check the API and try again."
           );
-
-        if (!updatedTask) {
-          setDrawerOpen(false);
-          return null;
         }
 
-        return updatedTask;
-      });
-    } catch (err) {
-      console.error(
-        "LOAD WORKSPACE ERROR:",
-        err
-      );
-
-      setProject(null);
-    } finally {
-      setLoading(false);
-    }
-  }
+        setProject(null);
+      } finally {
+        if (requestId === requestIdRef.current) {
+          setLoading(false);
+          setRefreshing(false);
+        }
+      }
+    },
+    [id, syncSelectedTask]
+  );
 
   /*
-  ============================================================
-  INITIAL WORKSPACE LOAD
-  ============================================================
-  */
-
+   * -------------------------------------------------------
+   * INITIAL WORKSPACE LOAD
+   * -------------------------------------------------------
+   */
   useEffect(() => {
-    if (!id) return;
-
     loadWorkspace();
-  }, [id]);
+  }, [loadWorkspace]);
 
   /*
-  ============================================================
-  PROJECT SOCKET
-  ============================================================
-  */
+   * -------------------------------------------------------
+   * SHARE MESSAGE CLEANUP
+   * -------------------------------------------------------
+   */
+  useEffect(() => {
+    return () => {
+      if (shareTimerRef.current) {
+        window.clearTimeout(shareTimerRef.current);
+      }
+    };
+  }, []);
 
+  /*
+   * -------------------------------------------------------
+   * REALTIME PROJECT SOCKET
+   * -------------------------------------------------------
+   */
   useEffect(() => {
     if (!user?.id || !id) return;
 
-    const socket =
-      connectProjectSocket(user.id);
+    const socket = connectProjectSocket(user.id);
+
+    if (!socket) return;
 
     const joinRoom = () => {
-      socket.emit(
-        "join_project",
-        id
-      );
-
-      console.log(
-        "📁 Joined Project Room:",
-        id
-      );
+      socket.emit("join_project", id);
     };
 
     if (socket.connected) {
       joinRoom();
     } else {
-      socket.once(
-        "connect",
-        joinRoom
-      );
+      socket.once("connect", joinRoom);
     }
 
     /*
-    Task created by another client/member
-    */
+     * ---------------------------------------------------
+     * REALTIME TASK UPSERT
+     * ---------------------------------------------------
+     */
+    const upsertTask = (incomingTask) => {
+      if (!incomingTask?._id) return;
 
-    const handleTaskCreated = () => {
-      console.log(
-        "🟢 SOCKET: task_created"
+      /*
+       * If the backend includes a project identifier,
+       * ensure the event belongs to this workspace.
+       *
+       * If the backend doesn't include project yet,
+       * we preserve compatibility and accept the event.
+       */
+      if (
+        incomingTask.project &&
+        String(incomingTask.project) !== String(id)
+      ) {
+        return;
+      }
+
+      const taskId = String(incomingTask._id);
+
+      taskEventVersionRef.current.set(
+        taskId,
+        (taskEventVersionRef.current.get(taskId) || 0) + 1
       );
 
-      loadTasks();
+      setTasks((current) => {
+        const index = current.findIndex(
+          (task) => String(task._id) === taskId
+        );
+
+        if (index === -1) {
+          const next = [incomingTask, ...current];
+          tasksRef.current = next;
+          return next;
+        }
+
+        const next = [...current];
+
+        next[index] = {
+          ...next[index],
+          ...incomingTask,
+        };
+
+        tasksRef.current = next;
+
+        return next;
+      });
+
+      setSelectedTask((current) => {
+        if (!current || String(current._id) !== taskId) {
+          return current;
+        }
+
+        return {
+          ...current,
+          ...incomingTask,
+        };
+      });
+
+      setLastSyncedAt(new Date());
     };
 
     /*
-    Task updated by another client/member
-    */
+     * ---------------------------------------------------
+     * REALTIME TASK DELETE
+     * ---------------------------------------------------
+     */
+    const removeTask = ({ taskId, projectId } = {}) => {
+      if (!taskId) return;
 
-    const handleTaskUpdated = () => {
-      console.log(
-        "🟡 SOCKET: task_updated"
+      if (
+        projectId &&
+        String(projectId) !== String(id)
+      ) {
+        return;
+      }
+
+      const normalizedTaskId = String(taskId);
+
+      taskEventVersionRef.current.set(
+        normalizedTaskId,
+        (taskEventVersionRef.current.get(normalizedTaskId) || 0) + 1
       );
 
-      loadTasks();
+      setTasks((current) => {
+        const next = current.filter(
+          (task) => String(task._id) !== normalizedTaskId
+        );
+
+        tasksRef.current = next;
+
+        return next;
+      });
+
+      setSelectedTask((current) => {
+        if (
+          !current ||
+          String(current._id) !== normalizedTaskId
+        ) {
+          return current;
+        }
+
+        setDrawerOpen(false);
+        return null;
+      });
+
+      setLastSyncedAt(new Date());
     };
 
     /*
-    Task deleted by another client/member
-    */
-
-    const handleTaskDeleted = () => {
-      console.log(
-        "🔴 SOCKET: task_deleted"
-      );
-
-      loadTasks();
+     * ---------------------------------------------------
+     * ACTIVITY EVENTS
+     * ---------------------------------------------------
+     */
+    const handleActivity = () => {
+      setActivityVersion((value) => value + 1);
     };
 
+    /*
+     * ---------------------------------------------------
+     * TEAM EVENTS
+     * ---------------------------------------------------
+     */
+    const handleTeamUpdate = () => {
+      loadWorkspace({ silent: true });
+    };
+
+    const handleProjectMemberJoined = (payload = {}) => {
+      if (!payload?.projectId) return;
+
+      if (String(payload.projectId) !== String(id)) {
+        return;
+      }
+
+      loadWorkspace({ silent: true });
+
+      setActivityVersion((value) => value + 1);
+    };
+
+    /*
+     * ---------------------------------------------------
+     * SOCKET SUBSCRIPTIONS
+     * ---------------------------------------------------
+     */
+    socket.on("task_created", upsertTask);
+    socket.on("task_updated", upsertTask);
+    socket.on("task_deleted", removeTask);
+    socket.on("activity_added", handleActivity);
+    socket.on("team_updated", handleTeamUpdate);
     socket.on(
-      "task_created",
-      handleTaskCreated
+      "project_member_joined",
+      handleProjectMemberJoined
     );
 
-    socket.on(
-      "task_updated",
-      handleTaskUpdated
-    );
-
-    socket.on(
-      "task_deleted",
-      handleTaskDeleted
-    );
-
+    /*
+     * ---------------------------------------------------
+     * CLEANUP
+     * ---------------------------------------------------
+     */
     return () => {
-      socket.emit(
-        "leave_project",
-        id
+      socket.off("task_created", upsertTask);
+      socket.off("task_updated", upsertTask);
+      socket.off("task_deleted", removeTask);
+      socket.off("activity_added", handleActivity);
+      socket.off("team_updated", handleTeamUpdate);
+      socket.off(
+        "project_member_joined",
+        handleProjectMemberJoined
       );
 
-      socket.off(
-        "task_created",
-        handleTaskCreated
-      );
+      socket.off("connect", joinRoom);
 
-      socket.off(
-        "task_updated",
-        handleTaskUpdated
-      );
+      socket.emit("leave_project", id);
 
-      socket.off(
-        "task_deleted",
-        handleTaskDeleted
-      );
-
-      socket.off(
-        "connect",
-        joinRoom
-      );
+      taskEventVersionRef.current.clear();
     };
-  }, [id, user?.id]);
+  }, [id, user?.id, loadWorkspace]);
 
   /*
-  ============================================================
-  DELETE PROJECT
-  ============================================================
-  */
+   * -------------------------------------------------------
+   * TASK STATUS CHANGE
+   * -------------------------------------------------------
+   *
+   * Optimistic update:
+   *
+   * UI changes immediately
+   *       ↓
+   * API request
+   *       ↓
+   * server confirms
+   *       OR
+   * request fails → safe rollback
+   *
+   * Each task gets its own mutation sequence so an older
+   * response cannot overwrite a newer user action.
+   */
+  const handleTaskStatusChange = useCallback(
+    async (taskId, status) => {
+      const normalizedTaskId = String(taskId);
 
-  async function deleteProject() {
-    const confirmed =
-      window.confirm(
-        "Delete this project permanently?\n\nThis will delete every task, activity and cannot be undone."
+      const previous = tasksRef.current.find(
+        (task) => String(task._id) === normalizedTaskId
       );
 
-    if (!confirmed) return;
+      if (!previous || previous.status === status) {
+        return;
+      }
+
+      const mutationId =
+        `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+      const eventVersionAtStart =
+        taskEventVersionRef.current.get(normalizedTaskId) || 0;
+
+      statusMutationRef.current.set(
+        normalizedTaskId,
+        mutationId
+      );
+
+      /*
+       * Optimistic task update.
+       */
+      setTasks((current) => {
+        const next = current.map((task) =>
+          String(task._id) === normalizedTaskId
+            ? {
+                ...task,
+                status,
+              }
+            : task
+        );
+
+        tasksRef.current = next;
+
+        return next;
+      });
+
+      setSelectedTask((current) =>
+        current &&
+        String(current._id) === normalizedTaskId
+          ? {
+              ...current,
+              status,
+            }
+          : current
+      );
+
+      try {
+        const response = await api.put(
+          `/tasks/status/${normalizedTaskId}`,
+          {
+            status,
+          }
+        );
+
+        /*
+         * Ignore an old API response if another mutation for
+         * this same task has already started.
+         */
+        if (
+          statusMutationRef.current.get(normalizedTaskId) !==
+          mutationId
+        ) {
+          return;
+        }
+
+        const updated = response.data?.task;
+
+        if (updated) {
+          setTasks((current) => {
+            const next = current.map((task) =>
+              String(task._id) === normalizedTaskId
+                ? {
+                    ...task,
+                    ...updated,
+                  }
+                : task
+            );
+
+            tasksRef.current = next;
+
+            return next;
+          });
+
+          setSelectedTask((current) =>
+            current &&
+            String(current._id) === normalizedTaskId
+              ? {
+                  ...current,
+                  ...updated,
+                }
+              : current
+          );
+        }
+
+        setLastSyncedAt(new Date());
+      } catch (err) {
+        /*
+         * Only the latest mutation is allowed to rollback.
+         */
+        if (
+          statusMutationRef.current.get(normalizedTaskId) !==
+          mutationId
+        ) {
+          throw err;
+        }
+
+        /*
+         * If a newer realtime event arrived while our request
+         * was in flight, don't overwrite that newer server state
+         * with the old snapshot.
+         */
+        const currentEventVersion =
+          taskEventVersionRef.current.get(normalizedTaskId) || 0;
+
+        if (currentEventVersion === eventVersionAtStart) {
+          setTasks((current) => {
+            const next = current.map((task) =>
+              String(task._id) === normalizedTaskId
+                ? previous
+                : task
+            );
+
+            tasksRef.current = next;
+
+            return next;
+          });
+
+          setSelectedTask((current) =>
+            current &&
+            String(current._id) === normalizedTaskId
+              ? previous
+              : current
+          );
+        }
+
+        setError(
+          err.response?.data?.message ||
+            "Unable to update task status."
+        );
+
+        throw err;
+      } finally {
+        if (
+          statusMutationRef.current.get(normalizedTaskId) ===
+          mutationId
+        ) {
+          statusMutationRef.current.delete(
+            normalizedTaskId
+          );
+        }
+      }
+    },
+    []
+  );
+
+  /*
+   * -------------------------------------------------------
+   * DELETE PROJECT
+   * -------------------------------------------------------
+   */
+  const deleteProject = async () => {
+    if (
+      !window.confirm(
+        "Delete this project permanently? This cannot be undone."
+      )
+    ) {
+      return;
+    }
 
     try {
       setDeleting(true);
 
-      await axios.delete(
-        `${API}/projects/${id}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      await api.delete(`/projects/${id}`);
 
-      alert(
-        "Project deleted successfully."
-      );
+      /*
+       * Invalidate any workspace request that may still be
+       * resolving before navigation.
+       */
+      requestIdRef.current += 1;
 
-      navigate("/projects");
+      navigate("/projects", {
+        replace: true,
+      });
     } catch (err) {
-      console.error(
-        "DELETE PROJECT ERROR:",
-        err
-      );
-
-      alert(
+      setError(
         err.response?.data?.message ||
-          "Unable to delete project."
+          "Unable to delete this project."
       );
     } finally {
       setDeleting(false);
     }
-  }
+  };
 
   /*
-  ============================================================
-  FILTER + SEARCH + SORT
-  ============================================================
-  */
+   * -------------------------------------------------------
+   * SHARE WORKSPACE
+   * -------------------------------------------------------
+   */
+  const handleShare = async () => {
+    if (shareTimerRef.current) {
+      window.clearTimeout(shareTimerRef.current);
+    }
 
+    try {
+      if (
+        !navigator.clipboard ||
+        typeof navigator.clipboard.writeText !== "function"
+      ) {
+        throw new Error("Clipboard API unavailable");
+      }
+
+      await navigator.clipboard.writeText(
+        window.location.href
+      );
+
+      setShareState("Workspace link copied");
+
+      shareTimerRef.current = window.setTimeout(() => {
+        setShareState("");
+        shareTimerRef.current = null;
+      }, 2500);
+    } catch {
+      setShareState(
+        "Copy failed — use the browser address bar."
+      );
+
+      shareTimerRef.current = window.setTimeout(() => {
+        setShareState("");
+        shareTimerRef.current = null;
+      }, 3000);
+    }
+  };
+
+  /*
+   * -------------------------------------------------------
+   * AI WORKSPACE
+   * -------------------------------------------------------
+   */
+  const handleOpenAI = () => {
+    localStorage.setItem("aiProjectId", id);
+    navigate("/ai");
+  };
+
+  /*
+   * -------------------------------------------------------
+   * TASK SEARCH / FILTER / SORT
+   * -------------------------------------------------------
+   */
   const filteredTasks = useMemo(() => {
     let list = [...tasks];
 
-    /*
-    SEARCH
-    */
+    const query = search.trim().toLowerCase();
 
-    if (search.trim()) {
-      const query =
-        search.toLowerCase();
+    if (query) {
+      list = list.filter((task) => {
+        const haystack = [
+          task.title,
+          task.description,
+          task.assignedTo?.name,
+          ...(Array.isArray(task.labels)
+            ? task.labels
+            : []),
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
 
-      list = list.filter(
-        (task) =>
-          task.title
-            ?.toLowerCase()
-            .includes(query) ||
-          task.description
-            ?.toLowerCase()
-            .includes(query)
-      );
+        return haystack.includes(query);
+      });
     }
 
-    /*
-    FILTER
-    */
-
     if (filter === "high") {
-      list = list.filter(
-        (task) =>
-          task.priority === "high"
+      list = list.filter((task) =>
+        ["high", "urgent"].includes(task.priority)
       );
     } else if (filter !== "all") {
       list = list.filter(
-        (task) =>
-          task.status === filter
+        (task) => task.status === filter
       );
     }
 
-    /*
-    SORT
-    */
+    const priorityRank = {
+      urgent: 4,
+      high: 3,
+      medium: 2,
+      low: 1,
+    };
 
-    switch (sort) {
-      case "oldest":
-        list.sort(
-          (a, b) =>
-            new Date(a.createdAt) -
-            new Date(b.createdAt)
+    list.sort((a, b) => {
+      if (sort === "oldest") {
+        return (
+          new Date(a.createdAt || 0) -
+          new Date(b.createdAt || 0)
         );
-        break;
-
-      case "priority": {
-        const order = {
-          high: 3,
-          medium: 2,
-          low: 1,
-        };
-
-        list.sort(
-          (a, b) =>
-            (order[b.priority] || 0) -
-            (order[a.priority] || 0)
-        );
-
-        break;
       }
 
-      case "deadline":
-        list.sort(
-          (a, b) =>
-            new Date(
-              a.deadline || 0
-            ) -
-            new Date(
-              b.deadline || 0
-            )
+      if (sort === "priority") {
+        return (
+          (priorityRank[b.priority] || 0) -
+          (priorityRank[a.priority] || 0)
         );
-        break;
+      }
 
-      default:
-        list.sort(
-          (a, b) =>
-            new Date(b.createdAt) -
-            new Date(a.createdAt)
-        );
-    }
+      if (sort === "deadline") {
+        const aTime = a.deadline
+          ? new Date(a.deadline).getTime()
+          : Number.MAX_SAFE_INTEGER;
+
+        const bTime = b.deadline
+          ? new Date(b.deadline).getTime()
+          : Number.MAX_SAFE_INTEGER;
+
+        return aTime - bTime;
+      }
+
+      return (
+        new Date(b.createdAt || 0) -
+        new Date(a.createdAt || 0)
+      );
+    });
 
     return list;
-  }, [
-    tasks,
-    search,
-    filter,
-    sort,
-  ]);
+  }, [tasks, search, filter, sort]);
 
   /*
-  ============================================================
-  OPEN TASK
-  ============================================================
-  */
-
-  function openTask(task) {
+   * -------------------------------------------------------
+   * TASK DRAWER
+   * -------------------------------------------------------
+   */
+  const openTask = (task) => {
     setSelectedTask(task);
     setDrawerOpen(true);
-  }
+  };
 
   /*
-  ============================================================
-  LOADING
-  ============================================================
-  */
-
+   * -------------------------------------------------------
+   * LOADING STATE
+   * -------------------------------------------------------
+   */
   if (loading) {
     return (
-      <div className="flex h-[70vh] items-center justify-center text-gray-400">
-        Loading Workspace...
+      <div className="rounded-3xl border border-white/10 bg-[#111827] p-12 text-center text-slate-400">
+        <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-cyan-400/30 border-t-cyan-400" />
+
+        Loading workspace…
       </div>
     );
   }
 
   /*
-  ============================================================
-  PROJECT NOT FOUND
-  ============================================================
-  */
-
+   * -------------------------------------------------------
+   * PROJECT UNAVAILABLE
+   * -------------------------------------------------------
+   */
   if (!project) {
     return (
-      <div className="flex h-[70vh] items-center justify-center text-red-400">
-        Project not found
+      <div className="rounded-3xl border border-red-500/20 bg-[#111827] p-10 text-center">
+        <h2 className="text-xl font-semibold text-white">
+          Workspace unavailable
+        </h2>
+
+        <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-400">
+          {error ||
+            "The project could not be loaded."}
+        </p>
+
+        <div className="mt-6 flex justify-center gap-3">
+          <button
+            onClick={() => loadWorkspace()}
+            className="rounded-xl bg-cyan-400 px-5 py-3 font-semibold text-black hover:bg-cyan-300"
+          >
+            Try again
+          </button>
+
+          <button
+            onClick={() => navigate("/projects")}
+            className="rounded-xl border border-white/10 px-5 py-3 text-white hover:bg-white/5"
+          >
+            Back to projects
+          </button>
+        </div>
       </div>
     );
   }
 
   /*
-  ============================================================
-  UI
-  ============================================================
-  */
-
+   * -------------------------------------------------------
+   * WORKSPACE
+   * -------------------------------------------------------
+   */
   return (
     <>
       <div className="space-y-6">
+        {error && (
+          <div className="flex items-center justify-between gap-4 rounded-2xl border border-amber-500/20 bg-amber-500/5 px-5 py-4 text-sm text-amber-200">
+            <span>{error}</span>
+
+            <button
+              onClick={() => {
+                setError("");
+                loadWorkspace({
+                  silent: true,
+                });
+              }}
+              className="font-semibold text-amber-300 hover:text-white"
+            >
+              Retry
+            </button>
+          </div>
+        )}
 
         <WorkspaceHeader
           project={project}
@@ -549,38 +873,30 @@ function ProjectWorkspace() {
           }
           onRepository={() =>
             navigate(
-              `/repository/${id}`
+              `/projects/${id}/repository`
             )
           }
-          onShare={async () => {
-            try {
-              await navigator.clipboard.writeText(
-                window.location.href
-              );
-
-              alert(
-                "✅ Workspace link copied."
-              );
-            } catch (err) {
-              console.error(
-                "SHARE ERROR:",
-                err
-              );
-            }
-          }}
-          onOpenAI={() => {
-            alert(
-              "AI Workspace coming soon"
-            );
-          }}
+          onShare={handleShare}
+          onOpenAI={handleOpenAI}
           onDelete={
-            project.creator?._id ===
-            user?.id
+            project.creator?._id === user?.id
               ? deleteProject
               : null
           }
           deleting={deleting}
+          onRefresh={() =>
+            loadWorkspace({
+              silent: true,
+            })
+          }
+          refreshing={refreshing}
         />
+
+        {shareState && (
+          <div className="fixed bottom-6 right-6 z-[250] rounded-2xl border border-cyan-500/20 bg-[#111827] px-5 py-3 text-sm font-medium text-cyan-200 shadow-2xl">
+            {shareState}
+          </div>
+        )}
 
         <WorkspaceToolbar
           search={search}
@@ -589,6 +905,14 @@ function ProjectWorkspace() {
           setFilter={setFilter}
           sort={sort}
           setSort={setSort}
+          totalTasks={tasks.length}
+          visibleTasks={filteredTasks.length}
+          refreshing={refreshing}
+          onRefresh={() =>
+            loadWorkspace({
+              silent: true,
+            })
+          }
         />
 
         <WorkspaceStats
@@ -596,36 +920,52 @@ function ProjectWorkspace() {
           project={project}
         />
 
-        <div className="grid grid-cols-12 gap-8">
-
-          {/* LEFT SIDEBAR */}
-
+        <div className="grid grid-cols-12 gap-6 xl:gap-8">
           <div className="col-span-12 xl:col-span-2">
             <WorkspaceSidebar
               project={project}
+              taskCount={tasks.length}
+              activeSection="tasks"
+              onCreateTask={() =>
+                setOpenCreateModal(true)
+              }
+              onInvite={() =>
+                setInviteOpen(true)
+              }
+              onOpenAI={handleOpenAI}
             />
           </div>
 
-          {/* CENTER */}
-
-          <div className="col-span-12 xl:col-span-7">
+          <main className="col-span-12 min-w-0 xl:col-span-7">
             <KanbanBoard
               tasks={filteredTasks}
-              reloadTasks={loadTasks}
               onTaskClick={openTask}
+              onTaskStatusChange={
+                handleTaskStatusChange
+              }
+              onAddTask={() =>
+                setOpenCreateModal(true)
+              }
             />
-          </div>
+          </main>
 
-          {/* RIGHT SIDEBAR */}
-
-          <div className="col-span-12 xl:col-span-3">
+          <aside className="col-span-12 xl:col-span-3">
             <div className="space-y-6">
-
               <WorkspaceRightSidebar
                 project={project}
-                reloadWorkspace={
-                  loadWorkspace
+                tasks={tasks}
+                onCreateTask={() =>
+                  setOpenCreateModal(true)
                 }
+                onInvite={() =>
+                  setInviteOpen(true)
+                }
+                onRepository={() =>
+                  navigate(
+                    `/projects/${id}/repository`
+                  )
+                }
+                onOpenAI={handleOpenAI}
               />
 
               <GitHubRepositoryCard
@@ -634,22 +974,31 @@ function ProjectWorkspace() {
 
               <ActivityFeed
                 projectId={id}
+                refreshKey={activityVersion}
               />
-
-              <ProjectMembersCard
-                project={project}
-                reloadWorkspace={
-                  loadWorkspace
-                }
-              />
-
             </div>
-          </div>
+          </aside>
+        </div>
 
+        <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-[#111827] px-5 py-3 text-xs text-slate-500">
+          <span>
+            {filteredTasks.length} visible of{" "}
+            {tasks.length} tasks
+          </span>
+
+          <span>
+            {lastSyncedAt
+              ? `Synced ${lastSyncedAt.toLocaleTimeString(
+                  [],
+                  {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  }
+                )}`
+              : "Syncing…"}
+          </span>
         </div>
       </div>
-
-      {/* CREATE TASK */}
 
       <CreateTaskModal
         open={openCreateModal}
@@ -660,18 +1009,18 @@ function ProjectWorkspace() {
         reloadTasks={loadTasks}
       />
 
-      {/* INVITE */}
-
       <InviteMemberModal
         open={inviteOpen}
         onClose={() =>
           setInviteOpen(false)
         }
         projectId={id}
-        refreshTeam={loadWorkspace}
+        refreshTeam={() =>
+          loadWorkspace({
+            silent: true,
+          })
+        }
       />
-
-      {/* EDIT PROJECT */}
 
       <EditProjectModal
         open={editProjectOpen}
@@ -679,12 +1028,12 @@ function ProjectWorkspace() {
           setEditProjectOpen(false)
         }
         project={project}
-        refreshProject={
-          loadWorkspace
+        refreshProject={() =>
+          loadWorkspace({
+            silent: true,
+          })
         }
       />
-
-      {/* TASK DETAILS */}
 
       <TaskDetailsDrawer
         open={drawerOpen}

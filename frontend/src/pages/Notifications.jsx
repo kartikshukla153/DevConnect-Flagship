@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
+
 import {
   Bell,
   UserPlus,
@@ -10,6 +12,7 @@ import {
   Check,
   X,
   Loader2,
+  FolderKanban,
 } from "lucide-react";
 
 import useNotifications from "../hooks/useNotifications";
@@ -19,14 +22,23 @@ const API = "http://localhost:5000/api";
 function Notifications() {
   const { notifications, loading } = useNotifications();
 
-  const [localNotifications, setLocalNotifications] = useState([]);
-  const [actionLoading, setActionLoading] = useState(null);
+  const navigate = useNavigate();
+
+  const [localNotifications, setLocalNotifications] =
+    useState([]);
+
+  const [actionLoading, setActionLoading] =
+    useState(null);
 
   const token = localStorage.getItem("token");
 
   useEffect(() => {
     setLocalNotifications(notifications || []);
   }, [notifications]);
+
+  /* =====================================================
+     ICONS
+  ===================================================== */
 
   const getIcon = (type) => {
     switch (type) {
@@ -62,6 +74,14 @@ function Notifications() {
           />
         );
 
+      case "project_invite":
+        return (
+          <FolderKanban
+            size={20}
+            className="text-cyan-400"
+          />
+        );
+
       default:
         return (
           <Bell
@@ -71,6 +91,10 @@ function Notifications() {
         );
     }
   };
+
+  /* =====================================================
+     MARK NOTIFICATION AS READ
+  ===================================================== */
 
   const markAsRead = async (notificationId) => {
     try {
@@ -84,16 +108,24 @@ function Notifications() {
         }
       );
     } catch (error) {
-      console.error("Failed to mark notification as read:", error);
+      console.error(
+        "Failed to mark notification as read:",
+        error
+      );
     }
   };
+
+  /* =====================================================
+     CONNECTION REQUEST ACTION
+  ===================================================== */
 
   const handleConnectionAction = async (
     notification,
     action
   ) => {
     const senderId =
-      notification?.sender?._id || notification?.sender;
+      notification?.sender?._id ||
+      notification?.sender;
 
     if (!senderId) {
       console.error(
@@ -150,6 +182,103 @@ function Notifications() {
     }
   };
 
+  /* =====================================================
+     PROJECT INVITATION ACTION
+  ===================================================== */
+
+  const handleProjectInviteAction = async (
+    notification,
+    action
+  ) => {
+    const projectId =
+      notification?.relatedProject?._id ||
+      notification?.relatedProject;
+
+    if (!projectId) {
+      console.error(
+        "Project ID missing from project invitation notification",
+        notification
+      );
+
+      alert(
+        "This project invitation is missing its project reference."
+      );
+
+      return;
+    }
+
+    try {
+      setActionLoading(
+        `${action}-${notification._id}`
+      );
+
+      const endpoint =
+        action === "accept"
+          ? `${API}/projects/accept-invite/${projectId}`
+          : `${API}/projects/reject-invite/${projectId}`;
+
+      const response = await axios.put(
+        endpoint,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      await markAsRead(notification._id);
+
+      /*
+        Keep the notification visible but mark it as handled.
+        This prevents the action from being available twice.
+      */
+
+      setLocalNotifications((current) =>
+        current.map((item) =>
+          item._id === notification._id
+            ? {
+                ...item,
+                read: true,
+                projectInviteHandled: true,
+                projectInviteAction: action,
+              }
+            : item
+        )
+      );
+
+      /*
+        IMPORTANT:
+        On acceptance, take Kajal directly into the
+        project workspace.
+
+        ProjectWorkspace will establish the project
+        Socket.IO room connection when it mounts.
+      */
+
+      if (action === "accept") {
+        navigate(`/workspace/${projectId}`);
+      }
+    } catch (error) {
+      console.error(
+        `Failed to ${action} project invitation:`,
+        error
+      );
+
+      const message =
+        error?.response?.data?.message ||
+        `Failed to ${action} project invitation`;
+
+      alert(message);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  /* =====================================================
+     GENERIC NOTIFICATION CLICK
+  ===================================================== */
+
   const handleNotificationClick = async (
     notification
   ) => {
@@ -171,6 +300,10 @@ function Notifications() {
     );
   };
 
+  /* =====================================================
+     LOADING
+  ===================================================== */
+
   if (loading) {
     return (
       <div className="flex h-[70vh] items-center justify-center">
@@ -180,6 +313,10 @@ function Notifications() {
       </div>
     );
   }
+
+  /* =====================================================
+     UI
+  ===================================================== */
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -220,6 +357,13 @@ function Notifications() {
               notification.type ===
               "connection_request";
 
+            const isProjectInvite =
+              notification.type ===
+              "project_invite";
+
+            const projectInviteHandled =
+              notification.projectInviteHandled;
+
             const acceptLoading =
               actionLoading ===
               `accept-${notification._id}`;
@@ -229,13 +373,16 @@ function Notifications() {
               `reject-${notification._id}`;
 
             const isActionLoading =
-              acceptLoading || rejectLoading;
+              acceptLoading ||
+              rejectLoading;
 
             return (
               <div
                 key={notification._id}
                 onClick={() =>
-                  handleNotificationClick(notification)
+                  handleNotificationClick(
+                    notification
+                  )
                 }
                 className={`group rounded-2xl border bg-[#111827] px-6 py-5 transition-all duration-300 ${
                   notification.read
@@ -247,7 +394,9 @@ function Notifications() {
                   {/* Icon */}
 
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#0F172A]">
-                    {getIcon(notification.type)}
+                    {getIcon(
+                      notification.type
+                    )}
                   </div>
 
                   {/* Content */}
@@ -268,7 +417,9 @@ function Notifications() {
 
                       {!notification.read && (
                         <div className="flex items-center gap-2 text-cyan-400">
-                          <CheckCircle2 size={15} />
+                          <CheckCircle2
+                            size={15}
+                          />
 
                           Unread
                         </div>
@@ -283,7 +434,9 @@ function Notifications() {
                       )}
                     </div>
 
-                    {/* Connection Request Actions */}
+                    {/* =================================
+                        CONNECTION REQUEST ACTIONS
+                    ================================= */}
 
                     {isConnectionRequest &&
                       !notification.read && (
@@ -295,7 +448,9 @@ function Notifications() {
                         >
                           <button
                             type="button"
-                            disabled={isActionLoading}
+                            disabled={
+                              isActionLoading
+                            }
                             onClick={() =>
                               handleConnectionAction(
                                 notification,
@@ -310,11 +465,15 @@ function Notifications() {
                                   size={16}
                                   className="animate-spin"
                                 />
+
                                 Accepting...
                               </>
                             ) : (
                               <>
-                                <Check size={16} />
+                                <Check
+                                  size={16}
+                                />
+
                                 Accept
                               </>
                             )}
@@ -322,7 +481,9 @@ function Notifications() {
 
                           <button
                             type="button"
-                            disabled={isActionLoading}
+                            disabled={
+                              isActionLoading
+                            }
                             onClick={() =>
                               handleConnectionAction(
                                 notification,
@@ -337,15 +498,123 @@ function Notifications() {
                                   size={16}
                                   className="animate-spin"
                                 />
+
                                 Declining...
                               </>
                             ) : (
                               <>
                                 <X size={16} />
+
                                 Decline
                               </>
                             )}
                           </button>
+                        </div>
+                      )}
+
+                    {/* =================================
+                        PROJECT INVITATION ACTIONS
+                    ================================= */}
+
+                    {isProjectInvite &&
+                      !notification.read &&
+                      !projectInviteHandled && (
+                        <div
+                          className="mt-5 flex flex-wrap gap-3"
+                          onClick={(event) =>
+                            event.stopPropagation()
+                          }
+                        >
+                          <button
+                            type="button"
+                            disabled={
+                              isActionLoading
+                            }
+                            onClick={() =>
+                              handleProjectInviteAction(
+                                notification,
+                                "accept"
+                              )
+                            }
+                            className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-400 px-5 py-2.5 text-sm font-semibold text-[#07111f] transition-all duration-200 hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {acceptLoading ? (
+                              <>
+                                <Loader2
+                                  size={16}
+                                  className="animate-spin"
+                                />
+
+                                Joining...
+                              </>
+                            ) : (
+                              <>
+                                <Check
+                                  size={16}
+                                />
+
+                                Accept & Join
+                              </>
+                            )}
+                          </button>
+
+                          <button
+                            type="button"
+                            disabled={
+                              isActionLoading
+                            }
+                            onClick={() =>
+                              handleProjectInviteAction(
+                                notification,
+                                "reject"
+                              )
+                            }
+                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#374151] bg-[#0F172A] px-5 py-2.5 text-sm font-semibold text-gray-200 transition-all duration-200 hover:border-red-400/50 hover:bg-red-500/10 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {rejectLoading ? (
+                              <>
+                                <Loader2
+                                  size={16}
+                                  className="animate-spin"
+                                />
+
+                                Declining...
+                              </>
+                            ) : (
+                              <>
+                                <X size={16} />
+
+                                Decline
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      )}
+
+                    {/* =================================
+                        HANDLED PROJECT INVITATION
+                    ================================= */}
+
+                    {isProjectInvite &&
+                      notification.read &&
+                      notification.projectInviteHandled && (
+                        <div className="mt-5">
+                          {notification.projectInviteAction ===
+                          "accept" ? (
+                            <div className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-2.5 text-sm font-medium text-emerald-300">
+                              <CheckCircle2
+                                size={16}
+                              />
+
+                              You joined this project
+                            </div>
+                          ) : (
+                            <div className="inline-flex items-center gap-2 rounded-xl border border-red-400/20 bg-red-400/10 px-4 py-2.5 text-sm font-medium text-red-300">
+                              <X size={16} />
+
+                              Invitation declined
+                            </div>
+                          )}
                         </div>
                       )}
                   </div>

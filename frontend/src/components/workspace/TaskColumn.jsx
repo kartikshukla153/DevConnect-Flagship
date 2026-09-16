@@ -1,245 +1,50 @@
-import { Droppable, Draggable } from "@hello-pangea/dnd";
-import {
-  Circle,
-  Plus,
-  TrendingUp,
-} from "lucide-react";
-
+import { Draggable, Droppable } from "@hello-pangea/dnd";
+import { Plus } from "lucide-react";
 import TaskCard from "./TaskCard";
 
-const COLUMN_META = {
-  todo: {
-    color: "bg-sky-500",
-    light: "bg-sky-500/10",
-    text: "text-sky-400",
-  },
-  "in-progress": {
-    color: "bg-amber-500",
-    light: "bg-amber-500/10",
-    text: "text-amber-400",
-  },
-  review: {
-    color: "bg-violet-500",
-    light: "bg-violet-500/10",
-    text: "text-violet-400",
-  },
-  completed: {
-    color: "bg-emerald-500",
-    light: "bg-emerald-500/10",
-    text: "text-emerald-400",
-  },
+const META = {
+  todo: { dot: "bg-sky-400", tint: "bg-sky-500/5", text: "text-sky-300" },
+  "in-progress": { dot: "bg-amber-400", tint: "bg-amber-500/5", text: "text-amber-300" },
+  review: { dot: "bg-violet-400", tint: "bg-violet-500/5", text: "text-violet-300" },
+  completed: { dot: "bg-emerald-400", tint: "bg-emerald-500/5", text: "text-emerald-300" },
 };
 
-function TaskColumn({
-  id,
-  title,
-  tasks = [],
-  totalTasks = 0,
-  onTaskClick,
-})
- {
-  const meta = COLUMN_META[id];
-
-  const percentage =
-    totalTasks === 0
-      ? 0
-      : Math.round((tasks.length / totalTasks) * 100);
+function TaskColumn({ id, title, tasks = [], totalTasks = 0, onTaskClick, onAddTask, busyTaskId }) {
+  const meta = META[id] || META.todo;
+  const percentage = totalTasks ? Math.round((tasks.length / totalTasks) * 100) : 0;
 
   return (
-    <div
-      className="
-        group
-        flex
-        min-h-[760px]
-        flex-col
-        overflow-hidden
-        rounded-3xl
-        border
-        border-white/10
-        bg-[#0F172A]
-        transition-all
-        duration-300
-        hover:-translate-y-1
-        hover:border-cyan-500/40
-        hover:shadow-2xl
-        hover:shadow-cyan-500/5
-      "
-    >
-      <div
-        className="
-          sticky
-          top-0
-          z-20
-          border-b
-          border-white/10
-          bg-[#111827]/95
-          p-5
-          backdrop-blur-xl
-        "
-      >
-        <div className="flex items-start justify-between">
-          <div>
-            <div className="flex items-center gap-3">
-              <div
-                className={`h-3 w-3 rounded-full ${meta.color}`}
-              />
-
-              <h2 className="text-lg font-semibold text-white">
-                {title}
-              </h2>
-
-              <span
-                className={`
-                  rounded-full
-                  px-3
-                  py-1
-                  text-xs
-                  font-semibold
-                  ${meta.light}
-                  ${meta.text}
-                `}
-              >
-                {tasks.length}
-              </span>
-            </div>
-
-            <div className="mt-4 flex items-center justify-between text-xs">
-              <span className="text-slate-500">
-                {percentage}% of project
-              </span>
-
-              <span className={meta.text}>
-                {tasks.length} Tasks
-              </span>
-            </div>
-
-            <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#0B1220]">
-              <div
-                className={`h-full rounded-full ${meta.color} transition-all duration-700`}
-                style={{
-                  width: `${percentage}%`,
-                }}
-              />
-            </div>
+    <section className="flex min-h-[420px] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0F172A]">
+      <header className={`border-b border-white/5 p-4 ${meta.tint}`}>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${meta.dot}`} />
+            <h3 className="truncate text-sm font-semibold text-white">{title}</h3>
+            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${meta.tint} ${meta.text}`}>{tasks.length}</span>
           </div>
-
-          <button
-            className="
-              rounded-xl
-              border
-              border-white/10
-              bg-white/5
-              p-2
-              text-slate-400
-              transition-all
-              hover:border-cyan-500/40
-              hover:bg-cyan-500/10
-              hover:text-cyan-300
-            "
-          >
-            <Plus size={16} />
-          </button>
+          <button onClick={onAddTask} title={`Create ${title} task`} className="rounded-lg border border-white/10 p-1.5 text-slate-500 hover:bg-white/5 hover:text-white"><Plus size={14} /></button>
         </div>
-      </div>
+        <div className="mt-3 flex items-center justify-between text-[10px] text-slate-500"><span>{percentage}% of visible work</span><span>{tasks.length} tasks</span></div>
+      </header>
 
       <Droppable droppableId={id}>
         {(provided, snapshot) => (
-          <div
-            ref={provided.innerRef}
-            {...provided.droppableProps}
-            className={`
-              flex-1
-              space-y-4
-              p-4
-              transition-all
-              duration-300
-              ${
-                snapshot.isDraggingOver
-                  ? "bg-cyan-500/5"
-                  : ""
-              }
-            `}
-          >
+          <div ref={provided.innerRef} {...provided.droppableProps} className={`flex-1 space-y-3 p-3 transition ${snapshot.isDraggingOver ? "bg-cyan-500/5" : ""}`}>
             {tasks.map((task, index) => (
-              <Draggable
-                key={task._id}
-                draggableId={task._id}
-                index={index}
-              >
-                {(provided, snapshot) => (
-                  <div
-                    ref={provided.innerRef}
-                    {...provided.draggableProps}
-                    {...provided.dragHandleProps}
-                    className={`
-                      transition-all
-                      duration-300
-                      ${
-                        snapshot.isDragging
-                          ? "rotate-1 scale-[1.03]"
-                          : ""
-                      }
-                    `}
-                  >
-                    <TaskCard
-  task={task}
-  onClick={onTaskClick}
-/>
+              <Draggable key={task._id} draggableId={String(task._id)} index={index} isDragDisabled={busyTaskId === task._id}>
+                {(provided, dragSnapshot) => (
+                  <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className={dragSnapshot.isDragging ? "rotate-[.5deg] opacity-90" : ""}>
+                    <TaskCard task={task} onClick={onTaskClick} busy={busyTaskId === task._id} />
                   </div>
                 )}
               </Draggable>
             ))}
-
             {provided.placeholder}
-
-            {tasks.length === 0 && (
-              <div
-                className="
-                  flex
-                  h-60
-                  flex-col
-                  items-center
-                  justify-center
-                  rounded-3xl
-                  border-2
-                  border-dashed
-                  border-[#243244]
-                  bg-[#0B1220]
-                  text-center
-                "
-              >
-                <div
-                  className={`
-                    mb-5
-                    flex
-                    h-14
-                    w-14
-                    items-center
-                    justify-center
-                    rounded-2xl
-                    ${meta.light}
-                  `}
-                >
-                  <TrendingUp
-                    className={meta.text}
-                    size={26}
-                  />
-                </div>
-
-                <h3 className="font-semibold text-white">
-                  Nothing here yet
-                </h3>
-
-                <p className="mt-3 max-w-[220px] text-sm leading-6 text-slate-500">
-                  Drag a task into this column or create a
-                  new task to continue your workflow.
-                </p>
-              </div>
-            )}
+            {tasks.length === 0 && <div className="flex min-h-[260px] items-center justify-center rounded-xl border border-dashed border-white/10 bg-[#0B1220] p-5 text-center"><div><p className="text-sm font-medium text-slate-400">No work here</p><p className="mt-1 text-xs leading-5 text-slate-600">Drop a task here or create one.</p></div></div>}
           </div>
         )}
       </Droppable>
-    </div>
+    </section>
   );
 }
 

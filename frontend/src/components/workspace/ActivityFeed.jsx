@@ -1,359 +1,53 @@
-import {
-  Activity,
-  CheckCircle2,
-  Clock3,
-  Trash2,
-  UserPlus,
-  MessageSquare,
-  GitBranch,
-  FileText,
-} from "lucide-react";
-import { useEffect, useState } from "react";
-import axios from "axios";
+import { useCallback, useEffect, useState } from "react";
+import api from "../../api/axios";
+import { Activity, CheckCircle2, Clock3, GitBranch, MessageSquare, RefreshCw, Trash2, UserPlus } from "lucide-react";
 
-const API = "http://localhost:5000/api";
+const ICONS = {
+  task_created: Activity,
+  task_assigned: UserPlus,
+  task_status_updated: Clock3,
+  task_completed: CheckCircle2,
+  task_submission_approved: CheckCircle2,
+  task_submission_rejected: Clock3,
+  task_reviewed: Activity,
+  comment_added: MessageSquare,
+  github_connected: GitBranch,
+  github_pr_linked: GitBranch,
+  task_deleted: Trash2,
+};
 
-function getActivityIcon(type) {
-  switch (type) {
-    case "task_created":
-      return (
-        <Activity
-          size={16}
-          className="text-cyan-400"
-        />
-      );
-
-    case "task_assigned":
-      return (
-        <UserPlus
-          size={16}
-          className="text-blue-400"
-        />
-      );
-
-    case "task_status_updated":
-      return (
-        <Clock3
-          size={16}
-          className="text-amber-400"
-        />
-      );
-
-    case "task_completed":
-      return (
-        <CheckCircle2
-          size={16}
-          className="text-emerald-400"
-        />
-      );
-
-    case "task_submission_approved":
-      return (
-        <CheckCircle2
-          size={16}
-          className="text-emerald-400"
-        />
-      );
-
-    case "task_submission_rejected":
-      return (
-        <Clock3
-          size={16}
-          className="text-red-400"
-        />
-      );
-
-    case "task_reviewed":
-      return (
-        <FileText
-          size={16}
-          className="text-violet-400"
-        />
-      );
-
-    case "comment_added":
-      return (
-        <MessageSquare
-          size={16}
-          className="text-sky-400"
-        />
-      );
-
-    case "github_connected":
-    case "github_pr_linked":
-      return (
-        <GitBranch
-          size={16}
-          className="text-purple-400"
-        />
-      );
-
-    case "task_deleted":
-      return (
-        <Trash2
-          size={16}
-          className="text-red-400"
-        />
-      );
-
-    default:
-      return (
-        <Activity
-          size={16}
-          className="text-cyan-400"
-        />
-      );
-  }
-}
-
-function getActivityAccent(type) {
-  switch (type) {
-    case "task_deleted":
-    case "task_submission_rejected":
-      return "border-red-500/20 bg-red-500/5";
-
-    case "task_submission_approved":
-    case "task_completed":
-      return "border-emerald-500/20 bg-emerald-500/5";
-
-    case "task_status_updated":
-      return "border-amber-500/20 bg-amber-500/5";
-
-    case "task_assigned":
-      return "border-blue-500/20 bg-blue-500/5";
-
-    default:
-      return "border-white/10 bg-[#0B1220]";
-  }
-}
-
-function ActivityFeed({ projectId }) {
+function ActivityFeed({ projectId, refreshKey = 0 }) {
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState("");
 
-  const token = localStorage.getItem("token");
-
-  async function loadActivities() {
+  const load = useCallback(async ({ silent = false } = {}) => {
     if (!projectId) return;
-
     try {
-      const response = await axios.get(
-        `${API}/projects/activity/${projectId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      setActivities(
-        response.data.activities || []
-      );
-    } catch (error) {
-      console.error(
-        "Activity load failed:",
-        error
-      );
+      if (silent) setRefreshing(true); else setLoading(true);
+      setError("");
+      const response = await api.get(`/projects/activity/${projectId}`);
+      setActivities(Array.isArray(response.data?.activities) ? response.data.activities : []);
+    } catch (err) {
+      setError(err.response?.data?.message || "Activity unavailable");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  }
-
-  useEffect(() => {
-    if (!projectId) return;
-
-    loadActivities();
-
-    const interval = setInterval(
-      loadActivities,
-      10000
-    );
-
-    return () => {
-      clearInterval(interval);
-    };
   }, [projectId]);
 
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => { if (refreshKey) load({ silent: true }); }, [refreshKey, load]);
+
   return (
-    <section className="overflow-hidden rounded-3xl border border-white/10 bg-[#111827]">
-
-      {/* HEADER */}
-
-      <div className="border-b border-white/10 p-6">
-
-        <div className="flex items-center justify-between gap-4">
-
-          <div className="flex items-center gap-3">
-
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-cyan-500/20 bg-cyan-500/10">
-              <Activity
-                size={19}
-                className="text-cyan-400"
-              />
-            </div>
-
-            <div>
-              <h2 className="text-lg font-semibold text-white">
-                Activity
-              </h2>
-
-              <p className="mt-0.5 text-xs text-slate-500">
-                Latest project events
-              </p>
-            </div>
-
-          </div>
-
-          <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-slate-400">
-            {activities.length}
-          </span>
-
-        </div>
-
+    <section className="rounded-2xl border border-white/10 bg-[#111827] p-5">
+      <div className="flex items-center justify-between gap-3">
+        <div><p className="text-xs font-semibold uppercase tracking-[.16em] text-cyan-400">Timeline</p><h2 className="mt-1 text-lg font-semibold text-white">Recent activity</h2></div>
+        <button onClick={() => load({ silent: true })} disabled={refreshing} className="rounded-lg border border-white/10 p-2 text-slate-500 hover:bg-white/5 hover:text-white disabled:opacity-50"><RefreshCw size={14} className={refreshing ? "animate-spin" : ""} /></button>
       </div>
 
-      {/* ACTIVITY CONTENT */}
-
-      <div className="max-h-[520px] overflow-y-auto p-6">
-
-        {loading ? (
-
-          <div className="flex flex-col items-center justify-center py-12">
-
-            <div className="mb-4 h-8 w-8 animate-spin rounded-full border-2 border-white/10 border-t-cyan-400" />
-
-            <p className="text-sm text-slate-500">
-              Loading activity...
-            </p>
-
-          </div>
-
-        ) : activities.length === 0 ? (
-
-          <div className="rounded-2xl border border-dashed border-white/10 bg-[#0B1220] px-6 py-10 text-center">
-
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/5">
-
-              <Activity
-                size={24}
-                className="text-slate-600"
-              />
-
-            </div>
-
-            <p className="text-sm font-medium text-slate-400">
-              No activity yet
-            </p>
-
-            <p className="mt-2 text-xs leading-5 text-slate-600">
-              Project events will appear here as your
-              team works.
-            </p>
-
-          </div>
-
-        ) : (
-
-          <div className="space-y-4">
-
-            {activities.map(
-              (item, index) => (
-                <div
-                  key={item._id}
-                  className={`
-                    group
-                    relative
-                    rounded-2xl
-                    border
-                    p-4
-                    transition-all
-                    duration-200
-                    hover:border-cyan-500/20
-                    hover:bg-white/[0.02]
-                    ${getActivityAccent(
-                      item.type
-                    )}
-                  `}
-                >
-
-                  <div className="flex gap-4">
-
-                    {/* ICON */}
-
-                    <div className="relative shrink-0">
-
-                      <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-[#111827]">
-
-                        {getActivityIcon(
-                          item.type
-                        )}
-
-                      </div>
-
-                      {index <
-                        activities.length -
-                          1 && (
-                        <div className="absolute left-1/2 top-10 h-[calc(100%+16px)] w-px -translate-x-1/2 bg-white/5" />
-                      )}
-
-                    </div>
-
-                    {/* CONTENT */}
-
-                    <div className="min-w-0 flex-1">
-
-                      <p className="text-sm leading-6 text-slate-300">
-                        {item.message}
-                      </p>
-
-                      <div className="mt-2 flex flex-wrap items-center gap-2">
-
-                        {item.user?.name && (
-                          <>
-                            <span className="text-xs font-medium text-cyan-400">
-                              {item.user.name}
-                            </span>
-
-                            <span className="text-xs text-slate-700">
-                              •
-                            </span>
-                          </>
-                        )}
-
-                        <span className="text-xs text-slate-500">
-                          {new Date(
-                            item.createdAt
-                          ).toLocaleString()}
-                        </span>
-
-                      </div>
-
-                    </div>
-
-                  </div>
-
-                </div>
-              )
-            )}
-
-          </div>
-
-        )}
-
-      </div>
-
-      {/* FOOTER */}
-
-      {activities.length > 0 && (
-        <div className="border-t border-white/10 bg-[#0B1220]/50 px-6 py-3">
-
-          <p className="text-center text-[11px] text-slate-600">
-            Activity refreshes automatically
-          </p>
-
-        </div>
-      )}
-
+      {loading ? <div className="mt-5 space-y-3">{[1,2,3].map((n) => <div key={n} className="h-14 animate-pulse rounded-xl bg-white/5" />)}</div> : error ? <div className="mt-5 rounded-xl border border-amber-500/10 bg-amber-500/5 p-4 text-xs text-amber-200">{error}</div> : activities.length === 0 ? <div className="mt-5 rounded-xl bg-[#0B1220] p-5 text-center text-xs text-slate-600">No activity recorded yet.</div> : <div className="mt-5 space-y-2">{activities.slice(0, 8).map((item) => { const Icon = ICONS[item.type] || Activity; return <div key={item._id || `${item.type}-${item.createdAt}`} className="flex gap-3 rounded-xl border border-white/5 bg-[#0B1220] p-3"><div className="mt-0.5 rounded-lg bg-white/5 p-2 text-cyan-400"><Icon size={14} /></div><div className="min-w-0 flex-1"><p className="text-xs leading-5 text-slate-300">{item.message}</p><p className="mt-1 text-[10px] text-slate-600">{item.createdAt ? new Date(item.createdAt).toLocaleString() : "Recently"}</p></div></div>; })}</div>}
     </section>
   );
 }

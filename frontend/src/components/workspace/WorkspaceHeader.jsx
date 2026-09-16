@@ -1,15 +1,18 @@
 import {
-  FolderKanban,
-  Users,
-  CalendarDays,
-  Sparkles,
-  Plus,
-  CheckCircle2,
-  Share2,
-  GitBranch,
   Activity,
+  CalendarDays,
+  CheckCircle2,
+  FolderKanban,
+  GitBranch,
+  MoreHorizontal,
+  Plus,
+  RefreshCw,
+  Share2,
+  Sparkles,
   Target,
+  Users,
 } from "lucide-react";
+
 function WorkspaceHeader({
   project,
   tasks = [],
@@ -21,420 +24,118 @@ function WorkspaceHeader({
   onEditProject,
   onDelete,
   deleting,
-})
-   {
-  const completed = tasks.filter(
-    (task) => task.status === "completed"
-  ).length;
-
-  const progress =
-    tasks.length === 0
-      ? 0
-      : Math.round(
-          (completed / tasks.length) * 100
-        );
+  onRefresh,
+  refreshing,
+}) {
+  const total = tasks.length;
+  const completed = tasks.filter((task) => task.status === "completed").length;
+  const inProgress = tasks.filter((task) => task.status === "in-progress").length;
+  const completion = total ? Math.round((completed / total) * 100) : 0;
+  const updated = project.updatedAt ? new Date(project.updatedAt) : null;
 
   return (
-    <section className="overflow-hidden rounded-[30px] border border-white/10 bg-[#111827] shadow-2xl">
+    <section className="relative overflow-hidden rounded-[30px] border border-white/10 bg-[#111827] shadow-2xl">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_10%,rgba(34,211,238,.14),transparent_32%),radial-gradient(circle_at_90%_0%,rgba(59,130,246,.12),transparent_28%)]" />
 
-      {/* Premium Background */}
-
-      <div className="relative overflow-hidden">
-
-        <div className="absolute inset-0 bg-gradient-to-r from-[#07111F] via-[#0E2236] to-[#07111F]" />
-
-        <div className="absolute -left-32 -top-24 h-80 w-80 rounded-full bg-cyan-500/20 blur-[120px]" />
-
-        <div className="absolute right-0 top-0 h-72 w-72 rounded-full bg-sky-500/15 blur-[120px]" />
-
-        <div className="relative px-10 py-9">
-
-          <div className="flex flex-col justify-between gap-10 xl:flex-row">
-
-            {/* LEFT */}
-
-            <div className="flex gap-6">
-
-              {/* Project Logo */}
-
-              <div
-                className="
-                flex
-                h-20
-                w-20
-                shrink-0
-                items-center
-                justify-center
-                rounded-3xl
-                bg-gradient-to-br
-                from-cyan-400
-                via-sky-400
-                to-blue-500
-                shadow-[0_20px_60px_rgba(34,211,238,.35)]
-                "
-              >
-                <FolderKanban
-                  size={34}
-                  className="text-black"
-                />
+      <div className="relative p-6 sm:p-8 xl:p-9">
+        <div className="flex flex-col gap-8 xl:flex-row xl:justify-between">
+          <div className="min-w-0">
+            <div className="flex items-start gap-5">
+              <div className="hidden h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-300 to-blue-500 shadow-[0_18px_50px_rgba(34,211,238,.18)] sm:flex">
+                <FolderKanban size={28} className="text-slate-950" />
               </div>
 
-              {/* Info */}
-
-              <div>
-
-                <div className="flex flex-wrap items-center gap-3">
-
-                  <h1 className="text-4xl font-bold tracking-tight text-white">
-                    {project.title}
-                  </h1>
-
-                  <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-emerald-400">
-                    Production
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full border border-cyan-500/20 bg-cyan-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.16em] text-cyan-300">
+                    Project workspace
                   </span>
-
-                  <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-cyan-300">
-                    Active Sprint
-                  </span>
-
+                  {project.status && (
+                    <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                      {project.status.replace("-", " ")}
+                    </span>
+                  )}
                 </div>
 
-                <p className="mt-4 max-w-3xl text-[15px] leading-7 text-slate-300">
-                  {project.description}
+                <h1 className="mt-3 break-words text-2xl font-bold tracking-tight text-white sm:text-3xl xl:text-4xl">
+                  {project.title || "Untitled project"}
+                </h1>
+
+                <p className="mt-3 max-w-4xl text-sm leading-6 text-slate-400 sm:text-[15px]">
+                  {project.description || "No project description has been added yet."}
                 </p>
 
-                {/* Quick Stats */}
-
-                <div className="mt-6 flex flex-wrap gap-4">
-
-                  <div className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4 backdrop-blur-xl">
-
-                    <div className="text-2xl font-bold text-white">
-                      {tasks.length}
-                    </div>
-
-                    <div className="mt-1 text-xs uppercase tracking-wider text-slate-400">
-                      Tasks
-                    </div>
-
-                  </div>
-
-                  <div className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4 backdrop-blur-xl">
-
-                    <div className="text-2xl font-bold text-white">
-                      {project.members?.length || 0}
-                    </div>
-
-                    <div className="mt-1 text-xs uppercase tracking-wider text-slate-400">
-                      Members
-                    </div>
-
-                  </div>
-
-                  <div className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4 backdrop-blur-xl">
-
-                    <div className="text-2xl font-bold text-emerald-400">
-                      {progress}%
-                    </div>
-
-                    <div className="mt-1 text-xs uppercase tracking-wider text-slate-400">
-                      Completed
-                    </div>
-
-                  </div>
-
+                <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3 text-xs text-slate-500 sm:text-sm">
+                  <span className="flex items-center gap-2"><Users size={15} /> {project.members?.length || 0} members</span>
+                  <span className="flex items-center gap-2"><CalendarDays size={15} /> {updated && !Number.isNaN(updated.getTime()) ? `Updated ${updated.toLocaleDateString()}` : "No update date"}</span>
+                  <span className="flex items-center gap-2 text-emerald-400"><CheckCircle2 size={15} /> {completed} completed</span>
+                  <span className="flex items-center gap-2 text-amber-300"><Activity size={15} /> {inProgress} in progress</span>
                 </div>
 
-                {/* Info Row */}
-
-                <div className="mt-6 flex flex-wrap gap-8 text-sm text-slate-400">
-
-                  <div className="flex items-center gap-2">
-
-                    <Users size={16} />
-
-                    {project.members?.length || 0} Members
-
+                <div className="mt-7 max-w-3xl">
+                  <div className="mb-2 flex items-center justify-between text-xs">
+                    <span className="flex items-center gap-2 font-medium text-slate-400"><Target size={14} className="text-cyan-400" /> Delivery progress</span>
+                    <span className="font-semibold text-cyan-300">{completion}%</span>
                   </div>
-
-                  <div className="flex items-center gap-2">
-
-                    <CalendarDays size={16} />
-
-                    Updated{" "}
-                    {new Date(
-                      project.updatedAt
-                    ).toLocaleDateString()}
-
+                  <div className="h-2 overflow-hidden rounded-full bg-white/5">
+                    <div className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 transition-all duration-500" style={{ width: `${completion}%` }} />
                   </div>
-
-                  <div className="flex items-center gap-2 text-emerald-400">
-
-                    <CheckCircle2 size={16} />
-
-                    {completed} Completed Tasks
-
-                  </div>
-
                 </div>
-                                {/* Progress */}
-
-                <div className="mt-8 max-w-2xl">
-
-                  <div className="mb-3 flex items-center justify-between">
-
-                    <div className="flex items-center gap-2 text-sm font-medium text-slate-300">
-
-                      <Activity
-                        size={16}
-                        className="text-cyan-400"
-                      />
-
-                      Sprint Progress
-
-                    </div>
-
-                    <span className="text-sm font-semibold text-cyan-300">
-                      {progress}%
-                    </span>
-
-                  </div>
-
-                  <div className="h-3 overflow-hidden rounded-full bg-white/10">
-
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-sky-400 to-blue-500 transition-all duration-700"
-                      style={{
-                        width: `${progress}%`,
-                      }}
-                    />
-
-                  </div>
-
-                </div>
-
               </div>
-
             </div>
-
-            {/* RIGHT */}
-
-            <div className="flex w-full max-w-sm flex-col gap-4">
-
-              <button
-                onClick={onCreateTask}
-                className="
-                  flex
-                  items-center
-                  justify-center
-                  gap-3
-                  rounded-2xl
-                  bg-gradient-to-r
-                  from-cyan-400
-                  to-sky-500
-                  px-6
-                  py-4
-                  font-semibold
-                  text-black
-                  transition-all
-                  duration-300
-                  hover:-translate-y-1
-                  hover:shadow-[0_20px_50px_rgba(34,211,238,.35)]
-                "
-              >
-                <Plus size={20} />
-                Create Task
-              </button>
-
-   <button
-  onClick={onOpenAI}
-  className="
-    flex
-    items-center
-    justify-center
-    gap-3
-    rounded-2xl
-    border
-    border-cyan-500/30
-    bg-cyan-500/10
-    px-6
-    py-4
-    font-semibold
-    text-cyan-300
-    transition-all
-    hover:border-cyan-400
-    hover:bg-cyan-500/20
-  "
->
-  <Sparkles size={19} />
-  AI Assistant
-</button>
-{onEditProject && (
-  <button
-    onClick={onEditProject}
-    className="
-      flex
-      items-center
-      justify-center
-      gap-3
-      rounded-2xl
-      border
-      border-cyan-500/30
-      bg-cyan-500/10
-      px-6
-      py-4
-      font-semibold
-      text-cyan-300
-      transition-all
-      hover:border-cyan-400
-      hover:bg-cyan-500/20
-    "
-  >
-    ✏️ Edit Project
-  </button>
-)}
-
-<div className="grid grid-cols-2 gap-4">
-
-  <button
-    onClick={onInvite}
-    className="
-      flex
-      items-center
-      justify-center
-      gap-2
-      rounded-2xl
-      border
-      border-white/10
-      bg-white/5
-      px-4
-      py-4
-      text-sm
-      font-medium
-      text-white
-      transition-all
-      hover:border-cyan-400/30
-      hover:bg-cyan-500/10
-    "
-  >
-    <Users size={18} />
-    Invite
-  </button>
-<button
-  onClick={onShare}
-  className="
-    flex
-    items-center
-    justify-center
-    gap-2
-    rounded-2xl
-    border
-    border-white/10
-    bg-white/5
-    px-4
-    py-4
-    text-sm
-    font-medium
-    text-white
-    transition-all
-    hover:border-cyan-400/30
-    hover:bg-cyan-500/10
-  "
->
-  <Share2 size={18} />
-  Share
-</button>
-
-</div>
-
-<button
-  onClick={onRepository}
-  className="
-    flex
-    items-center
-    justify-center
-    gap-3
-    rounded-2xl
-    border
-    border-white/10
-    bg-white/5
-    px-6
-    py-4
-    text-white
-    transition-all
-    hover:border-white/20
-    hover:bg-white/10
-  "
->
-  <GitBranch size={18} />
-  Repository
-</button>
-
-{onDelete && (
-  <button
-    onClick={onDelete}
-    disabled={deleting}
-    className="
-      flex
-      items-center
-      justify-center
-      gap-3
-      rounded-2xl
-      border
-      border-red-500/30
-      bg-red-500/10
-      px-6
-      py-4
-      font-semibold
-      text-red-400
-      transition-all
-      hover:bg-red-500/20
-      hover:border-red-400
-      disabled:cursor-not-allowed
-      disabled:opacity-60
-    "
-  >
-    {deleting ? "Deleting..." : "Delete Project"}
-  </button>
-)}
-              <div
-                className="
-                  rounded-2xl
-                  border
-                  border-white/10
-                  bg-white/5
-                  p-5
-                  backdrop-blur-xl
-                "
-              >
-                <div className="flex items-center gap-3">
-
-                  <Target className="text-cyan-400" />
-
-                  <div>
-
-                    <p className="text-sm font-semibold text-white">
-                      Current Sprint
-                    </p>
-
-                    <p className="mt-1 text-sm text-slate-400">
-                      {completed} of {tasks.length} tasks completed.
-                    </p>
-
-                  </div>
-
-                </div>
-
-              </div>
-
-            </div>
-
           </div>
 
+          <div className="flex w-full shrink-0 flex-col gap-3 xl:max-w-[280px]">
+            <button onClick={onCreateTask} className="flex items-center justify-center gap-2 rounded-xl bg-cyan-400 px-5 py-3.5 font-semibold text-slate-950 transition hover:bg-cyan-300">
+              <Plus size={18} /> Create task
+            </button>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button onClick={onOpenAI} className="flex items-center justify-center gap-2 rounded-xl border border-cyan-500/20 bg-cyan-500/10 px-4 py-3 text-sm font-semibold text-cyan-200 hover:bg-cyan-500/15">
+                <Sparkles size={16} /> AI
+              </button>
+              <button onClick={onInvite} className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-white hover:bg-white/10">
+                <Users size={16} /> Invite
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button onClick={onRepository} className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-white hover:bg-white/10">
+                <GitBranch size={16} /> Repo
+              </button>
+              <button onClick={onShare} className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-white hover:bg-white/10">
+                <Share2 size={16} /> Share
+              </button>
+            </div>
+
+            <div className="flex gap-3">
+              {onEditProject && (
+                <button onClick={onEditProject} className="flex-1 rounded-xl border border-white/10 bg-white/[.03] px-4 py-3 text-sm text-slate-300 hover:bg-white/5">
+                  Edit project
+                </button>
+              )}
+              <button onClick={onRefresh} disabled={refreshing} title="Refresh workspace" className="rounded-xl border border-white/10 bg-white/[.03] p-3 text-slate-400 hover:bg-white/5 disabled:opacity-50">
+                <RefreshCw size={17} className={refreshing ? "animate-spin" : ""} />
+              </button>
+            </div>
+
+            {onDelete && (
+              <button onClick={onDelete} disabled={deleting} className="rounded-xl border border-red-500/15 bg-red-500/5 px-4 py-2.5 text-xs font-medium text-red-300 hover:bg-red-500/10 disabled:opacity-50">
+                {deleting ? "Deleting project…" : "Delete project"}
+              </button>
+            )}
+
+            <div className="rounded-xl border border-white/10 bg-black/10 p-4">
+              <div className="flex items-center justify-between text-xs text-slate-500">
+                <span>Current sprint</span>
+                <MoreHorizontal size={15} />
+              </div>
+              <p className="mt-2 text-sm font-medium text-white">{completed} of {total} tasks complete</p>
+              <p className="mt-1 text-xs text-slate-500">{total - completed} remaining in the current board.</p>
+            </div>
+          </div>
         </div>
-
       </div>
-
     </section>
   );
 }

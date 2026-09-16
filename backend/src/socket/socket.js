@@ -5,6 +5,10 @@ let io;
 
 const userSocketMap = {};
 
+/* =========================================================
+   INITIALIZE SOCKET.IO
+========================================================= */
+
 export const initializeSocket = (server) => {
   io = new Server(server, {
     cors: {
@@ -21,9 +25,9 @@ export const initializeSocket = (server) => {
 
     const userId = socket.handshake.query.userId;
 
-    // =============================
-    // USER ONLINE
-    // =============================
+    /* =====================================================
+       USER ONLINE
+    ===================================================== */
 
     if (userId) {
       userSocketMap[userId] = socket.id;
@@ -35,7 +39,12 @@ export const initializeSocket = (server) => {
         });
 
         io.emit("userOnline", userId);
-        io.emit("onlineUsers", Object.keys(userSocketMap));
+
+        io.emit(
+          "onlineUsers",
+          Object.keys(userSocketMap)
+        );
+
         io.emit(
           "team_presence_updated",
           Object.keys(userSocketMap)
@@ -45,11 +54,13 @@ export const initializeSocket = (server) => {
       }
     }
 
-    // =============================
-    // PROJECT ROOM
-    // =============================
+    /* =====================================================
+       PROJECT ROOM
+    ===================================================== */
 
     socket.on("join_project", (projectId) => {
+      if (!projectId) return;
+
       socket.join(projectId);
 
       console.log("==================================");
@@ -57,7 +68,7 @@ export const initializeSocket = (server) => {
       console.log("🆔 Socket:", socket.id);
       console.log("🏠 Rooms:", [...socket.rooms]);
       console.log("🗺 Adapter Rooms:");
-  console.log(io.sockets.adapter.rooms);
+      console.log(io.sockets.adapter.rooms);
       console.log("==================================");
 
       io.to(projectId).emit(
@@ -67,6 +78,8 @@ export const initializeSocket = (server) => {
     });
 
     socket.on("leave_project", (projectId) => {
+      if (!projectId) return;
+
       socket.leave(projectId);
 
       console.log(
@@ -74,34 +87,37 @@ export const initializeSocket = (server) => {
       );
     });
 
-    // =============================
-    // PROJECT TYPING
-    // =============================
+    /* =====================================================
+       PROJECT TYPING
+    ===================================================== */
 
     socket.on(
       "project_typing",
       ({ projectId, user }) => {
-        socket.to(projectId).emit(
-          "project_typing",
-          {
+        if (!projectId) return;
+
+        socket
+          .to(projectId)
+          .emit("project_typing", {
             user,
-          }
-        );
+          });
       }
     );
 
     socket.on(
       "project_stop_typing",
       (projectId) => {
+        if (!projectId) return;
+
         socket
           .to(projectId)
           .emit("project_stop_typing");
       }
     );
 
-    // =============================
-    // PRIVATE CHAT TYPING
-    // =============================
+    /* =====================================================
+       PRIVATE CHAT TYPING
+    ===================================================== */
 
     socket.on(
       "typing",
@@ -147,9 +163,9 @@ export const initializeSocket = (server) => {
       }
     );
 
-    // =============================
-    // MESSAGE READ
-    // =============================
+    /* =====================================================
+       MESSAGE READ
+    ===================================================== */
 
     socket.on(
       "messageRead",
@@ -171,9 +187,9 @@ export const initializeSocket = (server) => {
       }
     );
 
-    // =============================
-    // DISCONNECT
-    // =============================
+    /* =====================================================
+       DISCONNECT
+    ===================================================== */
 
     socket.on("disconnect", async () => {
       console.log(
@@ -182,7 +198,19 @@ export const initializeSocket = (server) => {
       );
 
       if (userId) {
-        delete userSocketMap[userId];
+        /*
+          Only remove the mapping if this socket is still
+          the active socket for the user.
+
+          This prevents an older socket disconnecting from
+          accidentally deleting a newer active connection.
+        */
+
+        if (
+          userSocketMap[userId] === socket.id
+        ) {
+          delete userSocketMap[userId];
+        }
 
         try {
           await User.findByIdAndUpdate(userId, {
@@ -191,8 +219,14 @@ export const initializeSocket = (server) => {
           });
 
           io.emit("userOffline", userId);
+
           io.emit(
             "onlineUsers",
+            Object.keys(userSocketMap)
+          );
+
+          io.emit(
+            "team_presence_updated",
             Object.keys(userSocketMap)
           );
         } catch (err) {
@@ -202,6 +236,47 @@ export const initializeSocket = (server) => {
     });
   });
 };
+
+/* =========================================================
+   PROJECT MEMBER JOINED EVENT
+========================================================= */
+
+export const emitProjectMemberJoined = (
+  projectId,
+  member
+) => {
+  if (!io) {
+    console.error(
+      "Socket.IO is not initialized"
+    );
+
+    return;
+  }
+
+  if (!projectId) {
+    console.error(
+      "Cannot emit project member event without projectId"
+    );
+
+    return;
+  }
+
+  io.to(projectId.toString()).emit(
+    "project_member_joined",
+    {
+      projectId: projectId.toString(),
+      member,
+    }
+  );
+
+  console.log(
+    `👤 Project member joined: ${member?.user} → ${projectId}`
+  );
+};
+
+/* =========================================================
+   GET SOCKET.IO INSTANCE
+========================================================= */
 
 export const getIO = () => {
   if (!io) {
@@ -213,10 +288,18 @@ export const getIO = () => {
   return io;
 };
 
+/* =========================================================
+   GET RECEIVER SOCKET ID
+========================================================= */
+
 export const getReceiverSocketId = (
   userId
 ) => {
   return userSocketMap[userId];
 };
+
+/* =========================================================
+   EXPORT SOCKET INSTANCE
+========================================================= */
 
 export { io };

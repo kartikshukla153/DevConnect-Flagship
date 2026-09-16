@@ -1,6 +1,7 @@
 import express from "express";
 
 import authMiddleware from "../middleware/authMiddleware.js";
+import checkProjectRole from "../middleware/projectPermissionMiddleware.js";
 
 import {
   createTask,
@@ -31,6 +32,7 @@ router.post(
 router.get(
   "/project/:projectId",
   authMiddleware,
+  checkProjectRole("owner", "admin", "member"),
   getProjectTasks
 );
 
