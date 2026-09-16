@@ -5,7 +5,6 @@ import {
   getMyProfile,
   getUserProfile,
   getAllProfiles,
-  
   searchProfilesBySkill,
   addExperience,
   deleteExperience,
@@ -15,42 +14,77 @@ import authMiddleware from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-/**
- * CREATE OR UPDATE PROFILE
- */
-router.post("/", authMiddleware, createOrUpdateProfile);
+/*
+|--------------------------------------------------------------------------
+| Create / Update
+|--------------------------------------------------------------------------
+*/
 
-/**
- * ADD EXPERIENCE
- */
-router.post("/experience", authMiddleware, addExperience);
+router.post(
+  "/",
+  authMiddleware,
+  createOrUpdateProfile
+);
 
+/*
+|--------------------------------------------------------------------------
+| Experience
+|--------------------------------------------------------------------------
+*/
 
-/**
- * DELETE EXPERIENCE
- */
-router.delete("/experience/:expId", authMiddleware, deleteExperience);
+router.post(
+  "/experience",
+  authMiddleware,
+  addExperience
+);
 
-/**
- * GET MY PROFILE
- */
-router.get("/me", authMiddleware, getMyProfile);
+router.delete(
+  "/experience/:expId",
+  authMiddleware,
+  deleteExperience
+);
 
-/**
- * SEARCH PROFILES
- */
-router.get("/search/skills", searchProfilesBySkill);
+/*
+|--------------------------------------------------------------------------
+| Current User
+|--------------------------------------------------------------------------
+*/
 
-/**
- * GET ALL PROFILES
- */
-router.get("/", getAllProfiles);
+router.get(
+  "/me",
+  authMiddleware,
+  getMyProfile
+);
 
+/*
+|--------------------------------------------------------------------------
+| Developer Discovery
+|--------------------------------------------------------------------------
+|
+| Keep these BEFORE /:userId.
+|
+|--------------------------------------------------------------------------
+*/
 
+router.get(
+  "/search/skills",
+  searchProfilesBySkill
+);
 
-/**
- * GET PUBLIC PROFILE
- */
-router.get("/:userId", getUserProfile);
+router.get(
+  "/",
+  getAllProfiles
+);
+
+/*
+|--------------------------------------------------------------------------
+| Public Developer Profile
+|--------------------------------------------------------------------------
+*/
+
+router.get(
+  "/:userId",
+  getUserProfile
+);
 
 export default router;

@@ -1,31 +1,33 @@
-import { Link } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
-import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   MapPin,
   ExternalLink,
   Sparkles,
+  Globe,
+  Loader2,
+  UserRound,
+  CheckCircle2,
 } from "lucide-react";
-
 import StatusButton from "./StatusButton";
 import OnlineIndicator from "../OnlineIndicator";
 
-const API = "http://localhost:5000/api";
+const API = (
+  import.meta.env.VITE_API_URL || "http://localhost:5000/api"
+).replace(/\/$/, "");
 
-function DeveloperCard({
-  profile,
-  onlineUsers = [],
-}) {
+function DeveloperCard({ profile, onlineUsers = [] }) {
   const [status, setStatus] = useState("none");
-  const [actionLoading, setActionLoading] =
-    useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
 
   const token = localStorage.getItem("token");
-
   const userId = profile?.user?._id;
 
   const isOnline = userId
-    ? onlineUsers.includes(userId)
+    ? onlineUsers.some(
+        (onlineId) => String(onlineId) === String(userId)
+      )
     : false;
 
   const authConfig = {
@@ -34,13 +36,46 @@ function DeveloperCard({
     },
   };
 
-  /*
-   * GET CURRENT CONNECTION STATUS
-   */
+  const initials = useMemo(() => {
+    const name =
+      profile?.user?.name ||
+      profile?.username ||
+      "Developer";
+
+    return name
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part.charAt(0).toUpperCase())
+      .join("");
+  }, [profile]);
+
+  const visibleSkills = Array.isArray(profile?.skills)
+    ? profile.skills.slice(0, 5)
+    : [];
+
+  const remainingSkills = Math.max(
+    (profile?.skills?.length || 0) - visibleSkills.length,
+    0
+  );
+
+  const experienceCount = profile?.experience?.length || 0;
+
+  const github =
+    profile?.socialLinks?.github ||
+    profile?.user?.github ||
+    "";
+
+  const portfolio =
+    profile?.socialLinks?.portfolio || "";
+
+  const linkedin =
+    profile?.socialLinks?.linkedin ||
+    profile?.user?.linkedin ||
+    "";
+
   const fetchStatus = async () => {
-    if (!userId || !token) {
-      return;
-    }
+    if (!userId || !token) return;
 
     try {
       const res = await axios.get(
@@ -48,7 +83,7 @@ function DeveloperCard({
         authConfig
       );
 
-      setStatus(res.data.status || "none");
+      setStatus(res.data?.status || "none");
     } catch (error) {
       console.error(
         "Failed to fetch connection status:",
@@ -61,9 +96,6 @@ function DeveloperCard({
     fetchStatus();
   }, [userId]);
 
-  /*
-   * SEND CONNECTION REQUEST
-   */
   const sendRequest = async () => {
     try {
       setActionLoading(true);
@@ -90,9 +122,6 @@ function DeveloperCard({
     }
   };
 
-  /*
-   * CANCEL SENT REQUEST
-   */
   const cancelRequest = async () => {
     try {
       setActionLoading(true);
@@ -118,9 +147,6 @@ function DeveloperCard({
     }
   };
 
-  /*
-   * ACCEPT RECEIVED REQUEST
-   */
   const acceptRequest = async () => {
     try {
       setActionLoading(true);
@@ -147,9 +173,6 @@ function DeveloperCard({
     }
   };
 
-  /*
-   * REJECT RECEIVED REQUEST
-   */
   const rejectRequest = async () => {
     try {
       setActionLoading(true);
@@ -176,17 +199,14 @@ function DeveloperCard({
     }
   };
 
-  /*
-   * REMOVE EXISTING CONNECTION
-   */
   const removeConnection = async () => {
     const confirmed = window.confirm(
-      `Remove ${profile?.user?.name || "this developer"} from your connections?`
+      `Remove ${
+        profile?.user?.name || "this developer"
+      } from your connections?`
     );
 
-    if (!confirmed) {
-      return;
-    }
+    if (!confirmed) return;
 
     try {
       setActionLoading(true);
@@ -213,122 +233,245 @@ function DeveloperCard({
   };
 
   return (
-    <div className="group overflow-hidden rounded-3xl border border-[#263243] bg-[#111827] transition duration-300 hover:-translate-y-1 hover:border-cyan-400">
-      {/* Banner */}
+    <article className="group relative overflow-hidden rounded-[26px] border border-white/[0.08] bg-[#0F1726] shadow-[0_18px_60px_rgba(0,0,0,.12)] transition duration-300 hover:-translate-y-1 hover:border-cyan-400/20 hover:shadow-[0_24px_70px_rgba(0,0,0,.22)]">
 
-      <div className="h-24 bg-gradient-to-r from-cyan-500/30 via-cyan-400/10 to-transparent" />
+      {/* Top accent */}
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-400/50 to-transparent opacity-0 transition group-hover:opacity-100" />
 
-      {/* Main Content */}
+      {/* Header */}
+      <div className="relative h-24 overflow-hidden bg-[#101B2C]">
+        <div className="absolute -right-10 -top-16 h-40 w-40 rounded-full bg-cyan-400/[0.08] blur-2xl" />
 
-      <div className="px-6">
-        {/* Avatar */}
+        <div className="absolute bottom-4 left-5 flex items-center gap-2 rounded-full border border-white/[0.08] bg-[#08111F]/80 px-2.5 py-1.5 backdrop-blur">
+          <span
+            className={`h-1.5 w-1.5 rounded-full ${
+              isOnline
+                ? "bg-emerald-400"
+                : "bg-slate-600"
+            }`}
+          />
 
-        <div className="-mt-10 flex items-start justify-between">
+          <span className="text-[10px] font-medium uppercase tracking-[0.12em] text-slate-400">
+            {isOnline ? "Online" : "Offline"}
+          </span>
+        </div>
+      </div>
+
+      <div className="px-5 pb-5">
+
+        {/* Identity */}
+        <div className="-mt-10 flex items-end justify-between">
+
           <div className="relative">
-            <div className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-[#111827] bg-cyan-400 text-3xl font-bold text-black">
-              {profile?.user?.name?.charAt(0)?.toUpperCase() ||
-                "D"}
-            </div>
+            {profile?.user?.profilePicture ? (
+              <img
+                src={profile.user.profilePicture}
+                alt={
+                  profile?.user?.name ||
+                  "Developer"
+                }
+                className="h-[76px] w-[76px] rounded-[22px] border-4 border-[#0F1726] object-cover"
+              />
+            ) : (
+              <div className="flex h-[76px] w-[76px] items-center justify-center rounded-[22px] border-4 border-[#0F1726] bg-cyan-400 text-xl font-bold text-[#07111f]">
+                {initials}
+              </div>
+            )}
 
             <div className="absolute bottom-1 right-1">
               <OnlineIndicator online={isOnline} />
             </div>
           </div>
 
-          <div className="flex items-center gap-2 rounded-xl border border-[#374151] bg-[#0B1220] px-3 py-2 text-xs text-cyan-300">
-            <Sparkles size={14} />
+          <div className="mb-1 flex items-center gap-1.5 rounded-xl border border-white/[0.07] bg-[#0A1220] px-2.5 py-1.5 text-[10px] font-medium uppercase tracking-[0.08em] text-cyan-300">
+            <Sparkles size={12} />
             Developer
           </div>
         </div>
 
-        {/* Identity */}
-
+        {/* Name */}
         <div className="mt-5">
-          <h2 className="text-2xl font-bold">
-            {profile?.user?.name}
+          <h2 className="truncate text-xl font-bold tracking-[-0.02em] text-white">
+            {profile?.user?.name ||
+              profile?.username ||
+              "Developer"}
           </h2>
 
-          <p className="mt-1 text-cyan-400">
-            @{profile?.username}
-          </p>
-
-          {profile?.headline && (
-            <p className="mt-4 leading-7 text-gray-300">
-              {profile.headline}
+          {profile?.username && (
+            <p className="mt-1 truncate text-xs text-cyan-300/80">
+              @{profile.username}
             </p>
           )}
 
+          {profile?.headline ? (
+            <p className="mt-4 line-clamp-2 min-h-[40px] text-sm leading-5 text-slate-300">
+              {profile.headline}
+            </p>
+          ) : (
+            <p className="mt-4 min-h-[40px] text-sm italic leading-5 text-slate-600">
+              No headline added yet.
+            </p>
+          )}
+        </div>
+
+        {/* Location / availability */}
+        <div className="mt-5 flex flex-wrap gap-2">
+
           {profile?.location && (
-            <div className="mt-5 flex items-center gap-2 text-gray-400">
-              <MapPin size={16} />
-              {profile.location}
-            </div>
+            <span className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-white/[0.06] bg-white/[0.025] px-2.5 py-1.5 text-xs text-slate-400">
+              <MapPin
+                size={13}
+                className="shrink-0 text-slate-500"
+              />
+
+              <span className="truncate">
+                {profile.location}
+              </span>
+            </span>
+          )}
+
+          {profile?.availability && (
+            <span className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-400/10 bg-emerald-400/[0.05] px-2.5 py-1.5 text-xs text-emerald-300">
+              <CheckCircle2 size={13} />
+
+              {profile.availability}
+            </span>
           )}
         </div>
 
         {/* Skills */}
+        <div className="mt-5 min-h-[60px]">
+          {visibleSkills.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5">
+              {visibleSkills.map(
+                (skill, index) => (
+                  <span
+                    key={`${skill}-${index}`}
+                    className="rounded-lg border border-cyan-400/10 bg-cyan-400/[0.05] px-2.5 py-1.5 text-[11px] font-medium text-cyan-200"
+                  >
+                    {skill}
+                  </span>
+                )
+              )}
 
-        <div className="mt-6 flex flex-wrap gap-2">
-          {profile?.skills
-            ?.slice(0, 6)
-            .map((skill) => (
-              <span
-                key={skill}
-                className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 text-sm text-cyan-300"
-              >
-                {skill}
+              {remainingSkills > 0 && (
+                <span className="rounded-lg border border-white/[0.06] bg-white/[0.025] px-2.5 py-1.5 text-[11px] font-medium text-slate-500">
+                  +{remainingSkills}
+                </span>
+              )}
+            </div>
+          ) : (
+            <p className="text-xs text-slate-600">
+              No skills listed yet.
+            </p>
+          )}
+        </div>
+
+        {/* Engineering footprint */}
+        <div className="mt-5 grid grid-cols-2 gap-2">
+
+          <div className="rounded-xl border border-white/[0.06] bg-[#0A1220] px-3 py-3">
+            <div className="flex items-center gap-2 text-slate-500">
+              <span className="flex h-5 w-5 items-center justify-center rounded-md border border-cyan-400/10 bg-cyan-400/[0.05] text-[10px] font-bold text-cyan-300">
+                #
               </span>
-            ))}
+
+              <span className="text-[10px] uppercase tracking-[0.08em]">
+                Stack
+              </span>
+            </div>
+
+            <p className="mt-1 text-sm font-semibold text-white">
+              {profile?.skills?.length || 0} skills
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-white/[0.06] bg-[#0A1220] px-3 py-3">
+            <div className="flex items-center gap-2 text-slate-500">
+              <span className="flex h-5 w-5 items-center justify-center rounded-md border border-white/[0.08] bg-white/[0.025] text-[10px] font-bold text-slate-400">
+                ↗
+              </span>
+
+              <span className="text-[10px] uppercase tracking-[0.08em]">
+                Experience
+              </span>
+            </div>
+
+            <p className="mt-1 text-sm font-semibold text-white">
+              {experienceCount}{" "}
+              {experienceCount === 1
+                ? "role"
+                : "roles"}
+            </p>
+          </div>
+
         </div>
 
-        {/* Stats */}
+        {/* External links */}
+        {(github || linkedin || portfolio) && (
+          <div className="mt-4 flex flex-wrap items-center gap-2">
 
-        <div className="mt-8 grid grid-cols-3 gap-3">
-          <div className="rounded-2xl border border-[#263243] bg-[#0B1220] p-4">
-            <div className="text-2xl font-bold">
-              {profile?.skills?.length || 0}
-            </div>
+            {github && (
+              <a
+                href={github}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(event) =>
+                  event.stopPropagation()
+                }
+                className="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.06] bg-white/[0.02] px-2.5 py-1.5 text-xs text-slate-500 transition hover:border-white/[0.12] hover:text-white"
+              >
+                <Globe size={13} />
+                GitHub
+              </a>
+            )}
 
-            <div className="mt-1 text-xs text-gray-500">
-              Skills
-            </div>
+            {linkedin && (
+              <a
+                href={linkedin}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(event) =>
+                  event.stopPropagation()
+                }
+                className="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.06] bg-white/[0.02] px-2.5 py-1.5 text-xs text-slate-500 transition hover:border-white/[0.12] hover:text-white"
+              >
+                <ExternalLink size={13} />
+                LinkedIn
+              </a>
+            )}
+
+            {portfolio && (
+              <a
+                href={portfolio}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(event) =>
+                  event.stopPropagation()
+                }
+                className="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.06] bg-white/[0.02] px-2.5 py-1.5 text-xs text-slate-500 transition hover:border-white/[0.12] hover:text-white"
+              >
+                <ExternalLink size={13} />
+                Portfolio
+              </a>
+            )}
+
           </div>
-
-          <div className="rounded-2xl border border-[#263243] bg-[#0B1220] p-4">
-            <div className="text-2xl font-bold">
-              {profile?.experience?.length || 0}
-            </div>
-
-            <div className="mt-1 text-xs text-gray-500">
-              Experience
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-[#263243] bg-[#0B1220] p-4">
-            <div className="text-2xl font-bold">
-              {isOnline ? "●" : "○"}
-            </div>
-
-            <div className="mt-1 text-xs text-gray-500">
-              Status
-            </div>
-          </div>
-        </div>
+        )}
 
         {/* Actions */}
+        <div className="mt-5 flex gap-2">
 
-        <div className="mb-6 mt-8 flex gap-3">
           <Link
             to={`/developers/${userId}`}
-            className="flex-1 rounded-2xl bg-cyan-400 py-3 text-center font-semibold text-black transition hover:bg-cyan-300"
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.025] px-4 py-3 text-sm font-semibold text-slate-200 transition hover:border-cyan-400/25 hover:bg-cyan-400/[0.06] hover:text-cyan-200"
           >
-            <span className="flex items-center justify-center gap-2">
-              <ExternalLink size={18} />
-              View Profile
-            </span>
+            View profile
+
+            <ExternalLink size={16} />
           </Link>
 
-          <div className="flex-1">
+          <div className="min-w-0 flex-1">
             <StatusButton
               status={status}
               sendRequest={sendRequest}
@@ -339,9 +482,22 @@ function DeveloperCard({
               actionLoading={actionLoading}
             />
           </div>
+
         </div>
+
+        {actionLoading && (
+          <div className="mt-3 flex items-center justify-center gap-2 text-[11px] text-slate-600">
+            <Loader2
+              size={12}
+              className="animate-spin"
+            />
+
+            Updating connection...
+          </div>
+        )}
+
       </div>
-    </div>
+    </article>
   );
 }
 

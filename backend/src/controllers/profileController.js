@@ -3,10 +3,79 @@ import mongoose from "mongoose";
 import Profile from "../models/Profile.js";
 import User from "../models/User.js";
 
-/**
- * CREATE OR UPDATE PROFILE
- */
-export const createOrUpdateProfile = async (req, res) => {
+/* ============================================================
+   HELPERS
+============================================================ */
+
+const escapeRegex = (value = "") =>
+  String(value).replace(
+    /[.*+?^${}()|[\]\\]/g,
+    "\\$&"
+  );
+
+const normalizeString = (value) =>
+  typeof value === "string"
+    ? value.trim()
+    : "";
+
+const getPagination = (req) => {
+  const pageValue = Number(req.query.page);
+  const limitValue = Number(req.query.limit);
+
+  const page = Number.isFinite(pageValue)
+    ? Math.max(Math.floor(pageValue), 1)
+    : 1;
+
+  const limit = Number.isFinite(limitValue)
+    ? Math.min(
+        Math.max(Math.floor(limitValue), 1),
+        50
+      )
+    : 12;
+
+  return {
+    page,
+    limit,
+    skip: (page - 1) * limit,
+  };
+};
+
+const publicUserFields =
+  "name profilePicture lastSeen isOnline";
+
+const profilePopulation = {
+  path: "user",
+  select: publicUserFields,
+};
+
+const buildFallbackProfile = (user) => ({
+  user,
+  username: "",
+  headline: "",
+  bio: user.bio || "",
+  skills: Array.isArray(user.skills)
+    ? user.skills
+    : [],
+  location: user.location || "",
+  availability: "",
+  experience: [],
+  projects: [],
+  socialLinks: {
+    github: user.github || "",
+    linkedin: user.linkedin || "",
+    portfolio: "",
+    twitter: "",
+  },
+});
+
+/* ============================================================
+   CREATE OR UPDATE PROFILE
+============================================================ */
+
+export const createOrUpdateProfile = async (
+  req,
+  res
+) => {
   try {
     const {
       username,
@@ -23,17 +92,25 @@ export const createOrUpdateProfile = async (req, res) => {
 
     const profileData = {
       user: req.user._id,
-      username: username?.trim() || "",
-      headline: headline?.trim() || "",
-      bio: bio?.trim() || "",
-      skills: Array.isArray(skills) ? skills : [],
-      location: location?.trim() || "",
-      availability: availability || "",
+      username: normalizeString(username),
+      headline: normalizeString(headline),
+      bio: normalizeString(bio),
+      skills: Array.isArray(skills)
+        ? skills
+            .map((skill) =>
+              normalizeString(skill)
+            )
+            .filter(Boolean)
+        : [],
+      location: normalizeString(location),
+      availability:
+        normalizeString(availability),
       socialLinks: {
-        github: github?.trim() || "",
-        linkedin: linkedin?.trim() || "",
-        portfolio: portfolio?.trim() || "",
-        twitter: twitter?.trim() || "",
+        github: normalizeString(github),
+        linkedin: normalizeString(linkedin),
+        portfolio:
+          normalizeString(portfolio),
+        twitter: normalizeString(twitter),
       },
     };
 
@@ -42,11 +119,14 @@ export const createOrUpdateProfile = async (req, res) => {
     });
 
     if (!profile) {
-      profile = await Profile.create(profileData);
+      profile = await Profile.create(
+        profileData
+      );
 
       return res.status(201).json({
         success: true,
-        message: "Profile created successfully",
+        message:
+          "Profile created successfully",
         profile,
       });
     }
@@ -66,29 +146,22 @@ export const createOrUpdateProfile = async (req, res) => {
       profile,
     });
   } catch (error) {
-    console.error("CREATE/UPDATE PROFILE ERROR:", error);
+    console.error(
+      "CREATE/UPDATE PROFILE ERROR:",
+      error
+    );
 
     return res.status(500).json({
       success: false,
       message: "Unable to save profile",
-      error:
-        process.env.NODE_ENV === "development"
-          ? error.message
-          : undefined,
     });
   }
 };
 
-/**
- * GET MY PROFILE
- *
- * Important:
- * If the user has not created a Profile document yet,
- * return a basic profile constructed from their User document.
- *
- * This prevents the /profile page from unnecessarily
- * showing "Profile not found".
- */
+/* ============================================================
+   GET MY PROFILE
+============================================================ */
+
 export const getMyProfile = async (req, res) => {
   try {
     const userId = req.user?._id;
@@ -96,13 +169,17 @@ export const getMyProfile = async (req, res) => {
     if (!userId) {
       return res.status(401).json({
         success: false,
-        message: "Authenticated user not found",
+        message:
+          "Authenticated user not found",
       });
     }
 
     const profile = await Profile.findOne({
       user: userId,
-    }).populate("user", "name email profilePicture lastSeen isOnline");
+    }).populate(
+      "user",
+      "name email profilePicture lastSeen isOnline"
+    );
 
     if (profile) {
       return res.status(200).json({
@@ -112,10 +189,6 @@ export const getMyProfile = async (req, res) => {
       });
     }
 
-    /**
-     * No Profile document yet.
-     * Build a safe fallback from the User document.
-     */
     const user = await User.findById(userId).select(
       "name email profilePicture bio skills github linkedin location experience lastSeen isOnline createdAt"
     );
@@ -127,54 +200,38 @@ export const getMyProfile = async (req, res) => {
       });
     }
 
-    const fallbackProfile = {
-      user,
-      username: "",
-      headline: "",
-      bio: user.bio || "",
-      skills: Array.isArray(user.skills) ? user.skills : [],
-      location: user.location || "",
-      availability: "",
-      experience: [],
-      projects: [],
-      socialLinks: {
-        github: user.github || "",
-        linkedin: user.linkedin || "",
-        portfolio: "",
-        twitter: "",
-      },
-    };
-
     return res.status(200).json({
       success: true,
-      profile: fallbackProfile,
+      profile: buildFallbackProfile(user),
       isBasicProfile: true,
     });
   } catch (error) {
-    console.error("GET MY PROFILE ERROR:", error);
+    console.error(
+      "GET MY PROFILE ERROR:",
+      error
+    );
 
     return res.status(500).json({
       success: false,
       message: "Unable to load profile",
-      error:
-        process.env.NODE_ENV === "development"
-          ? error.message
-          : undefined,
     });
   }
 };
 
-/**
- * GET PUBLIC PROFILE
- *
- * If a Profile document exists, return it.
- * Otherwise return a safe public profile based on User.
- */
-export const getUserProfile = async (req, res) => {
+/* ============================================================
+   GET PUBLIC PROFILE
+============================================================ */
+
+export const getUserProfile = async (
+  req,
+  res
+) => {
   try {
     const { userId } = req.params;
 
-    if (!mongoose.Types.ObjectId.isValid(userId)) {
+    if (
+      !mongoose.Types.ObjectId.isValid(userId)
+    ) {
       return res.status(400).json({
         success: false,
         message: "Invalid user ID",
@@ -207,251 +264,253 @@ export const getUserProfile = async (req, res) => {
       });
     }
 
-    const fallbackProfile = {
-      user,
-      username: "",
-      headline: "",
-      bio: user.bio || "",
-      skills: Array.isArray(user.skills) ? user.skills : [],
-      location: user.location || "",
-      availability: "",
-      experience: [],
-      projects: [],
-      socialLinks: {
-        github: user.github || "",
-        linkedin: user.linkedin || "",
-        portfolio: "",
-        twitter: "",
-      },
-    };
-
     return res.status(200).json({
       success: true,
-      profile: fallbackProfile,
+      profile: buildFallbackProfile(user),
       isBasicProfile: true,
     });
   } catch (error) {
-    console.error("GET PUBLIC PROFILE ERROR:", error);
+    console.error(
+      "GET PUBLIC PROFILE ERROR:",
+      error
+    );
 
     return res.status(500).json({
       success: false,
-      message: "Unable to load public profile",
-      error:
-        process.env.NODE_ENV === "development"
-          ? error.message
-          : undefined,
+      message:
+        "Unable to load public profile",
     });
   }
 };
 
-/**
- * GET ALL PROFILES
- */
-export const getAllProfiles = async (req, res) => {
+/* ============================================================
+   GET ALL PROFILES
+============================================================ */
+
+export const getAllProfiles = async (
+  req,
+  res
+) => {
   try {
-    const profiles = await Profile.find()
-      .populate(
-        "user",
-        "name email profilePicture lastSeen isOnline"
-      )
-      .sort({ createdAt: -1 });
+    const { page, limit, skip } =
+      getPagination(req);
 
-    return res.status(200).json({
-      success: true,
-      count: profiles.length,
-      profiles,
-    });
-  } catch (error) {
-    console.error("GET ALL PROFILES ERROR:", error);
+    const [totalProfiles, profiles] =
+      await Promise.all([
+        Profile.countDocuments(),
 
-    return res.status(500).json({
-      success: false,
-      message: "Unable to load profiles",
-      error:
-        process.env.NODE_ENV === "development"
-          ? error.message
-          : undefined,
-    });
-  }
-};
-
-/**
- * SEARCH PROFILES
- *
- * Supports:
- * - skill
- * - name
- * - location
- * - availability
- * - page
- * - limit
- * - sort=newest|oldest
- */
-export const searchProfilesBySkill = async (req, res) => {
-  try {
-    const {
-      skill,
-      name,
-      location,
-      availability,
-      sort,
-    } = req.query;
-
-    const page = Math.max(
-      Number(req.query.page) || 1,
-      1
-    );
-
-    const limit = Math.min(
-      Math.max(Number(req.query.limit) || 10, 1),
-      50
-    );
-
-    const filter = {};
-
-    /**
-     * General developer search
-     */
-    if (skill?.trim()) {
-      const searchText = skill.trim();
-
-      filter.$or = [
-        {
-          username: {
-            $regex: searchText,
-            $options: "i",
-          },
-        },
-        {
-          headline: {
-            $regex: searchText,
-            $options: "i",
-          },
-        },
-        {
-          bio: {
-            $regex: searchText,
-            $options: "i",
-          },
-        },
-        {
-          skills: {
-            $regex: searchText,
-            $options: "i",
-          },
-        },
-        {
-          location: {
-            $regex: searchText,
-            $options: "i",
-          },
-        },
-      ];
-    }
-
-    /**
-     * Explicit name search
-     */
-    if (name?.trim()) {
-      const nameRegex = {
-        $regex: name.trim(),
-        $options: "i",
-      };
-
-      const nameConditions = [
-        { username: nameRegex },
-        { headline: nameRegex },
-        { bio: nameRegex },
-      ];
-
-      if (filter.$or) {
-        filter.$and = [
-          {
-            $or: filter.$or,
-          },
-          {
-            $or: nameConditions,
-          },
-        ];
-
-        delete filter.$or;
-      } else {
-        filter.$or = nameConditions;
-      }
-    }
-
-    /**
-     * Location filter
-     */
-    if (location?.trim()) {
-      filter.location = {
-        $regex: location.trim(),
-        $options: "i",
-      };
-    }
-
-    /**
-     * Availability filter
-     */
-    if (availability?.trim()) {
-      filter.availability = availability.trim();
-    }
-
-    /**
-     * Sorting
-     */
-    const sortOption =
-      sort === "oldest"
-        ? { createdAt: 1 }
-        : { createdAt: -1 };
-
-    /**
-     * Count
-     */
-    const totalProfiles =
-      await Profile.countDocuments(filter);
-
-    /**
-     * Paginated results
-     */
-    const profiles = await Profile.find(filter)
-      .populate(
-        "user",
-        "name email profilePicture lastSeen isOnline"
-      )
-      .sort(sortOption)
-      .skip((page - 1) * limit)
-      .limit(limit);
+        Profile.find({})
+          .select(
+            "-__v"
+          )
+          .populate(profilePopulation)
+          .sort({
+            createdAt: -1,
+            _id: -1,
+          })
+          .skip(skip)
+          .limit(limit)
+          .lean(),
+      ]);
 
     return res.status(200).json({
       success: true,
       page,
       limit,
       totalProfiles,
-      totalPages: Math.ceil(
-        totalProfiles / limit
+      totalPages: Math.max(
+        Math.ceil(
+          totalProfiles / limit
+        ),
+        1
       ),
       count: profiles.length,
       profiles,
     });
   } catch (error) {
-    console.error("SEARCH PROFILES ERROR:", error);
+    console.error(
+      "GET ALL PROFILES ERROR:",
+      error
+    );
 
     return res.status(500).json({
       success: false,
-      message: "Unable to search profiles",
-      error:
-        process.env.NODE_ENV === "development"
-          ? error.message
-          : undefined,
+      message: "Unable to load profiles",
     });
   }
 };
 
-/**
- * ADD EXPERIENCE
- */
-export const addExperience = async (req, res) => {
+/* ============================================================
+   SEARCH PROFILES
+============================================================ */
+
+export const searchProfilesBySkill = async (
+  req,
+  res
+) => {
+  try {
+    const {
+      skill,
+      name,
+      query,
+      location,
+      availability,
+      sort,
+    } = req.query;
+
+    const { page, limit, skip } =
+      getPagination(req);
+
+    /*
+     * "skill" remains supported for backward
+     * compatibility with the existing Developers UI.
+     *
+     * "query" and "name" are also supported so
+     * future consumers can use a clearer API.
+     */
+
+    const searchText = normalizeString(
+      query || skill || name
+    );
+
+    const locationText =
+      normalizeString(location);
+
+    const availabilityText =
+      normalizeString(availability);
+
+    const filter = {};
+
+    /*
+     * Developer search across profile fields.
+     */
+
+    if (searchText) {
+      const safeSearch =
+        escapeRegex(searchText);
+
+      const regex = {
+        $regex: safeSearch,
+        $options: "i",
+      };
+
+      /*
+       * Name lives on User, while the other
+       * discovery fields live on Profile.
+       *
+       * Resolve matching user IDs first.
+       */
+
+      const matchingUsers =
+        await User.find({
+          name: regex,
+        })
+          .select("_id")
+          .limit(500)
+          .lean();
+
+      const matchingUserIds =
+        matchingUsers.map(
+          (user) => user._id
+        );
+
+      filter.$or = [
+        { username: regex },
+        { headline: regex },
+        { bio: regex },
+        { skills: regex },
+        { location: regex },
+      ];
+
+      if (matchingUserIds.length > 0) {
+        filter.$or.push({
+          user: {
+            $in: matchingUserIds,
+          },
+        });
+      }
+    }
+
+    if (locationText) {
+      filter.location = {
+        $regex: escapeRegex(
+          locationText
+        ),
+        $options: "i",
+      };
+    }
+
+    if (availabilityText) {
+      filter.availability = {
+        $regex: escapeRegex(
+          availabilityText
+        ),
+        $options: "i",
+      };
+    }
+
+    const sortOption =
+      sort === "oldest"
+        ? {
+            createdAt: 1,
+            _id: 1,
+          }
+        : {
+            createdAt: -1,
+            _id: -1,
+          };
+
+    const [
+      totalProfiles,
+      profiles,
+    ] = await Promise.all([
+      Profile.countDocuments(filter),
+
+      Profile.find(filter)
+        .select("-__v")
+        .populate(profilePopulation)
+        .sort(sortOption)
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      page,
+      limit,
+      totalProfiles,
+      totalPages: Math.max(
+        Math.ceil(
+          totalProfiles / limit
+        ),
+        1
+      ),
+      count: profiles.length,
+      profiles,
+    });
+  } catch (error) {
+    console.error(
+      "SEARCH PROFILES ERROR:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Unable to search profiles",
+    });
+  }
+};
+
+/* ============================================================
+   ADD EXPERIENCE
+============================================================ */
+
+export const addExperience = async (
+  req,
+  res
+) => {
   try {
     const {
       title,
@@ -463,7 +522,10 @@ export const addExperience = async (req, res) => {
       description,
     } = req.body;
 
-    if (!title?.trim() || !company?.trim()) {
+    if (
+      !title?.trim() ||
+      !company?.trim()
+    ) {
       return res.status(400).json({
         success: false,
         message:
@@ -486,54 +548,67 @@ export const addExperience = async (req, res) => {
     const newExperience = {
       title: title.trim(),
       company: company.trim(),
-      location: location?.trim() || "",
+      location:
+        location?.trim() || "",
       startDate,
       endDate,
       current: Boolean(current),
-      description: description?.trim() || "",
+      description:
+        description?.trim() || "",
     };
 
-    profile.experience.unshift(newExperience);
+    profile.experience.unshift(
+      newExperience
+    );
 
     await profile.save();
 
     return res.status(200).json({
       success: true,
-      message: "Experience added successfully",
+      message:
+        "Experience added successfully",
       profile,
     });
   } catch (error) {
-    console.error("ADD EXPERIENCE ERROR:", error);
+    console.error(
+      "ADD EXPERIENCE ERROR:",
+      error
+    );
 
     return res.status(500).json({
       success: false,
-      message: "Unable to add experience",
-      error:
-        process.env.NODE_ENV === "development"
-          ? error.message
-          : undefined,
+      message:
+        "Unable to add experience",
     });
   }
 };
 
-/**
- * DELETE EXPERIENCE
- */
-export const deleteExperience = async (req, res) => {
+/* ============================================================
+   DELETE EXPERIENCE
+============================================================ */
+
+export const deleteExperience = async (
+  req,
+  res
+) => {
   try {
     const { expId } = req.params;
 
     if (!expId) {
       return res.status(400).json({
         success: false,
-        message: "Experience ID is required",
+        message:
+          "Experience ID is required",
       });
     }
 
-    if (!mongoose.Types.ObjectId.isValid(expId)) {
+    if (
+      !mongoose.Types.ObjectId.isValid(expId)
+    ) {
       return res.status(400).json({
         success: false,
-        message: "Invalid experience ID",
+        message:
+          "Invalid experience ID",
       });
     }
 
@@ -554,15 +629,18 @@ export const deleteExperience = async (req, res) => {
     profile.experience =
       profile.experience.filter(
         (experience) =>
-          experience._id.toString() !== expId
+          experience._id.toString() !==
+          expId
       );
 
     if (
-      profile.experience.length === originalLength
+      profile.experience.length ===
+      originalLength
     ) {
       return res.status(404).json({
         success: false,
-        message: "Experience not found",
+        message:
+          "Experience not found",
       });
     }
 
@@ -570,19 +648,20 @@ export const deleteExperience = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "Experience deleted successfully",
+      message:
+        "Experience deleted successfully",
       profile,
     });
   } catch (error) {
-    console.error("DELETE EXPERIENCE ERROR:", error);
+    console.error(
+      "DELETE EXPERIENCE ERROR:",
+      error
+    );
 
     return res.status(500).json({
       success: false,
-      message: "Unable to delete experience",
-      error:
-        process.env.NODE_ENV === "development"
-          ? error.message
-          : undefined,
+      message:
+        "Unable to delete experience",
     });
   }
 };
