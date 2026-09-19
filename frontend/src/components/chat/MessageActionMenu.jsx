@@ -1,3 +1,10 @@
+import {
+  Edit3,
+  Heart,
+  Reply,
+  Trash2,
+} from "lucide-react";
+
 function ActionButton({
   icon,
   text,
@@ -6,24 +13,18 @@ function ActionButton({
 }) {
   return (
     <button
-      onClick={onClick}
-      className={`
-        w-full
-        flex
-        items-center
-        gap-3
-        px-4
-        py-3
-        text-sm
-        transition-all
-        ${
-          danger
-            ? "text-red-400 hover:bg-red-500 hover:text-white"
-            : "text-gray-200 hover:bg-cyan-500/10 hover:text-cyan-300"
-        }
-      `}
+      type="button"
+      onClick={(event) => {
+        event.stopPropagation();
+        onClick?.();
+      }}
+      className={`flex w-full items-center gap-3 px-4 py-3 text-sm transition-all ${
+        danger
+          ? "text-red-400 hover:bg-red-500 hover:text-white"
+          : "text-gray-200 hover:bg-cyan-500/10 hover:text-cyan-300"
+      }`}
     >
-      <span className="text-lg">
+      <span className="flex w-5 items-center justify-center">
         {icon}
       </span>
 
@@ -33,57 +34,76 @@ function ActionButton({
 }
 
 function MessageActionMenu({
+  message,
   isMine,
   onReply,
   onEdit,
   onDelete,
   onReact,
+  onClose,
 }) {
+  const canEdit =
+    isMine &&
+    !message?.deleted &&
+    Boolean(message?.text?.trim());
+
+  const canDelete =
+    isMine && !message?.deleted;
+
+  const canReact =
+    !message?.deleted;
+
+  const handleAction = (callback) => {
+    callback?.();
+    onClose?.();
+  };
+
   return (
     <div
-      className="
-        absolute
-        right-0
-        top-10
-        z-[999]
-        w-56
-        rounded-2xl
-        border
-        border-gray-700
-        bg-[#111827]
-        shadow-2xl
-        overflow-hidden
-      "
+      className="w-56 overflow-hidden rounded-2xl border border-gray-700 bg-[#111827] shadow-2xl"
+      role="menu"
     >
       <ActionButton
-        icon="↩"
+        icon={<Reply size={17} />}
         text="Reply"
-        onClick={onReply}
+        onClick={() =>
+          handleAction(onReply)
+        }
       />
 
-      <ActionButton
-        icon="😀"
-        text="React"
-        onClick={onReact}
-      />
+      {canReact && (
+        <ActionButton
+          icon={<Heart size={17} />}
+          text="React"
+          onClick={() =>
+            handleAction(onReact)
+          }
+        />
+      )}
 
-      {isMine && (
+      {canEdit && (
         <>
           <div className="mx-3 border-t border-gray-700" />
 
           <ActionButton
-            icon="✏"
+            icon={<Edit3 size={17} />}
             text="Edit"
-            onClick={onEdit}
-          />
-
-          <ActionButton
-            icon="🗑"
-            text="Delete"
-            danger
-            onClick={onDelete}
+            onClick={() =>
+              handleAction(onEdit)
+            }
           />
         </>
+      )}
+
+      {canDelete && (
+        <ActionButton
+          icon={<Trash2 size={17} />}
+          text="Delete"
+          danger
+          onClick={() =>
+            handleAction(onDelete)
+          }
+        />
       )}
     </div>
   );

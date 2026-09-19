@@ -1,4 +1,12 @@
-import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import {
+  Link,
+  useLocation,
+  useNavigate,
+  useParams,
+} from "react-router-dom";
+import { useEffect, useState } from "react";
+import axios from "axios";
+
 import {
   LayoutDashboard,
   Newspaper,
@@ -13,10 +21,28 @@ import {
   LogOut,
 } from "lucide-react";
 
+import { getSocket } from "../socket/socket";
+
+const API = "http://localhost:5000/api";
+
 function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { id } = useParams();
+
+  const [unreadMessages, setUnreadMessages] =
+    useState(0);
+
+  const token = localStorage.getItem("token");
+
+  const currentUser = JSON.parse(
+    localStorage.getItem("user") || "{}"
+  );
+
+  const currentUserId =
+    currentUser.id ||
+    currentUser._id ||
+    null;
 
   /*
    * Workspace is available whenever we are inside a project route:
@@ -24,9 +50,6 @@ function Sidebar() {
    * /projects/:id
    * /projects/:id/...
    * /workspace/:id
-   *
-   * Because Sidebar lives inside AppLayout, useParams() gives us the
-   * current route parameter when the current route contains :id.
    */
   const projectId =
     id ||
@@ -34,7 +57,8 @@ function Sidebar() {
       ? location.pathname.split("/")[2]
       : null);
 
-  const isWorkspaceRoute = location.pathname.startsWith("/workspace/");
+  const isWorkspaceRoute =
+    location.pathname.startsWith("/workspace/");
 
   const isActive = (path) => {
     if (path === "/dashboard") {
@@ -84,6 +108,159 @@ function Sidebar() {
 
     return location.pathname === path;
   };
+
+  /*
+   * ---------------------------------------------------------
+   * UNREAD MESSAGE COUNT
+   * ---------------------------------------------------------
+   */
+
+  const fetchUnreadMessages = async () => {
+    if (!token) {
+      setUnreadMessages(0);
+      return;
+    }
+
+    try {
+      const response = await axios.get(
+        `${API}/conversations`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const conversations =
+        response.data?.conversations || [];
+
+      const totalUnread = conversations.reduce(
+        (total, conversation) =>
+          total +
+          Number(conversation.unreadCount || 0),
+        0
+      );
+
+      setUnreadMessages(totalUnread);
+    } catch (error) {
+      console.error(
+        "FETCH GLOBAL UNREAD MESSAGE COUNT ERROR:",
+        error.response?.data ||
+          error.message
+      );
+    }
+  };
+
+  /*
+   * Initial unread count + refresh when the user
+   * navigates around the application.
+   */
+  useEffect(() => {
+    fetchUnreadMessages();
+  }, [token, location.pathname]);
+
+  /*
+   * Real-time message/read events.
+   */
+  useEffect(() => {
+    const socket = getSocket();
+
+    if (!socket) return;
+
+    const handleNewMessage = (message) => {
+      const senderId =
+        typeof message.sender === "string"
+          ? message.sender
+          : message.sender?._id;
+
+      /*
+       * Never count messages sent by ourselves.
+       */
+      if (
+        currentUserId &&
+        senderId &&
+        String(senderId) ===
+          String(currentUserId)
+      ) {
+        return;
+      }
+
+      /*
+       * The server sends newMessage only to the
+       * other participant, so this represents a
+       * genuinely incoming message.
+       */
+      setUnreadMessages((previous) =>
+        Math.min(previous + 1, 999)
+      );
+    };
+
+    const handleMessagesSeen = ({
+      conversationId,
+      userId,
+    }) => {
+      /*
+       * This event means that the current user
+       * has marked messages in a conversation
+       * as read.
+       *
+       * Re-fetching is intentional here:
+       * the backend is the source of truth and
+       * there may be multiple unread conversations.
+       */
+      if (
+        userId &&
+        currentUserId &&
+        String(userId) !==
+          String(currentUserId)
+      ) {
+        return;
+      }
+
+      fetchUnreadMessages();
+    };
+
+    /*
+     * Custom browser event emitted by ChatWindow
+     * immediately after the current conversation
+     * is successfully marked as read.
+     */
+    const handleLocalMessagesRead = () => {
+      fetchUnreadMessages();
+    };
+
+    socket.on(
+      "newMessage",
+      handleNewMessage
+    );
+
+    socket.on(
+      "messagesSeen",
+      handleMessagesSeen
+    );
+
+    window.addEventListener(
+      "devconnect:messages-read",
+      handleLocalMessagesRead
+    );
+
+    return () => {
+      socket.off(
+        "newMessage",
+        handleNewMessage
+      );
+
+      socket.off(
+        "messagesSeen",
+        handleMessagesSeen
+      );
+
+      window.removeEventListener(
+        "devconnect:messages-read",
+        handleLocalMessagesRead
+      );
+    };
+  }, [currentUserId, token]);
 
   const navItemsBeforeWorkspace = [
     {
@@ -139,12 +316,17 @@ function Sidebar() {
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+
     navigate("/login");
   };
 
   const renderNavItem = (item) => {
     const Icon = item.icon;
     const active = isActive(item.path);
+
+    const showUnreadBadge =
+      item.label === "Messages" &&
+      unreadMessages > 0;
 
     return (
       <Link
@@ -158,7 +340,7 @@ function Sidebar() {
       >
         <Icon
           size={19}
-          className={`transition-colors ${
+          className={`shrink-0 transition-colors ${
             active
               ? "text-cyan-400"
               : "text-gray-400 group-hover:text-cyan-300"
@@ -167,9 +349,18 @@ function Sidebar() {
 
         <span>{item.label}</span>
 
-        {item.label === "Connections" && active && (
-          <span className="ml-auto h-2 w-2 rounded-full bg-cyan-400" />
+        {showUnreadBadge && (
+          <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-cyan-400 px-1.5 text-[10px] font-black leading-none text-[#0B1220] shadow-lg shadow-cyan-400/20">
+            {unreadMessages > 99
+              ? "99+"
+              : unreadMessages}
+          </span>
         )}
+
+        {item.label === "Connections" &&
+          active && (
+            <span className="ml-auto h-2 w-2 rounded-full bg-cyan-400" />
+          )}
       </Link>
     );
   };
@@ -178,6 +369,7 @@ function Sidebar() {
     <aside className="fixed left-0 top-0 z-40 hidden h-screen w-[270px] border-r border-[#263243] bg-[#0B1220] lg:block">
       <div className="flex h-full flex-col">
         {/* Brand */}
+
         <div className="flex h-[92px] items-center border-b border-[#263243] px-6">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-cyan-400 text-xl font-black text-[#0B1220]">
@@ -197,10 +389,14 @@ function Sidebar() {
         </div>
 
         {/* Navigation */}
+
         <nav className="flex-1 overflow-y-auto px-4 py-6">
           <div className="space-y-2">
             {/* Dashboard / Feed / Projects */}
-            {navItemsBeforeWorkspace.map(renderNavItem)}
+
+            {navItemsBeforeWorkspace.map(
+              renderNavItem
+            )}
 
             {/* ===================================================== */}
             {/* WORKSPACE                                             */}
@@ -241,17 +437,22 @@ function Sidebar() {
             )}
 
             {/* Developers / Connections / Messages / etc. */}
-            {navItemsAfterWorkspace.map(renderNavItem)}
+
+            {navItemsAfterWorkspace.map(
+              renderNavItem
+            )}
           </div>
         </nav>
 
         {/* Logout */}
+
         <div className="border-t border-[#263243] p-4">
           <button
             onClick={handleLogout}
             className="flex w-full items-center gap-4 rounded-xl bg-red-500/10 px-4 py-3 text-sm font-medium text-red-300 transition-all duration-200 hover:bg-red-500/15 hover:text-red-200"
           >
             <LogOut size={19} />
+
             <span>Logout</span>
           </button>
         </div>

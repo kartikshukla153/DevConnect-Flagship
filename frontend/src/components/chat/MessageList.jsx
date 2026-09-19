@@ -7,9 +7,12 @@ function MessageList({
   setReplyingTo,
   search,
   onImageClick,
+  onEdit,
+  onDelete,
+  onReact,
 }) {
   return (
-    <div className="flex-1 overflow-y-auto p-4 space-y-3">
+    <div className="flex-1 space-y-3 overflow-y-auto p-4">
       {messages.map((message) => {
         const senderId =
           typeof message.sender === "string"
@@ -17,7 +20,8 @@ function MessageList({
             : message.sender?._id;
 
         const isMine =
-          senderId === currentUser.id;
+          String(senderId) ===
+          String(currentUser.id);
 
         return (
           <MessageBubble
@@ -27,6 +31,9 @@ function MessageList({
             onReply={setReplyingTo}
             search={search}
             onImageClick={onImageClick}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            onReact={onReact}
           />
         );
       })}
