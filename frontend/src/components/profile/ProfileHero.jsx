@@ -137,9 +137,10 @@ export default function ProfileHero({ profile }) {
 
   const projectCount = projects.length;
 
-  const connectionCount = Array.isArray(user.connections)
-    ? user.connections.length
-    : 0;
+ const connectionCount =
+  typeof profile?.connectionCount === "number"
+    ? profile.connectionCount
+    : null;
 
   const profileInitial = name.charAt(0).toUpperCase();
 
@@ -397,10 +398,10 @@ export default function ProfileHero({ profile }) {
           </div>
 
           <div className="px-3 md:px-5">
-            <Stat
-              label="Connections"
-              value={connectionCount}
-            />
+           <Stat
+  label="Connections"
+  value={connectionCount ?? "—"}
+/>
           </div>
 
           <div className="px-3 md:px-5">
