@@ -1,3 +1,4 @@
+
 import mongoose from "mongoose";
 
 import Profile from "../models/Profile.js";
@@ -8,15 +9,10 @@ import User from "../models/User.js";
 ============================================================ */
 
 const escapeRegex = (value = "") =>
-  String(value).replace(
-    /[.*+?^${}()|[\]\\]/g,
-    "\\$&"
-  );
+  String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const normalizeString = (value) =>
-  typeof value === "string"
-    ? value.trim()
-    : "";
+  typeof value === "string" ? value.trim() : "";
 
 const getPagination = (req) => {
   const pageValue = Number(req.query.page);
@@ -27,10 +23,7 @@ const getPagination = (req) => {
     : 1;
 
   const limit = Number.isFinite(limitValue)
-    ? Math.min(
-        Math.max(Math.floor(limitValue), 1),
-        50
-      )
+    ? Math.min(Math.max(Math.floor(limitValue), 1), 50)
     : 12;
 
   return {
@@ -53,11 +46,9 @@ const buildFallbackProfile = (user) => ({
   username: "",
   headline: "",
   bio: user.bio || "",
-  skills: Array.isArray(user.skills)
-    ? user.skills
-    : [],
+  skills: Array.isArray(user.skills) ? user.skills : [],
   location: user.location || "",
-  availability: "",
+  availability: "Open to Work",
   experience: [],
   projects: [],
   socialLinks: {
@@ -72,10 +63,7 @@ const buildFallbackProfile = (user) => ({
    CREATE OR UPDATE PROFILE
 ============================================================ */
 
-export const createOrUpdateProfile = async (
-  req,
-  res
-) => {
+export const createOrUpdateProfile = async (req, res) => {
   try {
     const {
       username,
@@ -90,26 +78,38 @@ export const createOrUpdateProfile = async (
       availability,
     } = req.body;
 
+    const submittedAvailability = normalizeString(availability);
+
+    const validAvailabilityValues = [
+      "Open to Work",
+      "Hiring",
+      "Freelancing",
+      "Not Available",
+    ];
+
+    if (
+      submittedAvailability &&
+      !validAvailabilityValues.includes(submittedAvailability)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid availability value",
+      });
+    }
+
     const profileData = {
       user: req.user._id,
       username: normalizeString(username),
       headline: normalizeString(headline),
       bio: normalizeString(bio),
       skills: Array.isArray(skills)
-        ? skills
-            .map((skill) =>
-              normalizeString(skill)
-            )
-            .filter(Boolean)
+        ? skills.map(normalizeString).filter(Boolean)
         : [],
       location: normalizeString(location),
-      availability:
-        normalizeString(availability),
       socialLinks: {
         github: normalizeString(github),
         linkedin: normalizeString(linkedin),
-        portfolio:
-          normalizeString(portfolio),
+        portfolio: normalizeString(portfolio),
         twitter: normalizeString(twitter),
       },
     };
@@ -119,17 +119,23 @@ export const createOrUpdateProfile = async (
     });
 
     if (!profile) {
-      profile = await Profile.create(
-        profileData
-      );
+      profile = await Profile.create({
+        ...profileData,
+        availability: submittedAvailability || "Open to Work",
+      });
 
       return res.status(201).json({
         success: true,
-        message:
-          "Profile created successfully",
+        message: "Profile created successfully",
         profile,
       });
     }
+
+    // Preserve the saved value when this form submits no availability.
+    profileData.availability =
+      submittedAvailability ||
+      profile.availability ||
+      "Open to Work";
 
     profile = await Profile.findOneAndUpdate(
       { user: req.user._id },
@@ -146,10 +152,24 @@ export const createOrUpdateProfile = async (
       profile,
     });
   } catch (error) {
-    console.error(
-      "CREATE/UPDATE PROFILE ERROR:",
-      error
-    );
+    console.error("CREATE/UPDATE PROFILE ERROR:", error);
+
+    if (
+      error.name === "ValidationError" ||
+      error.name === "CastError"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    if (error.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: "That username is already in use",
+      });
+    }
 
     return res.status(500).json({
       success: false,
@@ -169,8 +189,7 @@ export const getMyProfile = async (req, res) => {
     if (!userId) {
       return res.status(401).json({
         success: false,
-        message:
-          "Authenticated user not found",
+        message: "Authenticated user not found",
       });
     }
 
@@ -206,10 +225,7 @@ export const getMyProfile = async (req, res) => {
       isBasicProfile: true,
     });
   } catch (error) {
-    console.error(
-      "GET MY PROFILE ERROR:",
-      error
-    );
+    console.error("GET MY PROFILE ERROR:", error);
 
     return res.status(500).json({
       success: false,
@@ -222,16 +238,11 @@ export const getMyProfile = async (req, res) => {
    GET PUBLIC PROFILE
 ============================================================ */
 
-export const getUserProfile = async (
-  req,
-  res
-) => {
+export const getUserProfile = async (req, res) => {
   try {
     const { userId } = req.params;
 
-    if (
-      !mongoose.Types.ObjectId.isValid(userId)
-    ) {
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
       return res.status(400).json({
         success: false,
         message: "Invalid user ID",
@@ -270,15 +281,11 @@ export const getUserProfile = async (
       isBasicProfile: true,
     });
   } catch (error) {
-    console.error(
-      "GET PUBLIC PROFILE ERROR:",
-      error
-    );
+    console.error("GET PUBLIC PROFILE ERROR:", error);
 
     return res.status(500).json({
       success: false,
-      message:
-        "Unable to load public profile",
+      message: "Unable to load public profile",
     });
   }
 };
@@ -287,51 +294,33 @@ export const getUserProfile = async (
    GET ALL PROFILES
 ============================================================ */
 
-export const getAllProfiles = async (
-  req,
-  res
-) => {
+export const getAllProfiles = async (req, res) => {
   try {
-    const { page, limit, skip } =
-      getPagination(req);
+    const { page, limit, skip } = getPagination(req);
 
-    const [totalProfiles, profiles] =
-      await Promise.all([
-        Profile.countDocuments(),
+    const [totalProfiles, profiles] = await Promise.all([
+      Profile.countDocuments(),
 
-        Profile.find({})
-          .select(
-            "-__v"
-          )
-          .populate(profilePopulation)
-          .sort({
-            createdAt: -1,
-            _id: -1,
-          })
-          .skip(skip)
-          .limit(limit)
-          .lean(),
-      ]);
+      Profile.find({})
+        .select("-__v")
+        .populate(profilePopulation)
+        .sort({ createdAt: -1, _id: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+    ]);
 
     return res.status(200).json({
       success: true,
       page,
       limit,
       totalProfiles,
-      totalPages: Math.max(
-        Math.ceil(
-          totalProfiles / limit
-        ),
-        1
-      ),
+      totalPages: Math.max(Math.ceil(totalProfiles / limit), 1),
       count: profiles.length,
       profiles,
     });
   } catch (error) {
-    console.error(
-      "GET ALL PROFILES ERROR:",
-      error
-    );
+    console.error("GET ALL PROFILES ERROR:", error);
 
     return res.status(500).json({
       success: false,
@@ -344,10 +333,7 @@ export const getAllProfiles = async (
    SEARCH PROFILES
 ============================================================ */
 
-export const searchProfilesBySkill = async (
-  req,
-  res
-) => {
+export const searchProfilesBySkill = async (req, res) => {
   try {
     const {
       skill,
@@ -358,61 +344,32 @@ export const searchProfilesBySkill = async (
       sort,
     } = req.query;
 
-    const { page, limit, skip } =
-      getPagination(req);
+    const { page, limit, skip } = getPagination(req);
 
-    /*
-     * "skill" remains supported for backward
-     * compatibility with the existing Developers UI.
-     *
-     * "query" and "name" are also supported so
-     * future consumers can use a clearer API.
-     */
-
-    const searchText = normalizeString(
-      query || skill || name
-    );
-
-    const locationText =
-      normalizeString(location);
-
-    const availabilityText =
-      normalizeString(availability);
+    const searchText = normalizeString(query || skill || name);
+    const locationText = normalizeString(location);
+    const availabilityText = normalizeString(availability);
 
     const filter = {};
 
-    /*
-     * Developer search across profile fields.
-     */
-
     if (searchText) {
-      const safeSearch =
-        escapeRegex(searchText);
+      const safeSearch = escapeRegex(searchText);
 
       const regex = {
         $regex: safeSearch,
         $options: "i",
       };
 
-      /*
-       * Name lives on User, while the other
-       * discovery fields live on Profile.
-       *
-       * Resolve matching user IDs first.
-       */
+      const matchingUsers = await User.find({
+        name: regex,
+      })
+        .select("_id")
+        .limit(500)
+        .lean();
 
-      const matchingUsers =
-        await User.find({
-          name: regex,
-        })
-          .select("_id")
-          .limit(500)
-          .lean();
-
-      const matchingUserIds =
-        matchingUsers.map(
-          (user) => user._id
-        );
+      const matchingUserIds = matchingUsers.map(
+        (user) => user._id
+      );
 
       filter.$or = [
         { username: regex },
@@ -424,46 +381,31 @@ export const searchProfilesBySkill = async (
 
       if (matchingUserIds.length > 0) {
         filter.$or.push({
-          user: {
-            $in: matchingUserIds,
-          },
+          user: { $in: matchingUserIds },
         });
       }
     }
 
     if (locationText) {
       filter.location = {
-        $regex: escapeRegex(
-          locationText
-        ),
+        $regex: escapeRegex(locationText),
         $options: "i",
       };
     }
 
     if (availabilityText) {
       filter.availability = {
-        $regex: escapeRegex(
-          availabilityText
-        ),
+        $regex: escapeRegex(availabilityText),
         $options: "i",
       };
     }
 
     const sortOption =
       sort === "oldest"
-        ? {
-            createdAt: 1,
-            _id: 1,
-          }
-        : {
-            createdAt: -1,
-            _id: -1,
-          };
+        ? { createdAt: 1, _id: 1 }
+        : { createdAt: -1, _id: -1 };
 
-    const [
-      totalProfiles,
-      profiles,
-    ] = await Promise.all([
+    const [totalProfiles, profiles] = await Promise.all([
       Profile.countDocuments(filter),
 
       Profile.find(filter)
@@ -480,25 +422,16 @@ export const searchProfilesBySkill = async (
       page,
       limit,
       totalProfiles,
-      totalPages: Math.max(
-        Math.ceil(
-          totalProfiles / limit
-        ),
-        1
-      ),
+      totalPages: Math.max(Math.ceil(totalProfiles / limit), 1),
       count: profiles.length,
       profiles,
     });
   } catch (error) {
-    console.error(
-      "SEARCH PROFILES ERROR:",
-      error
-    );
+    console.error("SEARCH PROFILES ERROR:", error);
 
     return res.status(500).json({
       success: false,
-      message:
-        "Unable to search profiles",
+      message: "Unable to search profiles",
     });
   }
 };
@@ -507,10 +440,7 @@ export const searchProfilesBySkill = async (
    ADD EXPERIENCE
 ============================================================ */
 
-export const addExperience = async (
-  req,
-  res
-) => {
+export const addExperience = async (req, res) => {
   try {
     const {
       title,
@@ -522,14 +452,10 @@ export const addExperience = async (
       description,
     } = req.body;
 
-    if (
-      !title?.trim() ||
-      !company?.trim()
-    ) {
+    if (!title?.trim() || !company?.trim()) {
       return res.status(400).json({
         success: false,
-        message:
-          "Experience title and company are required",
+        message: "Experience title and company are required",
       });
     }
 
@@ -548,37 +474,27 @@ export const addExperience = async (
     const newExperience = {
       title: title.trim(),
       company: company.trim(),
-      location:
-        location?.trim() || "",
+      location: location?.trim() || "",
       startDate,
       endDate,
       current: Boolean(current),
-      description:
-        description?.trim() || "",
+      description: description?.trim() || "",
     };
 
-    profile.experience.unshift(
-      newExperience
-    );
-
+    profile.experience.unshift(newExperience);
     await profile.save();
 
     return res.status(200).json({
       success: true,
-      message:
-        "Experience added successfully",
+      message: "Experience added successfully",
       profile,
     });
   } catch (error) {
-    console.error(
-      "ADD EXPERIENCE ERROR:",
-      error
-    );
+    console.error("ADD EXPERIENCE ERROR:", error);
 
     return res.status(500).json({
       success: false,
-      message:
-        "Unable to add experience",
+      message: "Unable to add experience",
     });
   }
 };
@@ -587,28 +503,21 @@ export const addExperience = async (
    DELETE EXPERIENCE
 ============================================================ */
 
-export const deleteExperience = async (
-  req,
-  res
-) => {
+export const deleteExperience = async (req, res) => {
   try {
     const { expId } = req.params;
 
     if (!expId) {
       return res.status(400).json({
         success: false,
-        message:
-          "Experience ID is required",
+        message: "Experience ID is required",
       });
     }
 
-    if (
-      !mongoose.Types.ObjectId.isValid(expId)
-    ) {
+    if (!mongoose.Types.ObjectId.isValid(expId)) {
       return res.status(400).json({
         success: false,
-        message:
-          "Invalid experience ID",
+        message: "Invalid experience ID",
       });
     }
 
@@ -623,24 +532,16 @@ export const deleteExperience = async (
       });
     }
 
-    const originalLength =
-      profile.experience.length;
+    const originalLength = profile.experience.length;
 
-    profile.experience =
-      profile.experience.filter(
-        (experience) =>
-          experience._id.toString() !==
-          expId
-      );
+    profile.experience = profile.experience.filter(
+      (experience) => experience._id.toString() !== expId
+    );
 
-    if (
-      profile.experience.length ===
-      originalLength
-    ) {
+    if (profile.experience.length === originalLength) {
       return res.status(404).json({
         success: false,
-        message:
-          "Experience not found",
+        message: "Experience not found",
       });
     }
 
@@ -648,20 +549,15 @@ export const deleteExperience = async (
 
     return res.status(200).json({
       success: true,
-      message:
-        "Experience deleted successfully",
+      message: "Experience deleted successfully",
       profile,
     });
   } catch (error) {
-    console.error(
-      "DELETE EXPERIENCE ERROR:",
-      error
-    );
+    console.error("DELETE EXPERIENCE ERROR:", error);
 
     return res.status(500).json({
       success: false,
-      message:
-        "Unable to delete experience",
+      message: "Unable to delete experience",
     });
   }
 };

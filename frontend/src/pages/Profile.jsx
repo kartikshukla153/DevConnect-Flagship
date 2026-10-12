@@ -36,27 +36,6 @@ const API =
   "http://localhost:5000/api";
 
 /* =========================================================
-   REAL PROFILE DESTINATIONS
-========================================================= */
-
-/*
- * These are deliberately explicit.
- *
- * We do NOT trust an old/broken database value if it points
- * to an internal DevConnect page or a fake "coming soon"
- * portfolio.
- */
-
-const REAL_GITHUB =
-  "https://github.com/kartikshukla153";
-
-const REAL_LINKEDIN =
-  "https://www.linkedin.com/in/kartik-shukla-4562033b9/";
-
-const REAL_LIVE_WORK =
-  "https://furniture-website-4wmp.onrender.com/";
-
-/* =========================================================
    AUTH
 ========================================================= */
 
@@ -1037,70 +1016,57 @@ function Profile() {
 
   const socialItems = useMemo(
     () => {
-      const items = [
-        {
+      const items = [];
+
+      const githubUrl = normalizeExternalUrl(
+        profile?.socialLinks?.github
+      );
+
+      const linkedinUrl = normalizeExternalUrl(
+        profile?.socialLinks?.linkedin
+      );
+
+      if (githubUrl) {
+        items.push({
           label: "GitHub",
-          subtitle:
-            "Source code & engineering work",
-          href: REAL_GITHUB,
+          subtitle: "Source code & engineering work",
+          href: githubUrl,
           icon: Globe,
-        },
+        });
+      }
 
-        {
+      if (linkedinUrl) {
+        items.push({
           label: "LinkedIn",
-          subtitle:
-            "Professional profile",
-          href: REAL_LINKEDIN,
+          subtitle: "Professional profile",
+          href: linkedinUrl,
           icon: Users,
-        },
+        });
+      }
 
-        {
-          label: usablePortfolio
-            ? "Portfolio"
-            : "Live Work",
-          subtitle: usablePortfolio
-            ? "Personal engineering portfolio"
-            : "Deployed project",
-          href:
-            usablePortfolio
-              ? normalizeExternalUrl(
-                  storedPortfolio
-                )
-              : REAL_LIVE_WORK,
-          icon:
-            BriefcaseBusiness,
-        },
-      ];
+      if (usablePortfolio) {
+        items.push({
+          label: "Portfolio",
+          subtitle: "Personal engineering portfolio",
+          href: normalizeExternalUrl(storedPortfolio),
+          icon: BriefcaseBusiness,
+        });
+      }
 
-      /*
-       * Only expose Twitter/X if it is actually
-       * a real external URL.
-       */
       if (usableTwitter) {
         items.push({
           label: "Twitter / X",
-          subtitle:
-            "Developer presence",
-          href:
-            normalizeExternalUrl(
-              profile?.socialLinks
-                ?.twitter
-            ),
+          subtitle: "Developer presence",
+          href: normalizeExternalUrl(
+            profile?.socialLinks?.twitter
+          ),
           icon: Globe,
         });
-      } else {
-        /*
-         * A recruiter needs a working fourth action.
-         * Contact is much more valuable than a fake
-         * Twitter link.
-         */
+      } else if (userEmail) {
         items.push({
           label: "Contact",
-          subtitle:
-            "Email Kartik directly",
-          href: userEmail
-            ? `mailto:${userEmail}`
-            : "/create-profile",
+          subtitle: "Email developer",
+          href: `mailto:${userEmail}`,
           icon: Globe,
         });
       }

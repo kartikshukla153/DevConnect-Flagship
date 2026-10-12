@@ -45,8 +45,6 @@ export const dashboard = async (id) => {
 export const activity = async (id) => {
   const res = await axios.get(
     `${API}/activity/${id}`,
-    token()
-  );
-
+    token() );
   return res.data;
 };

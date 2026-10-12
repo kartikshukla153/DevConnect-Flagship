@@ -6,10 +6,7 @@ import {
 
 function dateKey(date) {
   const value = new Date(date);
-
-  if (Number.isNaN(value.getTime())) {
-    return null;
-  }
+  if (Number.isNaN(value.getTime())) return null;
 
   return [
     value.getFullYear(),
@@ -20,76 +17,45 @@ function dateKey(date) {
 
 function startOfDay(date) {
   const value = new Date(date);
-
-  value.setHours(
-    0,
-    0,
-    0,
-    0
-  );
-
+  value.setHours(0, 0, 0, 0);
   return value;
 }
 
 function buildDays(activities) {
   const counts = new Map();
 
-  activities.forEach((activity) => {
-    const timestamp =
-      activity?.createdAt ||
-      activity?.timestamp ||
-      activity?.date;
+  (Array.isArray(activities) ? activities : []).forEach(
+    (activity) => {
+      const timestamp =
+        activity?.createdAt ||
+        activity?.timestamp ||
+        activity?.date;
 
-    const key = dateKey(timestamp);
+      const key = dateKey(timestamp);
+      if (!key) return;
 
-    if (!key) {
-      return;
+      counts.set(key, (counts.get(key) || 0) + 1);
     }
-
-    counts.set(
-      key,
-      (counts.get(key) || 0) + 1
-    );
-  });
-
-  const today = startOfDay(
-    new Date()
   );
 
+  const today = startOfDay(new Date());
   const first = new Date(today);
 
-  first.setDate(
-    first.getDate() - 364
-  );
-
-  /*
-   * Align to Sunday so the grid contains
-   * complete week columns.
-   */
-  first.setDate(
-    first.getDate() - first.getDay()
-  );
+  first.setDate(first.getDate() - 364);
+  first.setDate(first.getDate() - first.getDay());
 
   const days = [];
 
-  for (
-    let index = 0;
-    index < 371;
-    index += 1
-  ) {
+  for (let index = 0; index < 371; index += 1) {
     const date = new Date(first);
-
-    date.setDate(
-      first.getDate() + index
-    );
+    date.setDate(first.getDate() + index);
 
     const key = dateKey(date);
 
     days.push({
       date,
       key,
-      count:
-        counts.get(key) || 0,
+      count: counts.get(key) || 0,
     });
   }
 
@@ -101,10 +67,7 @@ function level(count, peak) {
     return "border-white/[0.02] bg-[#182334]";
   }
 
-  const ratio =
-    peak > 0
-      ? count / peak
-      : 0;
+  const ratio = peak > 0 ? count / peak : 0;
 
   if (ratio >= 0.75) {
     return "border-cyan-300/20 bg-cyan-400";
@@ -122,42 +85,27 @@ function level(count, peak) {
 }
 
 function formatDate(date) {
-  return date.toLocaleDateString(
-    [],
-    {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    }
-  );
+  return date.toLocaleDateString([], {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
 function calculateStreak(days) {
   const activeDays = new Set(
     days
-      .filter(
-        (day) => day.count > 0
-      )
+      .filter((day) => day.count > 0)
       .map((day) => day.key)
   );
 
-  let cursor = startOfDay(
-    new Date()
-  );
-
+  let cursor = startOfDay(new Date());
   let streak = 0;
 
-  while (
-    activeDays.has(
-      dateKey(cursor)
-    )
-  ) {
+  while (activeDays.has(dateKey(cursor))) {
     streak += 1;
-
-    cursor.setDate(
-      cursor.getDate() - 1
-    );
+    cursor.setDate(cursor.getDate() - 1);
   }
 
   return streak;
@@ -166,42 +114,24 @@ function calculateStreak(days) {
 function getMonthLabels(weeks) {
   const labels = [];
 
-  weeks.forEach(
-    (week, index) => {
-      const first = week?.[0];
+  weeks.forEach((week, index) => {
+    const first = week?.[0];
+    if (!first) return;
 
-      if (!first) {
-        return;
-      }
+    const month = first.date.toLocaleDateString([], {
+      month: "short",
+    });
 
-      const month =
-        first.date.toLocaleDateString(
-          [],
-          {
-            month: "short",
-          }
-        );
+    const previous =
+      weeks[index - 1]?.[0]?.date?.toLocaleDateString(
+        [],
+        { month: "short" }
+      );
 
-      const previous =
-        weeks[
-          index - 1
-        ]?.[0]?.date?.toLocaleDateString(
-          [],
-          {
-            month: "short",
-          }
-        );
-
-      if (
-        month !== previous
-      ) {
-        labels.push({
-          index,
-          month,
-        });
-      }
+    if (month !== previous) {
+      labels.push({ index, month });
     }
-  );
+  });
 
   return labels;
 }
@@ -209,99 +139,66 @@ function getMonthLabels(weeks) {
 export default function ContributionHeatmap({
   activities = [],
 }) {
-  const days =
-    buildDays(activities);
+  const safeActivities = Array.isArray(activities)
+    ? activities
+    : [];
 
-  const today =
-    startOfDay(new Date());
+  const days = buildDays(safeActivities);
+  const today = startOfDay(new Date());
 
-  const visibleDays =
-    days.filter(
-      (day) =>
-        day.date <= today
-    );
+  const visibleDays = days.filter(
+    (day) => day.date <= today
+  );
 
-  const total =
-    visibleDays.reduce(
-      (sum, day) =>
-        sum + day.count,
-      0
-    );
+  const total = visibleDays.reduce(
+    (sum, day) => sum + day.count,
+    0
+  );
 
-  const activeDays =
-    visibleDays.filter(
-      (day) =>
-        day.count > 0
-    ).length;
+  const activeDays = visibleDays.filter(
+    (day) => day.count > 0
+  ).length;
 
-  const peak =
-    Math.max(
-      0,
-      ...visibleDays.map(
-        (day) => day.count
-      )
-    );
+  const peak = Math.max(
+    0,
+    ...visibleDays.map((day) => day.count)
+  );
 
-  const streak =
-    calculateStreak(
-      visibleDays
-    );
+  const streak = calculateStreak(visibleDays);
 
   const weeks = [];
 
-  for (
-    let index = 0;
-    index < days.length;
-    index += 7
-  ) {
-    weeks.push(
-      days.slice(
-        index,
-        index + 7
-      )
-    );
+  for (let index = 0; index < days.length; index += 7) {
+    weeks.push(days.slice(index, index + 7));
   }
 
-  const monthLabels =
-    getMonthLabels(
-      weeks
-    );
+  const monthLabels = getMonthLabels(weeks);
 
   return (
     <section className="overflow-hidden rounded-[28px] border border-white/[0.08] bg-[#111827] p-6 shadow-[0_16px_60px_rgba(0,0,0,0.14)] sm:p-8">
-      {/* HEADER */}
       <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
         <div>
           <div className="flex items-center gap-2.5">
-            <Activity
-              size={18}
-              className="text-cyan-400"
-            />
-
+            <Activity size={18} className="text-cyan-400" />
             <h2 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
               Engineering activity
             </h2>
           </div>
 
           <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">
-            A GitHub-style view of recorded DevConnect activity. Empty days stay empty — no synthetic data.
+            A GitHub-style view of recorded DevConnect activity.
+            Empty days stay empty — no synthetic data.
           </p>
         </div>
 
-        {/* METRICS */}
         <div className="flex flex-wrap gap-3">
           <div className="min-w-[105px] rounded-2xl border border-white/[0.06] bg-[#0B1220] px-4 py-3">
             <div className="flex items-center gap-2 text-slate-600">
-              <Flame
-                size={14}
-                className="text-orange-400"
-              />
-
+              <Flame size={14} className="text-orange-400" />
               <span className="text-[9px] font-bold uppercase tracking-[0.16em]">
                 Activity
               </span>
             </div>
-
             <p className="mt-2 text-xl font-black text-white">
               {total.toLocaleString()}
             </p>
@@ -309,16 +206,11 @@ export default function ContributionHeatmap({
 
           <div className="min-w-[105px] rounded-2xl border border-white/[0.06] bg-[#0B1220] px-4 py-3">
             <div className="flex items-center gap-2 text-slate-600">
-              <CalendarDays
-                size={14}
-                className="text-cyan-400"
-              />
-
+              <CalendarDays size={14} className="text-cyan-400" />
               <span className="text-[9px] font-bold uppercase tracking-[0.16em]">
                 Active days
               </span>
             </div>
-
             <p className="mt-2 text-xl font-black text-white">
               {activeDays.toLocaleString()}
             </p>
@@ -326,16 +218,11 @@ export default function ContributionHeatmap({
 
           <div className="min-w-[105px] rounded-2xl border border-white/[0.06] bg-[#0B1220] px-4 py-3">
             <div className="flex items-center gap-2 text-slate-600">
-              <Flame
-                size={14}
-                className="text-emerald-400"
-              />
-
+              <Flame size={14} className="text-emerald-400" />
               <span className="text-[9px] font-bold uppercase tracking-[0.16em]">
                 Streak
               </span>
             </div>
-
             <p className="mt-2 text-xl font-black text-white">
               {streak}
               <span className="ml-1 text-xs font-bold text-slate-600">
@@ -346,102 +233,87 @@ export default function ContributionHeatmap({
         </div>
       </div>
 
-      {/* HEATMAP */}
-      <div className="mt-8 overflow-x-auto pb-2">
-        <div className="min-w-[760px]">
-          {/* MONTH LABELS */}
-          <div className="relative mb-3 h-4 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-700">
-            {monthLabels.map(
-              ({
-                index,
-                month,
-              }) => (
+      {safeActivities.length === 0 ? (
+        <div className="mt-8 rounded-2xl border border-dashed border-white/10 bg-[#0B1220] p-8 text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03]">
+            <Activity size={20} className="text-slate-600" />
+          </div>
+
+          <h3 className="mt-4 text-sm font-semibold text-white">
+            No activity recorded yet
+          </h3>
+
+          <p className="mx-auto mt-2 max-w-lg text-xs leading-6 text-slate-600">
+            This surface intentionally stays empty until DevConnect has
+            real activity events to display. No contribution numbers are
+            fabricated.
+          </p>
+        </div>
+      ) : (
+        <div className="mt-8 overflow-x-auto pb-2">
+          <div className="min-w-[760px]">
+            <div className="relative mb-3 h-4 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-700">
+              {monthLabels.map(({ index, month }) => (
                 <span
                   key={`${month}-${index}`}
                   className="absolute"
                   style={{
                     left: `${(
                       (index /
-                        Math.max(
-                          weeks.length - 1,
-                          1
-                        )) *
+                        Math.max(weeks.length - 1, 1)) *
                       100
                     ).toFixed(2)}%`,
                   }}
                 >
                   {month}
                 </span>
-              )
-            )}
-          </div>
+              ))}
+            </div>
 
-          {/* GRID */}
-          <div
-            className="grid gap-[5px]"
-            style={{
-              gridTemplateColumns: `repeat(${weeks.length}, minmax(0, 1fr))`,
-            }}
-          >
-            {weeks.map(
-              (week, weekIndex) => (
+            <div
+              className="grid gap-[5px]"
+              style={{
+                gridTemplateColumns: `repeat(${weeks.length}, minmax(0, 1fr))`,
+              }}
+            >
+              {weeks.map((week, weekIndex) => (
                 <div
                   key={`week-${weekIndex}`}
                   className="grid grid-rows-7 gap-[5px]"
                 >
-                  {week.map(
-                    (day) => (
-                      <div
-                        key={day.key}
-                        title={`${formatDate(
-                          day.date
-                        )} — ${
-                          day.count
-                        } recorded ${
-                          day.count === 1
-                            ? "event"
-                            : "events"
-                        }`}
-                        aria-label={`${formatDate(
-                          day.date
-                        )}, ${
-                          day.count
-                        } recorded ${
-                          day.count === 1
-                            ? "event"
-                            : "events"
-                        }`}
-                        className={`aspect-square w-full min-w-[10px] rounded-[3px] border transition-all duration-150 hover:scale-125 hover:ring-1 hover:ring-cyan-300/60 ${level(
-                          day.count,
-                          peak
-                        )}`}
-                      />
-                    )
-                  )}
+                  {week.map((day) => (
+                    <div
+                      key={day.key}
+                      title={`${formatDate(day.date)} — ${day.count} recorded ${
+                        day.count === 1 ? "event" : "events"
+                      }`}
+                      aria-label={`${formatDate(day.date)}, ${day.count} recorded ${
+                        day.count === 1 ? "event" : "events"
+                      }`}
+                      className={`aspect-square w-full min-w-[10px] rounded-[3px] border transition-all duration-150 hover:scale-125 hover:ring-1 hover:ring-cyan-300/60 ${level(
+                        day.count,
+                        peak
+                      )}`}
+                    />
+                  ))}
                 </div>
-              )
-            )}
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* FOOTER */}
       <div className="mt-7 flex flex-col gap-4 border-t border-white/[0.07] pt-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs text-slate-600">
             {total.toLocaleString()} recorded{" "}
-            {total === 1
-              ? "activity"
-              : "activities"}{" "}
-            across the displayed period.
+            {total === 1 ? "activity" : "activities"} across the displayed
+            period.
           </p>
 
           {peak > 0 && (
             <p className="mt-1 text-[10px] text-slate-700">
-              Peak day: {peak}{" "}
-              {peak === 1
-                ? "event"
-                : "events"}.
+              Peak day: {peak} {peak === 1 ? "event" : "events"}.
             </p>
           )}
         </div>
