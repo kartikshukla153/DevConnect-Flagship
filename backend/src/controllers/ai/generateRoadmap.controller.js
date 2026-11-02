@@ -83,9 +83,21 @@ export const generateRoadmap = async (req, res) => {
       });
     }
 
-    return res.status(500).json({
+    const status = error.code === "AI_NOT_CONFIGURED" ? 503
+      : error.code === "AI_TIMEOUT" ? 504
+      : validationMessages.has(error.message) || error.message === "AI returned invalid JSON."
+        ? 502
+        : 500;
+
+    return res.status(status).json({
       success: false,
-      message: "Unable to generate the project roadmap right now.",
+      message: status === 503
+        ? "AI roadmap generation is not configured on the server."
+        : status === 504
+          ? "Roadmap generation timed out. Please try again."
+          : status === 502
+            ? "The AI returned an invalid roadmap. Please try again."
+            : "Unable to generate the project roadmap right now.",
     });
   }
 };

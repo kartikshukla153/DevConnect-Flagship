@@ -45,6 +45,14 @@ const projectSchema = new mongoose.Schema(
       default: false,
     },
 
+    aiDocumentation: {
+      readme: { type: String, default: "" },
+      architecture: { type: String, default: "" },
+      database: { type: String, default: "" },
+      api: { type: String, default: "" },
+      generatedAt: { type: Date, default: null },
+    },
+
     rolesNeeded: [
       {
         type: String,

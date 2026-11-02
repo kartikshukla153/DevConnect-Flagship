@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import axios from "axios";
+import api from "../api/axios";
 import {
   ArrowRight,
   BrainCircuit,
@@ -17,8 +17,6 @@ import {
 
 import Workspace from "../components/ai/Workspace";
 
-const API = "http://localhost:5000/api";
-
 const EXAMPLE_IDEAS = [
   "A real-time developer collaboration platform with chat, task management and AI assistance",
   "An AI-powered resume analyzer that gives recruiters actionable candidate insights",
@@ -31,32 +29,24 @@ function AIArchitect() {
   const [workspace, setWorkspace] = useState(null);
   const [error, setError] = useState("");
 
-  const token = localStorage.getItem("token");
 
   useEffect(() => {
     const loadWorkspace = async () => {
       const projectId = localStorage.getItem("aiProjectId");
 
-      if (!projectId || !token) return;
+      if (!projectId) return;
 
       try {
-        const res = await axios.get(
-          `${API}/ai/workspace/${projectId}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
+        const { data } = await api.get(`/ai/workspace/${projectId}`);
 
-        setWorkspace(res.data);
+        setWorkspace(data);
       } catch (err) {
         console.error("Failed to load AI workspace:", err);
       }
     };
 
     loadWorkspace();
-  }, [token]);
+  }, []);
 
   const generateProject = async () => {
     const trimmedIdea = idea.trim();
@@ -66,28 +56,13 @@ function AIArchitect() {
       return;
     }
 
-    if (!token) {
-      setError("Your session has expired. Please log in again.");
-      return;
-    }
-
     try {
       setError("");
       setLoading(true);
 
-      const roadmapRes = await axios.post(
-        `${API}/ai/generate-roadmap`,
-        {
-          idea: trimmedIdea,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const { data: roadmapData } = await api.post("/ai/generate-roadmap", { idea: trimmedIdea }, { timeout: 50_000 });
 
-      const projectId = roadmapRes.data?.project?._id;
+      const projectId = roadmapData?.project?._id;
 
       if (!projectId) {
         throw new Error(
@@ -97,16 +72,8 @@ function AIArchitect() {
 
       localStorage.setItem("aiProjectId", projectId);
 
-      const workspaceRes = await axios.get(
-        `${API}/ai/workspace/${projectId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      setWorkspace(workspaceRes.data);
+      const { data: workspaceData } = await api.get(`/ai/workspace/${projectId}`);
+      setWorkspace(workspaceData);
     } catch (err) {
       console.error("AI Architect error:", err);
 

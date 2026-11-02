@@ -1,4 +1,5 @@
 import express from "express";
+import { aiRateLimiter } from "../middleware/rateLimiter.js";
 
 import authMiddleware from "../middleware/authMiddleware.js";
 
@@ -11,6 +12,7 @@ const router = express.Router();
 router.post(
   "/generate-roadmap",
   authMiddleware,
+  aiRateLimiter,
   generateRoadmap
 );
 
@@ -27,6 +29,7 @@ router.post(
     next();
   },
   authMiddleware,
+  aiRateLimiter,
   chatWithProject
 );
 

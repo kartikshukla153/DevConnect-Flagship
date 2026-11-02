@@ -1,75 +1,93 @@
+import mongoose from "mongoose";
 import Project from "../../models/project.js";
 import Task from "../../models/Task.js";
 
 export const getWorkspace = async (req, res) => {
   try {
     const { projectId } = req.params;
+    const userId = req.user?._id;
 
-    const project = await Project.findById(projectId)
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required.",
+      });
+    }
+
+    if (!mongoose.isValidObjectId(projectId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid project ID.",
+      });
+    }
+
+    // Scope the lookup to the authenticated creator or a project member.
+    // This prevents users from reading another project's workspace by ID.
+    const project = await Project.findOne({
+      _id: projectId,
+      $or: [
+        { creator: userId },
+        { members: { $elemMatch: { user: userId } } },
+      ],
+    })
       .populate("creator", "name username profilePicture")
-      .populate("members.user", "name username profilePicture");
+      .populate("members.user", "name username profilePicture")
+      .lean();
 
     if (!project) {
       return res.status(404).json({
         success: false,
-        message: "Project not found",
+        message: "Project not found or access denied.",
       });
     }
 
-    const tasks = await Task.find({
-      project: projectId,
-    }).sort({ createdAt: 1 });
+    const tasks = await Task.find({ project: projectId })
+      .sort({ createdAt: 1, _id: 1 })
+      .lean();
 
-    const completed = tasks.filter(
-      (t) => t.status === "completed"
-    ).length;
+    const milestonesMap = new Map();
 
-    const milestonesMap = {};
-
-    tasks.forEach((task) => {
-      const milestone =
-        task.labels?.[0] || "General";
-
-      if (!milestonesMap[milestone]) {
-        milestonesMap[milestone] = [];
+    for (const task of tasks) {
+      const milestoneTitle = task.labels?.[0]?.trim() || "General";
+      if (!milestonesMap.has(milestoneTitle)) {
+        milestonesMap.set(milestoneTitle, []);
       }
+      milestonesMap.get(milestoneTitle).push(task);
+    }
 
-      milestonesMap[milestone].push(task);
-    });
+    const milestones = Array.from(milestonesMap, ([title, milestoneTasks]) => ({
+      title,
+      tasks: milestoneTasks,
+    }));
 
-    const milestones = Object.keys(milestonesMap).map(
-      (title) => ({
-        title,
-        tasks: milestonesMap[title],
-      })
-    );
+    const completed = tasks.filter((task) => task.status === "completed").length;
+    const inProgress = tasks.filter((task) => task.status === "in-progress").length;
+    const review = tasks.filter((task) => task.status === "review").length;
 
-    return res.json({
+    return res.status(200).json({
       success: true,
-
       project,
-
-      techStack: project.techStack,
-
+      techStack: Array.isArray(project.techStack) ? project.techStack : [],
       milestones,
-
       stats: {
         totalTasks: tasks.length,
         completed,
-        progress:
-          tasks.length === 0
-            ? 0
-            : Math.round(
-                (completed / tasks.length) * 100
-              ),
+        inProgress,
+        review,
+        todo: tasks.length - completed - inProgress - review,
+        progress: tasks.length ? Math.round((completed / tasks.length) * 100) : 0,
       },
     });
-  } catch (err) {
-    console.error(err);
+  } catch (error) {
+    console.error("GET AI WORKSPACE ERROR:", {
+      name: error.name,
+      message: error.message,
+      code: error.code,
+    });
 
     return res.status(500).json({
       success: false,
-      message: err.message,
+      message: "Unable to load this workspace right now.",
     });
   }
 };

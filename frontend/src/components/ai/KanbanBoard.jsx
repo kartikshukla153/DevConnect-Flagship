@@ -1,227 +1,143 @@
-
-import {
-  DragDropContext,
-  Droppable,
-  Draggable,
-} from "@hello-pangea/dnd";
-
-import axios from "axios";
+import { useState } from "react";
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import { AlertCircle, Check, Circle, Clock3, Eye, Loader2 } from "lucide-react";
+import api from "../../api/axios";
 import TaskCard from "./TaskCard";
 
-const API = "http://localhost:5000/api";
-
 const COLUMNS = [
-  {
-    title: "Todo",
-    status: "todo",
-    color: "#374151",
-  },
-  {
-    title: "In Progress",
-    status: "in-progress",
-    color: "#2563eb",
-  },
-  {
-    title: "Review",
-    status: "review",
-    color: "#ca8a04",
-  },
-  {
-    title: "Completed",
-    status: "completed",
-    color: "#16a34a",
-  },
+  { title: "To do", status: "todo", tone: "slate", icon: Circle },
+  { title: "In progress", status: "in-progress", tone: "blue", icon: Clock3 },
+  { title: "In review", status: "review", tone: "amber", icon: Eye },
+  { title: "Completed", status: "completed", tone: "emerald", icon: Check },
 ];
 
-export default function KanbanBoard({
-  tasks = [],
-  refreshWorkspace,
-}) {
-  const token = localStorage.getItem("token");
+const TONE_STYLES = {
+  slate: "border-slate-500/20 bg-slate-400/[0.07] text-slate-300",
+  blue: "border-blue-400/20 bg-blue-400/[0.08] text-blue-200",
+  amber: "border-amber-300/20 bg-amber-300/[0.08] text-amber-200",
+  emerald: "border-emerald-400/20 bg-emerald-400/[0.08] text-emerald-200",
+};
 
-  const onDragEnd = async (result) => {
-    const { destination, source, draggableId } = result;
+export default function KanbanBoard({ tasks = [], onTasksChange, refreshWorkspace }) {
+  const [savingTaskId, setSavingTaskId] = useState("");
+  const [error, setError] = useState("");
 
-    // Ignore drops outside a column or drops that change nothing.
-    if (!destination) return;
+  const onDragEnd = async ({ destination, source, draggableId }) => {
+    if (!destination || destination.droppableId === source.droppableId) return;
 
-    if (
-      destination.droppableId === source.droppableId &&
-      destination.index === source.index
-    ) {
-      return;
-    }
+    const taskId = String(draggableId);
+    const previousTasks = tasks;
+    const nextStatus = destination.droppableId;
+    const movedTask = tasks.find((task) => String(task._id) === taskId);
 
-    const newStatus = destination.droppableId;
+    if (!movedTask || savingTaskId) return;
+
+    const optimisticTasks = tasks.map((task) =>
+      String(task._id) === taskId ? { ...task, status: nextStatus } : task
+    );
+
+    setError("");
+    setSavingTaskId(taskId);
+    onTasksChange?.(optimisticTasks);
 
     try {
-      await axios.put(
-        `${API}/tasks/status/${draggableId}`,
-        { status: newStatus },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+      const { data } = await api.put(`/tasks/status/${taskId}`, { status: nextStatus });
+      if (data?.task) {
+        onTasksChange?.(
+          optimisticTasks.map((task) =>
+            String(task._id) === taskId ? data.task : task
+          )
+        );
+      }
+    } catch (requestError) {
+      onTasksChange?.(previousTasks);
+      setError(
+        requestError.response?.data?.message ||
+        "Task movement failed. The previous status has been restored."
       );
-
-      await refreshWorkspace();
-    } catch (error) {
-      console.error(
-        "Failed to update task status:",
-        error.response?.data || error.message
-      );
+      // Reconcile with the server in case the request reached it but the response was lost.
+      refreshWorkspace?.().catch(() => {});
+    } finally {
+      setSavingTaskId("");
     }
   };
 
   return (
-    <DragDropContext onDragEnd={onDragEnd}>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns:
-            "repeat(4, minmax(0, 1fr))",
-          gap: 16,
-          alignItems: "start",
-          width: "100%",
-        }}
-      >
-        {COLUMNS.map((column) => {
-          const columnTasks = tasks.filter(
-            (task) => task.status === column.status
-          );
+    <div>
+      {error && (
+        <div role="alert" className="mb-3 flex items-start gap-2 rounded-lg border border-rose-400/15 bg-rose-400/[0.06] px-3 py-2.5 text-xs text-rose-300">
+          <AlertCircle size={14} className="mt-0.5 shrink-0" />
+          {error}
+          <button type="button" onClick={() => setError("")} className="ml-auto text-rose-200 underline underline-offset-2">Dismiss</button>
+        </div>
+      )}
 
-          return (
-            <Droppable
-              droppableId={column.status}
-              key={column.status}
-            >
-              {(provided, snapshot) => (
-                <div
-                  style={{
-                    background: "#111827",
-                    border: `1px solid ${
-                      snapshot.isDraggingOver
-                        ? column.color
-                        : "#263244"
-                    }`,
-                    borderRadius: 14,
-                    padding: 12,
-                    minHeight: 550,
-                    minWidth: 0,
-                    display: "flex",
-                    flexDirection: "column",
-                    alignSelf: "start",
-                    transition: "border-color 150ms ease",
-                  }}
-                >
-                  {/* Column header */}
-                  <div
-                    style={{
-                      background: column.color,
-                      padding: "11px 10px",
-                      color: "#ffffff",
-                      borderRadius: 10,
-                      marginBottom: 14,
-                      textAlign: "center",
-                      fontWeight: 700,
-                      fontSize: 14,
-                      flexShrink: 0,
-                    }}
-                  >
-                    <div>{column.title}</div>
+      <DragDropContext onDragEnd={onDragEnd}>
+        <div className="overflow-x-auto pb-3">
+          <div className="grid min-w-[1000px] grid-cols-4 items-start gap-3 xl:gap-4">
+            {COLUMNS.map((column) => {
+              const columnTasks = tasks.filter((task) => task.status === column.status);
+              const Icon = column.icon;
 
-                    <div
-                      style={{
-                        fontSize: 12,
-                        fontWeight: 500,
-                        opacity: 0.85,
-                        marginTop: 4,
-                      }}
-                    >
-                      {columnTasks.length}{" "}
-                      {columnTasks.length === 1
-                        ? "task"
-                        : "tasks"}
-                    </div>
-                  </div>
+              return (
+                <Droppable droppableId={column.status} key={column.status}>
+                  {(provided, snapshot) => (
+                    <section className={`flex min-h-[430px] min-w-0 flex-col rounded-xl border bg-[#0E1725] p-2.5 transition-colors ${
+                      snapshot.isDraggingOver ? "border-cyan-300/35 bg-cyan-300/[0.025]" : "border-white/[0.07]"
+                    }`}>
+                      <header className={`mb-2.5 flex items-center justify-between rounded-lg border px-3 py-3 ${TONE_STYLES[column.tone]}`}>
+                        <div className="flex items-center gap-2">
+                          <Icon size={14} />
+                          <h3 className="text-xs font-semibold">{column.title}</h3>
+                        </div>
+                        <span className="rounded-md bg-black/15 px-2 py-1 text-[10px] font-semibold tabular-nums">{columnTasks.length}</span>
+                      </header>
 
-                  {/* Independently scrollable task area */}
-                  <div
-                    ref={provided.innerRef}
-                    {...provided.droppableProps}
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 2,
-                      minHeight: 400,
-                      maxHeight: 620,
-                      overflowY: "auto",
-                      overflowX: "hidden",
-                      padding: "2px 4px 8px 0",
-                      scrollbarWidth: "thin",
-                      scrollbarColor: "#475569 #111827",
-                      borderRadius: 8,
-                      background: snapshot.isDraggingOver
-                        ? "rgba(255,255,255,0.025)"
-                        : "transparent",
-                      transition: "background 150ms ease",
-                    }}
-                  >
-                    {columnTasks.map((task, index) => (
-                      <Draggable
-                        key={task._id}
-                        draggableId={String(task._id)}
-                        index={index}
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.droppableProps}
+                        className={`flex max-h-[620px] min-h-[340px] flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden rounded-lg p-1 transition-colors ${
+                          snapshot.isDraggingOver ? "bg-cyan-300/[0.035]" : ""
+                        }`}
                       >
-                        {(dragProvided, dragSnapshot) => (
-                          <div
-                            ref={dragProvided.innerRef}
-                            {...dragProvided.draggableProps}
-                            {...dragProvided.dragHandleProps}
-                            style={{
-                              ...dragProvided.draggableProps.style,
-                              opacity: dragSnapshot.isDragging
-                                ? 0.9
-                                : 1,
-                              cursor: dragSnapshot.isDragging
-                                ? "grabbing"
-                                : "grab",
-                            }}
-                          >
-                            <TaskCard
-                              task={task}
-                              refreshWorkspace={refreshWorkspace}
-                            />
+                        {columnTasks.map((task, index) => (
+                          <Draggable key={task._id} draggableId={String(task._id)} index={index} isDragDisabled={Boolean(savingTaskId)}>
+                            {(dragProvided, dragSnapshot) => (
+                              <div
+                                ref={dragProvided.innerRef}
+                                {...dragProvided.draggableProps}
+                                {...dragProvided.dragHandleProps}
+                                style={{
+                                  ...dragProvided.draggableProps.style,
+                                  opacity: dragSnapshot.isDragging ? 0.85 : 1,
+                                }}
+                                className={dragSnapshot.isDragging ? "rotate-[1deg]" : ""}
+                              >
+                                <TaskCard task={task} refreshWorkspace={refreshWorkspace} />
+                              </div>
+                            )}
+                          </Draggable>
+                        ))}
+                        {provided.placeholder}
+
+                        {columnTasks.length === 0 && (
+                          <div className="flex min-h-28 flex-1 items-center justify-center rounded-lg border border-dashed border-white/[0.09] px-3 text-center text-[11px] text-slate-600">
+                            Drop a task here
                           </div>
                         )}
-                      </Draggable>
-                    ))}
-
-                    {provided.placeholder}
-
-                    {columnTasks.length === 0 && (
-                      <div
-                        style={{
-                          border: "1px dashed #374151",
-                          borderRadius: 10,
-                          padding: "24px 10px",
-                          textAlign: "center",
-                          color: "#9ca3af",
-                          fontSize: 12,
-                          lineHeight: 1.6,
-                        }}
-                      >
-                        Drop tasks here
                       </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </Droppable>
-          );
-        })}
-      </div>
-    </DragDropContext>
+                      {savingTaskId && columnTasks.some((task) => String(task._id) === savingTaskId) && (
+                        <p className="mt-2 flex items-center gap-1.5 px-1 text-[10px] text-cyan-300"><Loader2 size={11} className="animate-spin" /> Saving change</p>
+                      )}
+                    </section>
+                  )}
+                </Droppable>
+              );
+            })}
+          </div>
+        </div>
+      </DragDropContext>
+      <p className="mt-1 text-[10px] text-slate-600">Drag a task between columns to update its workflow status. Changes are saved to the project.</p>
+    </div>
   );
 }
